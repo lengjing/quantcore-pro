@@ -10,7 +10,6 @@ import { Plus } from 'lucide-react';
 
 interface DashboardViewProps {
   marketMode: MarketMode;
-  setMarketMode: (mode: MarketMode) => void;
   activeSymbol: string;
   setActiveSymbol: (symbol: string) => void;
   timeframe: Timeframe;
@@ -28,21 +27,12 @@ interface DashboardViewProps {
   removeFromWatchlist: (symbol: string) => void;
   setShowAddSymbolModal: (show: boolean) => void;
   executeTrade: (side: 'BUY' | 'SELL', qty: string, limitPrice: string | null) => void;
-  stockAdapterId: string;
-  setStockAdapter: (id: string) => void;
 }
 
 const TIMEFRAMES: Timeframe[] = ['1M', '5M', '15M', '1H', '4H', '1D'];
 
-const STOCK_ADAPTERS = [
-  { value: 'eastmoney', label: 'EM' },
-  { value: 'tencent', label: 'TX' },
-  { value: 'sina', label: 'SINA' },
-];
-
 export const DashboardView = ({
   marketMode,
-  setMarketMode,
   activeSymbol,
   setActiveSymbol,
   timeframe,
@@ -60,8 +50,6 @@ export const DashboardView = ({
   removeFromWatchlist,
   setShowAddSymbolModal,
   executeTrade,
-  stockAdapterId,
-  setStockAdapter,
 }: DashboardViewProps) => {
   const { bids, asks } = depth;
 
@@ -73,28 +61,9 @@ export const DashboardView = ({
         title={t('PNL_WATCHLIST')}
         className="col-span-3 row-span-8"
         tools={
-          <div className="flex items-center gap-1 mr-1">
-            <ButtonGroup
-              options={[
-                { value: 'CRYPTO', label: 'CRYPTO', activeColor: 'text-blue-400' },
-                { value: 'CN_STOCK', label: 'STOCKS', activeColor: 'text-red-400' },
-              ]}
-              value={marketMode}
-              onChange={setMarketMode}
-            />
-            {marketMode === 'CN_STOCK' && (
-              <ButtonGroup
-                options={STOCK_ADAPTERS}
-                value={stockAdapterId}
-                onChange={setStockAdapter}
-                variant="ghost"
-                size="xs"
-              />
-            )}
-            <button className="text-gray-400 hover:text-white p-1 hover:bg-[#222] rounded-sm" onClick={() => setShowAddSymbolModal(true)}>
-              <Plus size={10} />
-            </button>
-          </div>
+          <button className="text-gray-400 hover:text-white p-1 hover:bg-[#222] rounded-sm mr-1" onClick={() => setShowAddSymbolModal(true)}>
+            <Plus size={10} />
+          </button>
         }
       >
         <div className="h-full overflow-y-auto custom-scrollbar">

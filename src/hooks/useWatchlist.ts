@@ -1,11 +1,24 @@
-import { useState } from 'react';
 import type { MarketMode, Notification } from '../types';
+import { usePersisted } from './usePersisted';
+import { DEFAULT_STOCK_SYMBOLS } from '../services/stock/stockDataService';
 
 type ShowNotification = (type: Notification['type'], message: string) => void;
 
+const DEFAULT_CRYPTO_WATCHLIST = ['BTC-USDT', 'ETH-USDT', 'BNB-USDT', 'SOL-USDT', 'XRP-USDT'];
+const DEFAULT_STOCK_WATCHLIST = [
+  'sh600519', 'sz000858', 'sh601318', 'sz300750', 'sh600036',
+  ...DEFAULT_STOCK_SYMBOLS.slice(0, 5),
+].filter((v, i, a) => a.indexOf(v) === i).slice(0, 10) as string[];
+
 export function useWatchlist(marketMode: MarketMode, showNotification: ShowNotification) {
-  const [cryptoWatchlist, setCryptoWatchlist] = useState<string[]>([]);
-  const [stockWatchlist, setStockWatchlist] = useState<string[]>([]);
+  const [cryptoWatchlist, setCryptoWatchlist] = usePersisted<string[]>(
+    'cryptoWatchlist',
+    DEFAULT_CRYPTO_WATCHLIST,
+  );
+  const [stockWatchlist, setStockWatchlist] = usePersisted<string[]>(
+    'stockWatchlist',
+    DEFAULT_STOCK_WATCHLIST,
+  );
 
   const currentWatchlist = marketMode === 'CRYPTO' ? cryptoWatchlist : stockWatchlist;
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   LayoutDashboard,
   LineChart,
@@ -8,9 +8,10 @@ import {
   Globe,
   Search,
   Terminal as TerminalIcon,
+  AlertTriangle,
 } from 'lucide-react';
 
-import { ViewState, Position } from './types';
+import { ViewState } from './types';
 import type { MarketMode } from './types';
 import { RESOURCES } from './constants/resources';
 import type { ResourceKey, LangKey } from './constants/resources';
@@ -28,6 +29,8 @@ import { useWatchlist } from './hooks/useWatchlist';
 import { useMarketData } from './hooks/useMarketData';
 import { useStrategyFiles } from './hooks/useStrategyFiles';
 import { useBacktest } from './hooks/useBacktest';
+import { usePersisted } from './hooks/usePersisted';
+import { useTradeEngine } from './hooks/useTradeEngine';
 
 // View Components
 import { DashboardView } from './views/DashboardView';
@@ -40,24 +43,26 @@ import { SettingsView } from './views/SettingsView';
 // Existing Components
 import StrategyEditor from './components/StrategyEditor';
 
+// Utilities
+import { clearAllState } from './utils/storage';
+
 import type { Timeframe } from './types';
 
 const App = () => {
-  // --- Core State ---
-  const [view, setView] = useState<ViewState>(ViewState.DASHBOARD);
-  const [marketMode, setMarketMode] = useState<MarketMode>('CRYPTO');
-  const [activeSymbol, setActiveSymbol] = useState('BTC-USDT');
-  const [timeframe, setTimeframe] = useState<Timeframe>('1H');
-  const [commandInput, setCommandInput] = useState('');
-  const [positions, setPositions] = useState<Position[]>([]);
-  const [lang, setLang] = useState<LangKey>('EN');
-  const [stockAdapterId, setStockAdapterId] = useState('eastmoney');
+  // --- Persisted Core State ---
+  const [view, setView] = usePersisted<ViewState>('view', ViewState.DASHBOARD);
+  const [marketMode, setMarketMode] = usePersisted<MarketMode>('marketMode', 'CRYPTO');
+  const [activeSymbol, setActiveSymbol] = usePersisted<string>('activeSymbol', 'BTC-USDT');
+  const [timeframe, setTimeframe] = usePersisted<Timeframe>('timeframe', '1H');
+  const [lang, setLang] = usePersisted<LangKey>('lang', 'EN');
+  const [stockAdapterId, setStockAdapterId] = usePersisted<string>('stockAdapterId', 'eastmoney');
 
-  // --- Modal state ---
-  const [isHelpOpen, setIsHelpOpen] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [showAddSymbolModal, setShowAddSymbolModal] = useState(false);
-  const [newSymbolInput, setNewSymbolInput] = useState('');
+  // --- Ephemeral UI State ---
+  const [commandInput, setCommandInput] = usePersisted<string>('commandInput', '');
+  const [isHelpOpen, setIsHelpOpen] = usePersisted<boolean>('isHelpOpen', false);
+  const [isMenuOpen, setIsMenuOpen] = usePersisted<boolean>('isMenuOpen', false);
+  const [showAddSymbolModal, setShowAddSymbolModal] = usePersisted<boolean>('showAddSymbolModal', false);
+  const [newSymbolInput, setNewSymbolInput] = usePersisted<string>('newSymbolInput', '');
 
   const commandInputRef = useRef<HTMLInputElement>(null);
 
@@ -67,6 +72,15 @@ const App = () => {
     useWatchlist(marketMode, showNotification);
   const { marketTickers, candles, liveCandle, depth, trades, isScannerLoading, updateMarketData } =
     useMarketData(activeSymbol, marketMode, timeframe, stockAdapterId);
+  const {
+    tradingMode,
+    setTradingMode,
+    positions,
+    executeTrade,
+    pendingOrder,
+    confirmLiveOrder,
+    cancelLiveOrder,
+  } = useTradeEngine(activeSymbol, marketTickers, candles, showNotification);
   const {
     strategyFiles,
     activeFileName,
@@ -101,24 +115,6 @@ const App = () => {
     }
   }, [marketMode]);
 
-  // Live P&L updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (marketTickers.length === 0) return;
-      setPositions((prev) =>
-        prev.map((pos) => {
-          const marketData = marketTickers.find((ticker) => ticker.symbol === pos.symbol);
-          const currentPrice = marketData?.price ?? pos.currentPrice;
-          const pnl = (currentPrice - pos.avgPrice) * pos.quantity;
-          const pnlPercent =
-            pos.avgPrice > 0 ? (pnl / (pos.avgPrice * pos.quantity)) * 100 : 0;
-          return { ...pos, currentPrice, pnl, pnlPercent };
-        }),
-      );
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [marketTickers]);
-
   // Global keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -137,45 +133,6 @@ const App = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  // --- Trade Execution ---
-  const executeTrade = (side: 'BUY' | 'SELL', quantity: string, limitPrice: string | null) => {
-    const qty = parseFloat(quantity);
-    if (isNaN(qty) || qty <= 0) { showNotification('ERROR', 'INVALID QTY'); return; }
-
-    let execPrice: number;
-    if (limitPrice) {
-      execPrice = parseFloat(limitPrice);
-    } else {
-      const ticker = marketTickers.find((t) => t.symbol === activeSymbol);
-      execPrice = ticker?.price ?? candles[candles.length - 1]?.close ?? 0;
-    }
-
-    setPositions((prev) => {
-      const existing = prev.find((p) => p.symbol === activeSymbol);
-      if (existing) {
-        if (side === 'BUY') {
-          const totalCost = existing.quantity * existing.avgPrice + qty * execPrice;
-          const newQty = existing.quantity + qty;
-          return prev.map((p) =>
-            p.symbol === activeSymbol ? { ...p, quantity: newQty, avgPrice: totalCost / newQty } : p,
-          );
-        } else {
-          const newQty = existing.quantity - qty;
-          if (newQty <= 0.0001) return prev.filter((p) => p.symbol !== activeSymbol);
-          return prev.map((p) =>
-            p.symbol === activeSymbol ? { ...p, quantity: newQty } : p,
-          );
-        }
-      }
-      return [...prev, {
-        symbol: activeSymbol, quantity: qty, avgPrice: execPrice,
-        currentPrice: execPrice, pnl: 0, pnlPercent: 0,
-      }];
-    });
-
-    showNotification('SUCCESS', `ORDER FILLED: ${side} ${activeSymbol}`);
-  };
 
   // --- Command Bar Handler ---
   const handleCommandSubmit = () => {
@@ -231,7 +188,11 @@ const App = () => {
           onHelp={() => setIsHelpOpen(true)}
           onMenu={() => setIsMenuOpen(true)}
           marketMode={marketMode}
+          setMarketMode={setMarketMode}
           stockAdapterId={stockAdapterId}
+          setStockAdapter={setStockAdapterId}
+          tradingMode={tradingMode}
+          setTradingMode={setTradingMode}
         />
 
         <div className="flex-1 p-1 bg-black overflow-hidden relative">
@@ -239,7 +200,6 @@ const App = () => {
           {view === ViewState.DASHBOARD && (
             <DashboardView
               marketMode={marketMode}
-              setMarketMode={setMarketMode}
               activeSymbol={activeSymbol}
               setActiveSymbol={setActiveSymbol}
               timeframe={timeframe}
@@ -257,8 +217,6 @@ const App = () => {
               removeFromWatchlist={removeFromWatchlist}
               setShowAddSymbolModal={setShowAddSymbolModal}
               executeTrade={executeTrade}
-              stockAdapterId={stockAdapterId}
-              setStockAdapter={setStockAdapterId}
             />
           )}
 
@@ -269,9 +227,6 @@ const App = () => {
               liveCandle={liveCandle}
               depth={depth}
               trades={trades}
-              marketMode={marketMode}
-              stockAdapterId={stockAdapterId}
-              setStockAdapter={setStockAdapterId}
             />
           )}
 
@@ -332,7 +287,12 @@ const App = () => {
             <span>LATENCY: {marketMode === 'CRYPTO' ? '42ms (WS)' : '210ms (HTTP)'}</span>
           </div>
           <div className="flex space-x-4">
-            <span className="text-terminal-accent">MODE: {marketMode}</span>
+            <span className={tradingMode === 'LIVE' ? 'text-red-400 font-bold animate-pulse' : 'text-gray-500'}>
+              {tradingMode === 'LIVE' ? '🔴 LIVE TRADING' : 'PAPER TRADING'}
+            </span>
+            <span className="text-terminal-accent">
+              {marketMode === 'CRYPTO' ? 'CRYPTO' : `A-SHARE / ${stockAdapterId.toUpperCase()}`}
+            </span>
             <span>BUILD: v3.0.0-PRO</span>
           </div>
         </div>
@@ -357,7 +317,7 @@ const App = () => {
       {/* Menu Modal */}
       <Modal isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} title="MENU" width="max-w-xs">
         <button className="w-full text-left p-2 hover:bg-[#333]" onClick={() => window.location.reload()}>RELOAD</button>
-        <button className="w-full text-left p-2 hover:bg-[#333]" onClick={() => { localStorage.clear(); window.location.reload(); }}>RESET</button>
+        <button className="w-full text-left p-2 hover:bg-[#333]" onClick={() => { clearAllState(); window.location.reload(); }}>RESET FACTORY</button>
       </Modal>
 
       {/* Add Symbol Modal */}
@@ -384,6 +344,63 @@ const App = () => {
           </button>
         </div>
       </Modal>
+
+      {/* Live Order Confirmation Modal */}
+      {pendingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-96 border-2 border-red-600 bg-[#0d0d0d] shadow-[0_0_30px_rgba(220,38,38,0.3)]">
+            <div className="flex items-center gap-2 px-4 py-3 bg-red-900/50 border-b border-red-700">
+              <AlertTriangle size={14} className="text-red-400" />
+              <span className="text-red-300 font-bold text-xs uppercase tracking-widest">
+                ⚠ LIVE ORDER — REAL FUNDS
+              </span>
+            </div>
+            <div className="p-5 font-mono text-sm space-y-3">
+              <div className="flex justify-between text-gray-400">
+                <span>ACTION</span>
+                <span className={pendingOrder.side === 'BUY' ? 'text-terminal-success font-bold' : 'text-terminal-error font-bold'}>
+                  {pendingOrder.side}
+                </span>
+              </div>
+              <div className="flex justify-between text-gray-400">
+                <span>SYMBOL</span>
+                <span className="text-white font-bold">{pendingOrder.symbol}</span>
+              </div>
+              <div className="flex justify-between text-gray-400">
+                <span>QUANTITY</span>
+                <span className="text-white">{pendingOrder.quantity}</span>
+              </div>
+              <div className="flex justify-between text-gray-400">
+                <span>PRICE</span>
+                <span className="text-white">{pendingOrder.price.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-gray-400 border-t border-[#333] pt-2">
+                <span>TOTAL</span>
+                <span className="text-terminal-accent font-bold">
+                  {(pendingOrder.quantity * pendingOrder.price).toFixed(2)}
+                </span>
+              </div>
+              <p className="text-red-400 text-[10px] pt-1">
+                This order will be executed against the live exchange and may result in real financial loss.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 border-t border-[#333]">
+              <button
+                onClick={cancelLiveOrder}
+                className="py-3 text-xs font-bold text-gray-300 hover:bg-[#222] border-r border-[#333] uppercase tracking-widest"
+              >
+                CANCEL
+              </button>
+              <button
+                onClick={confirmLiveOrder}
+                className="py-3 text-xs font-bold text-white bg-red-800 hover:bg-red-700 uppercase tracking-widest"
+              >
+                CONFIRM &amp; SEND
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

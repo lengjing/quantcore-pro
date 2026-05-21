@@ -6,6 +6,13 @@
 export type MarketMode = 'CRYPTO' | 'CN_STOCK';
 export type ScannerSort = 'CHANGE_DESC' | 'CHANGE_ASC' | 'VOL_DESC';
 
+/**
+ * PAPER — all orders are simulated; positions track P&L but no real funds are used.
+ * LIVE  — orders are intended to be routed to a real exchange.
+ *         A confirmation dialog is always shown before execution.
+ */
+export type TradingMode = 'PAPER' | 'LIVE';
+
 export interface Notification {
   id: string;
   type: 'SUCCESS' | 'ERROR' | 'INFO';

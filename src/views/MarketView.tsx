@@ -1,15 +1,8 @@
 import React from 'react';
-import type { CandleData, Trade, MarketMode } from '../types';
+import type { CandleData, Trade } from '../types';
 import { Panel } from '../components/ui/Panel';
-import { ButtonGroup } from '../components/ui/ButtonGroup';
 import MarketChart from '../components/MarketChart';
 import OrderBook from '../components/OrderBook';
-
-const STOCK_ADAPTERS = [
-  { value: 'eastmoney', label: 'EM' },
-  { value: 'tencent', label: 'TX' },
-  { value: 'sina', label: 'SINA' },
-];
 
 interface MarketViewProps {
   activeSymbol: string;
@@ -17,9 +10,6 @@ interface MarketViewProps {
   liveCandle: CandleData | null;
   depth: { bids: any[]; asks: any[] };
   trades: Trade[];
-  marketMode: MarketMode;
-  stockAdapterId: string;
-  setStockAdapter: (id: string) => void;
 }
 
 export const MarketView = ({
@@ -28,26 +18,9 @@ export const MarketView = ({
   liveCandle,
   depth,
   trades,
-  marketMode,
-  stockAdapterId,
-  setStockAdapter,
 }: MarketViewProps) => (
   <div className="grid grid-cols-12 grid-rows-12 gap-1 h-full">
-    <Panel
-      title={`${activeSymbol} - TECHNICAL ANALYSIS`}
-      className="col-span-9 row-span-12"
-      tools={
-        marketMode === 'CN_STOCK' ? (
-          <ButtonGroup
-            options={STOCK_ADAPTERS}
-            value={stockAdapterId}
-            onChange={setStockAdapter}
-            variant="ghost"
-            size="xs"
-          />
-        ) : undefined
-      }
-    >
+    <Panel title={`${activeSymbol} - TECHNICAL ANALYSIS`} className="col-span-9 row-span-12">
       <MarketChart data={candles} symbol={activeSymbol} liveCandle={liveCandle} />
     </Panel>
     <div className="col-span-3 row-span-12 flex flex-col gap-1">
