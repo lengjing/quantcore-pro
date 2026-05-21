@@ -103,7 +103,7 @@ class StockDataService {
    * @throws If the given id is not registered.
    */
   setActiveAdapter(id: string): void {
-    if (!this.adapters.has(id as any)) {
+    if (!this.adapters.has(id)) {
       throw new Error(`Unknown adapter id: "${id}". Available: ${[...this.adapters.keys()].join(', ')}`);
     }
     this.activeAdapterId = id;

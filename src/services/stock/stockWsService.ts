@@ -87,7 +87,7 @@ class StockWsService {
   }
 
   /** Remove a previously registered quote callback. */
-  offQuoteUpdate(callback: QuoteCallback): void {
+  removeQuoteCallback(callback: QuoteCallback): void {
     this.quoteCallbacks.delete(callback);
   }
 }

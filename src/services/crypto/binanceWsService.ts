@@ -32,7 +32,7 @@ export const connectWebSocket = (symbol: string, callbacks: BinanceWsCallbacks):
 
     ws.onmessage = (event) => {
       try {
-        const msg = JSON.parse(event.data as string);
+        const msg = JSON.parse(event.data);
         const { stream, data } = msg;
 
         if (stream?.endsWith('aggTrade') && callbacks.trade) {
