@@ -231,6 +231,7 @@ const App = () => {
           onHelp={() => setIsHelpOpen(true)}
           onMenu={() => setIsMenuOpen(true)}
           marketMode={marketMode}
+          stockAdapterId={stockAdapterId}
         />
 
         <div className="flex-1 p-1 bg-black overflow-hidden relative">

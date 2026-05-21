@@ -9,6 +9,7 @@ interface CommandBarProps {
   onHelp: () => void;
   onMenu: () => void;
   marketMode: MarketMode;
+  stockAdapterId?: string;
 }
 
 const Clock = () => {
@@ -21,7 +22,14 @@ const Clock = () => {
 };
 
 export const CommandBar = forwardRef<HTMLInputElement, CommandBarProps>(
-  ({ value, onChange, onSubmit, onHelp, onMenu, marketMode }, ref) => (
+  ({ value, onChange, onSubmit, onHelp, onMenu, marketMode, stockAdapterId = 'eastmoney' }, ref) => {
+    const ADAPTER_LABEL: Record<string, string> = {
+      eastmoney: 'EASTMONEY API',
+      tencent: 'TENCENT API',
+      sina: 'SINA API',
+    };
+    const feedLabel = marketMode === 'CRYPTO' ? 'BINANCE WSS' : (ADAPTER_LABEL[stockAdapterId] ?? 'A-SHARE API');
+    return (
     <div className="h-8 bg-terminal-bg border-b border-terminal-border flex items-center px-2 space-x-2 shrink-0">
       <div className="text-terminal-accent font-bold text-xs select-none">CMD:</div>
       <div className="flex-1 relative">
@@ -41,7 +49,7 @@ export const CommandBar = forwardRef<HTMLInputElement, CommandBarProps>(
       <div className="flex items-center space-x-3 text-[10px] font-mono text-gray-400">
         <span className="text-gray-600">FEED:</span>
         <span className={`font-bold ${marketMode === 'CRYPTO' ? 'text-blue-400' : 'text-red-400'}`}>
-          {marketMode === 'CRYPTO' ? 'BINANCE WSS' : 'TENCENT API'}
+          {feedLabel}
         </span>
       </div>
       <div className="h-4 w-px bg-terminal-border mx-2"></div>
@@ -55,7 +63,8 @@ export const CommandBar = forwardRef<HTMLInputElement, CommandBarProps>(
         <Clock />
       </div>
     </div>
-  ),
+    );
+  },
 );
 
 CommandBar.displayName = 'CommandBar';
