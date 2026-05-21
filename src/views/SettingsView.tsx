@@ -24,18 +24,19 @@ export const SettingsView = ({ lang, setLang, marketMode, setMarketMode }: Setti
             ]}
             value={lang}
             onChange={setLang}
-            variant="accent"
+            size="sm"
           />
         </div>
         <div className="flex justify-between items-center">
           <span className="text-gray-400 text-xs">DEFAULT MARKET</span>
           <ButtonGroup
             options={[
-              { value: 'CRYPTO', label: 'CRYPTO', activeClass: 'bg-blue-600' },
-              { value: 'CN_STOCK', label: 'A-SHARE', activeClass: 'bg-red-600' },
+              { value: 'CRYPTO', label: 'CRYPTO', activeColor: 'text-blue-400' },
+              { value: 'CN_STOCK', label: 'A-SHARE', activeColor: 'text-red-400' },
             ]}
             value={marketMode}
             onChange={setMarketMode}
+            size="sm"
           />
         </div>
         <div className="pt-4 border-t border-[#333]">

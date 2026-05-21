@@ -64,8 +64,8 @@ export const DashboardView = ({
           <div className="flex items-center gap-1 mr-1">
             <ButtonGroup
               options={[
-                { value: 'CRYPTO', label: 'CRYPTO', activeClass: 'bg-blue-600' },
-                { value: 'CN_STOCK', label: 'STOCKS', activeClass: 'bg-red-600' },
+                { value: 'CRYPTO', label: 'CRYPTO', activeColor: 'text-blue-400' },
+                { value: 'CN_STOCK', label: 'STOCKS', activeColor: 'text-red-400' },
               ]}
               value={marketMode}
               onChange={setMarketMode}
@@ -128,7 +128,7 @@ export const DashboardView = ({
             options={TIMEFRAMES.map((tf) => ({ value: tf, label: tf }))}
             value={timeframe}
             onChange={setTimeframe}
-            variant="accent"
+            variant="tab"
           />
         }
       >

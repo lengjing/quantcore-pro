@@ -86,6 +86,33 @@ export const fetchKlines = async (symbol: string, timeframe: string): Promise<Ca
 };
 
 /**
+ * Fetch recent public trades for Time & Sales.
+ * @param symbol Display-format symbol, e.g. "BTC-USDT".
+ * @param limit Number of trades to fetch (max 1000).
+ */
+export const fetchRecentTrades = async (symbol: string, limit = 30): Promise<import('../../types').Trade[]> => {
+  if (!isCryptoSymbol(symbol)) return [];
+
+  try {
+    const url = `${BASE_URL}/trades?symbol=${unformatSymbol(symbol)}&limit=${limit}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const data: any[] = await response.json();
+    return data.map((t) => ({
+      id: t.id,
+      price: parseFloat(t.price),
+      quantity: parseFloat(t.qty),
+      time: t.time,
+      isBuyerMaker: t.isBuyerMaker,
+    })).reverse(); // newest first
+  } catch (error) {
+    console.error(`Binance fetchRecentTrades error (${symbol}):`, error);
+    return [];
+  }
+};
+
+/**
  * Fetch L2 order-book depth (top 20 levels each side).
  * @param symbol Display-format symbol, e.g. "BTC-USDT".
  */

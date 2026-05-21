@@ -1,12 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { MarketTicker, CandleData, Trade, Timeframe } from '../types';
 import type { MarketMode } from '../types';
-import { fetchTopTickers, fetchKlines, fetchDepth } from '../services/crypto/binanceRestService';
+import { fetchTopTickers, fetchKlines, fetchDepth, fetchRecentTrades } from '../services/crypto/binanceRestService';
 import { fetchStockTickers, fetchStockKlines } from '../services/stock/stockDataService';
 import { connectWebSocket } from '../services/crypto/binanceWsService';
 import { enhanceCandlesWithIndicators } from '../utils/technicalIndicators';
 
 const POLL_INTERVAL_MS = 5000;
+const WS_RECONNECT_DELAY_MS = 3000;
+const WS_MAX_RECONNECTS = 10;
 
 export function useMarketData(
   activeSymbol: string,
@@ -20,6 +22,8 @@ export function useMarketData(
   const [isScannerLoading, setIsScannerLoading] = useState(false);
 
   const prevTickersRef = useRef<Record<string, number>>({});
+  const reconnectCountRef = useRef(0);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reset market-specific state on mode switch
   useEffect(() => {
@@ -29,7 +33,7 @@ export function useMarketData(
   }, [marketMode]);
 
   // Fetch tickers + update depth for stock mode
-  const updateMarketData = async () => {
+  const updateMarketData = useCallback(async () => {
     setIsScannerLoading(true);
     const tickers: MarketTicker[] =
       marketMode === 'CRYPTO' ? await fetchTopTickers() : await fetchStockTickers();
@@ -59,19 +63,43 @@ export function useMarketData(
       }
     }
     setIsScannerLoading(false);
-  };
+  }, [marketMode, activeSymbol]);
 
   // WebSocket + polling
   useEffect(() => {
     if (!activeSymbol) return;
 
-    let wsCleanup: (() => void) | null = null;
+    let wsCleanupFn: (() => void) | null = null;
+    let stopped = false;
+
+    const startWs = () => {
+      if (stopped || marketMode !== 'CRYPTO') return;
+
+      wsCleanupFn = connectWebSocket(activeSymbol, {
+        trade: (trade) => setTrades((prev) => [trade, ...prev].slice(0, 100)),
+        depth: (bids, asks) => {
+          setDepth({ bids: bids.slice(0, 20), asks: asks.slice(0, 20) });
+        },
+        onClose: () => {
+          if (stopped) return;
+          if (reconnectCountRef.current < WS_MAX_RECONNECTS) {
+            reconnectCountRef.current += 1;
+            reconnectTimerRef.current = setTimeout(startWs, WS_RECONNECT_DELAY_MS);
+          }
+        },
+      });
+    };
 
     if (marketMode === 'CRYPTO') {
-      wsCleanup = connectWebSocket(activeSymbol, {
-        trade: (trade) => setTrades((prev) => [trade, ...prev].slice(0, 50)),
-        depth: (bids, asks) => setDepth({ bids: bids.slice(0, 20), asks: asks.slice(0, 20) }),
+      reconnectCountRef.current = 0;
+      // Load initial depth + trades via REST so panels are never empty
+      fetchDepth(activeSymbol).then((d) => {
+        if (!stopped) setDepth(d);
       });
+      fetchRecentTrades(activeSymbol, 50).then((t) => {
+        if (!stopped) setTrades(t);
+      });
+      startWs();
     }
 
     const pollInterval = setInterval(async () => {
@@ -86,8 +114,13 @@ export function useMarketData(
     }, POLL_INTERVAL_MS);
 
     return () => {
-      wsCleanup?.();
+      stopped = true;
+      wsCleanupFn?.();
       clearInterval(pollInterval);
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
     };
   }, [activeSymbol, marketMode, timeframe]);
 

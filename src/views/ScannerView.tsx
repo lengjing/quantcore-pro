@@ -46,8 +46,8 @@ export const ScannerView = ({
         <div className="flex items-center gap-3 mr-2">
           <ButtonGroup
             options={[
-              { value: 'CRYPTO', label: 'CRYPTO', activeClass: 'bg-blue-600' },
-              { value: 'CN_STOCK', label: 'CN STOCKS', activeClass: 'bg-red-600' },
+              { value: 'CRYPTO', label: 'CRYPTO', activeColor: 'text-blue-400' },
+              { value: 'CN_STOCK', label: 'CN STOCKS', activeColor: 'text-red-400' },
             ]}
             value={marketMode}
             onChange={setMarketMode}
@@ -62,6 +62,7 @@ export const ScannerView = ({
             ]}
             value={scannerSort}
             onChange={setScannerSort}
+            variant="ghost"
             size="xs"
           />
         </div>

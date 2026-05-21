@@ -7,6 +7,8 @@ export interface BinanceWsCallbacks {
   trade?: (trade: Trade) => void;
   /** Called on every L2 order-book snapshot update (depth20). */
   depth?: (bids: { price: number; size: number }[], asks: { price: number; size: number }[]) => void;
+  /** Called when the WebSocket closes (for reconnect logic). */
+  onClose?: () => void;
 }
 
 let ws: WebSocket | null = null;
@@ -26,6 +28,8 @@ export const connectWebSocket = (symbol: string, callbacks: BinanceWsCallbacks):
 
   const cleanSymbol = symbol.replace('-', '').toLowerCase();
   const streams = [`${cleanSymbol}@aggTrade`, `${cleanSymbol}@depth20@100ms`].join('/');
+
+  let closed = false;
 
   try {
     ws = new WebSocket(`${WS_BASE}/${streams}`);
@@ -57,14 +61,22 @@ export const connectWebSocket = (symbol: string, callbacks: BinanceWsCallbacks):
     ws.onerror = (err) => {
       console.error('Binance WS connection error:', err);
     };
+
+    ws.onclose = () => {
+      if (!closed) {
+        callbacks.onClose?.();
+      }
+    };
   } catch (err) {
     console.error('Failed to initialise Binance WebSocket:', err);
   }
 
   return () => {
+    closed = true;
     if (ws) {
       ws.close();
       ws = null;
     }
   };
 };
+
