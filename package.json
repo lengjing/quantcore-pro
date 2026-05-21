@@ -4,12 +4,17 @@
   "version": "0.0.0",
   "main": "dist-electron/main.js",
   "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "electron:dev": "concurrently \"cross-env BROWSER=none npm run dev\" \"wait-on http://localhost:5173 && npx tsc -p electron/tsconfig.json && electron .\"",
-    "electron:build": "npx tsc -p electron/tsconfig.json && vite build && electron-builder",
+    "electron:dev": "concurrently \"cross-env BROWSER=none pnpm run dev\" \"wait-on http://localhost:5173 && pnpm exec tsc -p electron/tsconfig.json && electron .\"",
+    "electron:build": "pnpm exec tsc -p electron/tsconfig.json && vite build && electron-builder",
     "compile:python": "pyinstaller --onefile --distpath python_dist python/main.py"
   },
   "build": {
@@ -31,24 +36,26 @@
     ]
   },
   "dependencies": {
-    "@google/genai": "^1.30.0",
-    "@monaco-editor/react": "4.6.0",
-    "lucide-react": "^0.555.0",
+    "@google/genai": "^2.5.0",
+    "@monaco-editor/react": "^4.7.0",
+    "lucide-react": "^1.16.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-is": "^19.2.0",
-    "recharts": "^3.5.1",
-    "socket.io-client": "^4.8.1"
+    "recharts": "^3.8.1",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
-    "electron": "^39.2.4",
-    "electron-builder": "^26.0.12",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0",
-    "wait-on": "^9.0.3"
+    "electron": "^42.2.0",
+    "electron-builder": "^26.8.1",
+    "typescript": "~6.0.3",
+    "vite": "^8.0.13",
+    "wait-on": "^9.0.10"
   }
 }

@@ -10,7 +10,7 @@
  *   stockDataService.getAdapters();
  *
  *   // Switch the active adapter (e.g. from Settings UI)
- *   stockDataService.setActiveAdapter('eastmoney');
+ *   stockDataService.setActiveAdapter('tencent');
  *
  *   // Use the standard API (same signature as before the refactor)
  *   const tickers = await fetchStockTickers();
@@ -21,7 +21,6 @@ import type { IStockDataAdapter, AdapterMeta } from './IStockDataAdapter';
 import type { CandleData, MarketTicker } from '../../types';
 import type { DailyPeriod, MinutePeriod } from './types';
 
-import { PythonBackendAdapter } from './adapters/PythonBackendAdapter';
 import { TencentAdapter } from './adapters/TencentAdapter';
 import { SinaAdapter } from './adapters/SinaAdapter';
 import { EastMoneyAdapter } from './adapters/EastMoneyAdapter';
@@ -64,14 +63,13 @@ class StockDataService {
 
   constructor() {
     this.adapters = new Map<string, IStockDataAdapter>();
-    this.adapters.set('python-backend', new PythonBackendAdapter());
     this.adapters.set('tencent', new TencentAdapter());
     this.adapters.set('sina', new SinaAdapter());
     this.adapters.set('eastmoney', new EastMoneyAdapter());
   }
 
-  /** ID of the currently active adapter. Defaults to PythonBackend for backward compatibility. */
-  private activeAdapterId: string = 'python-backend';
+  /** ID of the currently active adapter. Defaults to EastMoney (browser-compatible, supports adjustment). */
+  private activeAdapterId: string = 'eastmoney';
 
   // -- Adapter management ---------------------------------------------------
 
@@ -99,7 +97,7 @@ class StockDataService {
 
   /**
    * Switch the active data adapter.
-   * @param id One of: 'python-backend', 'tencent', 'sina', 'eastmoney'.
+   * @param id One of: 'tencent', 'sina', 'eastmoney'.
    * @throws If the given id is not registered.
    */
   setActiveAdapter(id: string): void {

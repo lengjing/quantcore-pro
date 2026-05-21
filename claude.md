@@ -9,7 +9,7 @@ This file is the initial index for Claude Code (claude.ai/code) to understand th
 QuantCore Pro is a **professional quantitative trading terminal** packaged as an Electron desktop app. It provides:
 
 - Real-time cryptocurrency market data (Binance)
-- Real-time A-share (Chinese stock market) data (Python/akshare backend)
+- Real-time A-share (Chinese stock market) data (browser-compatible adapters: 腾讯财经, 东方财富, 新浪财经)
 - AI-powered strategy generation and news feed (Google Gemini)
 - Interactive charts, order book, time & sales
 - Monaco-based code IDE for strategy development
@@ -56,19 +56,18 @@ QuantCore Pro is a **professional quantitative trading terminal** packaged as an
 │   │       ├── types.ts             ← StockSnapshot, StockKline, MinutePeriod, DailyPeriod
 │   │       ├── IStockDataAdapter.ts ← Adapter interface + AdapterMeta
 │   │       ├── adapters/
-│   │       │   ├── PythonBackendAdapter.ts ← akshare via local Flask server (FREE, 推荐)
 │   │       │   ├── TencentAdapter.ts       ← 腾讯财经 (FREE, browser-compatible)
 │   │       │   ├── SinaAdapter.ts          ← 新浪财经 (FREE, Electron/proxy required)
-│   │       │   └── EastMoneyAdapter.ts     ← 东方财富 (FREE, browser-compatible)
+│   │       │   └── EastMoneyAdapter.ts     ← 东方财富 (FREE, browser-compatible, default)
 │   │       ├── stockDataService.ts  ← Adapter registry + public API (fetchStockTickers, fetchStockKlines)
 │   │       └── stockWsService.ts    ← Socket.IO client for Python backend real-time quotes
 │   │
 │   └── utils/
 │       └── technicalIndicators.ts   ← calculateSMA, enhanceCandlesWithIndicators (MA7/25/99)
 │
-└── python/                 ← Python backend (Flask + akshare + Socket.IO)
-    ├── main.py             ← Flask app; REST endpoints + Socket.IO events; runs on port 5000
-    └── requirements.txt    ← akshare, flask, flask-cors, flask-socketio, eventlet, pyinstaller
+└── python/                 ← Python backend (Flask + Socket.IO, health-check + WS infra)
+    ├── main.py             ← Flask app; /health endpoint + Socket.IO events; runs on port 5000
+    └── requirements.txt    ← flask, flask-cors, flask-socketio, eventlet, pyinstaller
 ```
 
 ---
@@ -101,16 +100,16 @@ QuantCore Pro is a **professional quantitative trading terminal** packaged as an
 
 ```bash
 # Web frontend only (fastest)
-npm run dev                     # Vite dev server on :5173
+pnpm dev                        # Vite dev server on :5173
 
 # Electron full app
-npm run electron:dev            # Starts Vite + compiles electron/ + launches Electron
+pnpm electron:dev               # Starts Vite + compiles electron/ + launches Electron
 
 # Build
-npm run electron:build          # Compile electron/ + vite build + electron-builder → release/
-npm run compile:python          # PyInstaller → python_dist/main
+pnpm electron:build             # Compile electron/ + vite build + electron-builder → release/
+pnpm compile:python             # PyInstaller → python_dist/main
 
-# Python backend (separate terminal)
+# Python backend (separate terminal — optional, only needed for Socket.IO infra)
 cd python && python main.py     # Flask server on :5000
 ```
 
@@ -118,14 +117,13 @@ cd python && python main.py     # Flask server on :5000
 
 ## A-Share Data Adapters
 
-Four adapters are registered in `src/services/stock/stockDataService.ts`. Switch at runtime via `stockDataService.setActiveAdapter(id)`.
+Three adapters are registered in `src/services/stock/stockDataService.ts`. Switch at runtime via `stockDataService.setActiveAdapter(id)`.
 
 | ID | Name | 费用 | Browser | Notes |
 |----|------|------|---------|-------|
-| `python-backend` | Python / akshare | 免费 | ✅ | **Default.** Requires local Python server. Best data quality + qfq/hfq adjustment. |
+| `eastmoney` | 东方财富 | 免费 | ✅ | **Default.** Supports qfq/hfq. Comprehensive intraday + daily data. |
 | `tencent` | 腾讯财经 | 免费 | ✅ | Reliable. CORS-permissive. No price adjustment for historical klines. |
 | `sina` | 新浪财经 | 免费 | ⚠️ Electron/proxy | Real-time endpoint lacks CORS headers. Historical klines browser-accessible. |
-| `eastmoney` | 东方财富 | 免费 | ✅ | Supports qfq/hfq. Comprehensive intraday + daily data. |
 
 ---
 
@@ -145,7 +143,7 @@ Place in `.env.local` (gitignored). Vite injects it as `process.env.API_KEY` and
 Crypto:   Binance REST API ──────────────────────────────► App.tsx (tickers, klines, depth)
           Binance WebSocket ──────────────────────────────► App.tsx (live trades, depth updates)
 
-A-Share:  Active Adapter (Python/Tencent/Sina/EastMoney)
+A-Share:  Active Adapter (EastMoney/Tencent/Sina — browser-direct)
             └─ stockDataService.fetchStockTickers() ──────► App.tsx (watchlist, scanner)
             └─ stockDataService.fetchStockKlines()  ──────► App.tsx (chart)
           Python Socket.IO ────────────────────────────────► stockWsService → (available for real-time)
