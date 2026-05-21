@@ -222,11 +222,11 @@ const App = () => {
 
           {view === ViewState.MARKET && (
             <MarketView
-              activeSymbol={activeSymbol}
-              candles={candles}
-              liveCandle={liveCandle}
-              depth={depth}
-              trades={trades}
+              marketTickers={marketTickers}
+              marketMode={marketMode}
+              setActiveSymbol={setActiveSymbol}
+              setView={setView}
+              onRefresh={updateMarketData}
             />
           )}
 
