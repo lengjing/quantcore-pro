@@ -2,6 +2,7 @@ import React from 'react';
 import type { MarketMode, MarketTicker, CandleData, Trade, Position, Timeframe } from '../types';
 import type { ResourceKey } from '../constants/resources';
 import { Panel } from '../components/ui/Panel';
+import { ButtonGroup } from '../components/ui/ButtonGroup';
 import { OrderTicket } from '../components/ui/OrderTicket';
 import MarketChart from '../components/MarketChart';
 import OrderBook from '../components/OrderBook';
@@ -61,16 +62,14 @@ export const DashboardView = ({
         className="col-span-3 row-span-8"
         tools={
           <div className="flex items-center gap-1 mr-1">
-            <div className="flex space-x-1 bg-[#222] rounded p-0.5">
-              <button
-                className={`px-2 py-0.5 text-[9px] rounded-sm transition-colors ${marketMode === 'CRYPTO' ? 'bg-blue-600 text-white font-bold' : 'text-gray-400 hover:text-gray-300'}`}
-                onClick={() => setMarketMode('CRYPTO')}
-              >CRYPTO</button>
-              <button
-                className={`px-2 py-0.5 text-[9px] rounded-sm transition-colors ${marketMode === 'CN_STOCK' ? 'bg-red-600 text-white font-bold' : 'text-gray-400 hover:text-gray-300'}`}
-                onClick={() => setMarketMode('CN_STOCK')}
-              >STOCKS</button>
-            </div>
+            <ButtonGroup
+              options={[
+                { value: 'CRYPTO', label: 'CRYPTO', activeClass: 'bg-blue-600' },
+                { value: 'CN_STOCK', label: 'STOCKS', activeClass: 'bg-red-600' },
+              ]}
+              value={marketMode}
+              onChange={setMarketMode}
+            />
             <button className="text-gray-400 hover:text-white p-1 hover:bg-[#222] rounded-sm" onClick={() => setShowAddSymbolModal(true)}>
               <Plus size={10} />
             </button>
@@ -125,15 +124,12 @@ export const DashboardView = ({
         title={`${activeSymbol} ${marketMode === 'CN_STOCK' ? '(CNY)' : '(USDT)'}`}
         className="col-span-6 row-span-8"
         tools={
-          <div className="flex space-x-1 text-[10px] font-mono">
-            {TIMEFRAMES.map((tf) => (
-              <span
-                key={tf}
-                onClick={() => setTimeframe(tf)}
-                className={`px-1 cursor-pointer hover:bg-gray-700 ${timeframe === tf ? 'bg-terminal-accent text-black font-bold' : 'text-gray-500'}`}
-              >{tf}</span>
-            ))}
-          </div>
+          <ButtonGroup
+            options={TIMEFRAMES.map((tf) => ({ value: tf, label: tf }))}
+            value={timeframe}
+            onChange={setTimeframe}
+            variant="accent"
+          />
         }
       >
         <MarketChart data={candles} symbol={activeSymbol} />
