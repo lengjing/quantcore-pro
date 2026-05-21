@@ -81,7 +81,7 @@ export function useTradeEngine(
           },
         ];
       });
-      const tag = tradingMode === 'LIVE' ? '🔴 LIVE' : 'SIM';
+      const tag = tradingMode === 'LIVE' ? '[LIVE]' : '[SIM]';
       showNotification(
         'SUCCESS',
         `[${tag}] ${side} ${quantity} ${symbol} @ ${price.toFixed(2)}`,

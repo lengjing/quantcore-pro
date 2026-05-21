@@ -2,6 +2,7 @@ import React from 'react';
 import type { MarketMode } from '../types';
 import type { LangKey } from '../constants/resources';
 import { ButtonGroup } from '../components/ui/ButtonGroup';
+import { clearAllState } from '../utils/storage';
 
 interface SettingsViewProps {
   lang: LangKey;
@@ -60,7 +61,17 @@ export const SettingsView = ({ lang, setLang, marketMode, setMarketMode, stockAd
           />
         </div>
         <div className="pt-4 border-t border-[#333]">
-          <button className="w-full bg-[#333] hover:bg-[#444] py-2 text-xs text-white" onClick={() => localStorage.clear()}>RESET FACTORY SETTINGS</button>
+          <button
+            className="w-full bg-[#333] hover:bg-[#444] py-2 text-xs text-white"
+            onClick={() => {
+              if (window.confirm('Reset all settings and data to factory defaults?')) {
+                clearAllState();
+                window.location.reload();
+              }
+            }}
+          >
+            RESET FACTORY SETTINGS
+          </button>
         </div>
       </div>
     </div>

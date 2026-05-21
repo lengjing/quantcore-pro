@@ -317,7 +317,12 @@ const App = () => {
       {/* Menu Modal */}
       <Modal isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} title="MENU" width="max-w-xs">
         <button className="w-full text-left p-2 hover:bg-[#333]" onClick={() => window.location.reload()}>RELOAD</button>
-        <button className="w-full text-left p-2 hover:bg-[#333]" onClick={() => { clearAllState(); window.location.reload(); }}>RESET FACTORY</button>
+        <button className="w-full text-left p-2 hover:bg-[#333]" onClick={() => {
+          if (window.confirm('Reset all settings and data to factory defaults?')) {
+            clearAllState();
+            window.location.reload();
+          }
+        }}>RESET FACTORY</button>
       </Modal>
 
       {/* Add Symbol Modal */}
