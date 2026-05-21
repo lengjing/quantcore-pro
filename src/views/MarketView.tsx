@@ -161,8 +161,8 @@ export const MarketView = ({
     let rows = [...marketTickers];
 
     // Keyword search
-    if (search.trim()) {
-      const q = search.trim().toUpperCase();
+    const q = search.trim().toUpperCase();
+    if (q) {
       rows = rows.filter((t) => t.symbol.toUpperCase().includes(q) || (t.name ?? '').toUpperCase().includes(q));
     }
 

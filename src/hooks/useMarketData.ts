@@ -111,8 +111,8 @@ export function useMarketData(
     };
 
     // REST pre-fetch so panels are never blank before WS connects
-    fetchDepth(activeSymbol).then((d) => { if (!stopped) setDepth(d); });
-    fetchRecentTrades(activeSymbol, 50).then((t) => { if (!stopped) setTrades(t); });
+    fetchDepth(activeSymbol).then((d) => { if (!stopped) setDepth(d); }).catch(console.warn);
+    fetchRecentTrades(activeSymbol, 50).then((t) => { if (!stopped) setTrades(t); }).catch(console.warn);
     startWs();
 
     // Ticker polling only — klines come from WS
