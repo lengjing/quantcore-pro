@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import {
   createChart,
   ColorType,
@@ -16,6 +16,16 @@ import { RotateCcw } from 'lucide-react';
 interface MarketChartProps {
   data: CandleData[];
   symbol: string;
+  /** Live forming bar from WebSocket — updated via series.update() without full redraw. */
+  liveCandle?: CandleData | null;
+}
+
+interface OhlcvInfo {
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
 }
 
 const toTs = (timeStr: string): UTCTimestamp =>
@@ -38,12 +48,18 @@ const MA_COLORS: Record<MaPeriod, string> = { 7: C.ma7, 25: C.ma25, 99: C.ma99 }
 const MA_PERIODS: MaPeriod[] = [7, 25, 99];
 const LINE_WIDTH = 1 as const;
 
-const MarketChart: React.FC<MarketChartProps> = ({ data, symbol }) => {
+const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtVol = (n: number) =>
+  n >= 1_000_000 ? `${(n / 1_000_000).toFixed(2)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : n.toFixed(0);
+
+const MarketChart: React.FC<MarketChartProps> = ({ data, symbol, liveCandle }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const volRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const maRefs = useRef<Record<MaPeriod, ISeriesApi<'Line'> | null>>({ 7: null, 25: null, 99: null });
+
+  const [hoveredBar, setHoveredBar] = useState<OhlcvInfo | null>(null);
 
   // Create chart once
   useEffect(() => {
@@ -121,6 +137,29 @@ const MarketChart: React.FC<MarketChartProps> = ({ data, symbol }) => {
       maRefs.current[p] = chart.addSeries(LineSeries, { ...sharedLineOpts, color: MA_COLORS[p] });
     });
 
+    // Crosshair OHLCV info
+    chart.subscribeCrosshairMove((param) => {
+      if (!param.time || !candleRef.current || !volRef.current) {
+        setHoveredBar(null);
+        return;
+      }
+      const candleData = param.seriesData.get(candleRef.current) as
+        | { open: number; high: number; low: number; close: number }
+        | undefined;
+      const volData = param.seriesData.get(volRef.current) as { value: number } | undefined;
+      if (candleData) {
+        setHoveredBar({
+          open: candleData.open,
+          high: candleData.high,
+          low: candleData.low,
+          close: candleData.close,
+          volume: volData?.value ?? 0,
+        });
+      } else {
+        setHoveredBar(null);
+      }
+    });
+
     // Responsive sizing
     const ro = new ResizeObserver(() => {
       if (containerRef.current) {
@@ -139,7 +178,7 @@ const MarketChart: React.FC<MarketChartProps> = ({ data, symbol }) => {
     };
   }, []);
 
-  // Push data updates
+  // Full history load — setData()
   useEffect(() => {
     if (!candleRef.current || data.length === 0) return;
 
@@ -173,6 +212,25 @@ const MarketChart: React.FC<MarketChartProps> = ({ data, symbol }) => {
     });
   }, [data]);
 
+  // Live bar update — update() only the current forming candle
+  useEffect(() => {
+    if (!candleRef.current || !liveCandle) return;
+
+    const ts = toTs(liveCandle.time);
+    candleRef.current.update({
+      time: ts,
+      open: liveCandle.open,
+      high: liveCandle.high,
+      low: liveCandle.low,
+      close: liveCandle.close,
+    });
+    volRef.current?.update({
+      time: ts,
+      value: liveCandle.volume,
+      color: liveCandle.close >= liveCandle.open ? `${C.up}55` : `${C.down}55`,
+    });
+  }, [liveCandle]);
+
   // Scroll to latest when symbol changes
   useEffect(() => {
     chartRef.current?.timeScale().scrollToRealTime();
@@ -181,6 +239,8 @@ const MarketChart: React.FC<MarketChartProps> = ({ data, symbol }) => {
   const jumpToLatest = useCallback(() => {
     chartRef.current?.timeScale().scrollToRealTime();
   }, []);
+
+  const isUp = hoveredBar ? hoveredBar.close >= hoveredBar.open : true;
 
   return (
     <div className="w-full h-full relative bg-[#050505] select-none overflow-hidden">
@@ -192,6 +252,23 @@ const MarketChart: React.FC<MarketChartProps> = ({ data, symbol }) => {
       {/* Symbol watermark */}
       <div className="absolute top-2 left-2 pointer-events-none z-0">
         <span className="text-4xl font-bold text-white/10 tracking-tighter select-none">{symbol}</span>
+      </div>
+
+      {/* OHLCV crosshair info bar */}
+      <div className="absolute top-2 left-2 z-10 font-mono text-[9px] pointer-events-none flex items-center gap-3 mt-10">
+        {hoveredBar ? (
+          <>
+            <span className="text-gray-500">O <span className={isUp ? 'text-terminal-success' : 'text-terminal-error'}>{fmt(hoveredBar.open)}</span></span>
+            <span className="text-gray-500">H <span className={isUp ? 'text-terminal-success' : 'text-terminal-error'}>{fmt(hoveredBar.high)}</span></span>
+            <span className="text-gray-500">L <span className={isUp ? 'text-terminal-success' : 'text-terminal-error'}>{fmt(hoveredBar.low)}</span></span>
+            <span className="text-gray-500">C <span className={isUp ? 'text-terminal-success' : 'text-terminal-error'}>{fmt(hoveredBar.close)}</span></span>
+            <span className="text-gray-500">V <span className="text-gray-300">{fmtVol(hoveredBar.volume)}</span></span>
+          </>
+        ) : liveCandle ? (
+          <span className={`animate-pulse ${liveCandle.close >= liveCandle.open ? 'text-terminal-success' : 'text-terminal-error'}`}>
+            ● LIVE  {fmt(liveCandle.close)}
+          </span>
+        ) : null}
       </div>
 
       {/* MA Legend */}
@@ -217,3 +294,4 @@ const MarketChart: React.FC<MarketChartProps> = ({ data, symbol }) => {
 };
 
 export default MarketChart;
+

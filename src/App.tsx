@@ -51,6 +51,7 @@ const App = () => {
   const [commandInput, setCommandInput] = useState('');
   const [positions, setPositions] = useState<Position[]>([]);
   const [lang, setLang] = useState<LangKey>('EN');
+  const [stockAdapterId, setStockAdapterId] = useState('eastmoney');
 
   // --- Modal state ---
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -64,8 +65,8 @@ const App = () => {
   const { notifications, showNotification, removeNotification } = useNotifications();
   const { cryptoWatchlist, stockWatchlist, currentWatchlist, addToWatchlist, removeFromWatchlist } =
     useWatchlist(marketMode, showNotification);
-  const { marketTickers, candles, depth, trades, isScannerLoading, updateMarketData } =
-    useMarketData(activeSymbol, marketMode, timeframe);
+  const { marketTickers, candles, liveCandle, depth, trades, isScannerLoading, updateMarketData } =
+    useMarketData(activeSymbol, marketMode, timeframe, stockAdapterId);
   const {
     strategyFiles,
     activeFileName,
@@ -243,6 +244,7 @@ const App = () => {
               timeframe={timeframe}
               setTimeframe={setTimeframe}
               candles={candles}
+              liveCandle={liveCandle}
               depth={depth}
               trades={trades}
               positions={positions}
@@ -254,6 +256,8 @@ const App = () => {
               removeFromWatchlist={removeFromWatchlist}
               setShowAddSymbolModal={setShowAddSymbolModal}
               executeTrade={executeTrade}
+              stockAdapterId={stockAdapterId}
+              setStockAdapter={setStockAdapterId}
             />
           )}
 
@@ -261,8 +265,12 @@ const App = () => {
             <MarketView
               activeSymbol={activeSymbol}
               candles={candles}
+              liveCandle={liveCandle}
               depth={depth}
               trades={trades}
+              marketMode={marketMode}
+              stockAdapterId={stockAdapterId}
+              setStockAdapter={setStockAdapterId}
             />
           )}
 
@@ -308,6 +316,8 @@ const App = () => {
               setLang={setLang}
               marketMode={marketMode}
               setMarketMode={setMarketMode}
+              stockAdapterId={stockAdapterId}
+              setStockAdapter={setStockAdapterId}
             />
           )}
 

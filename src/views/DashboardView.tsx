@@ -16,6 +16,7 @@ interface DashboardViewProps {
   timeframe: Timeframe;
   setTimeframe: (tf: Timeframe) => void;
   candles: CandleData[];
+  liveCandle: CandleData | null;
   depth: { bids: any[]; asks: any[] };
   trades: Trade[];
   positions: Position[];
@@ -27,9 +28,17 @@ interface DashboardViewProps {
   removeFromWatchlist: (symbol: string) => void;
   setShowAddSymbolModal: (show: boolean) => void;
   executeTrade: (side: 'BUY' | 'SELL', qty: string, limitPrice: string | null) => void;
+  stockAdapterId: string;
+  setStockAdapter: (id: string) => void;
 }
 
 const TIMEFRAMES: Timeframe[] = ['1M', '5M', '15M', '1H', '4H', '1D'];
+
+const STOCK_ADAPTERS = [
+  { value: 'eastmoney', label: 'EM' },
+  { value: 'tencent', label: 'TX' },
+  { value: 'sina', label: 'SINA' },
+];
 
 export const DashboardView = ({
   marketMode,
@@ -39,6 +48,7 @@ export const DashboardView = ({
   timeframe,
   setTimeframe,
   candles,
+  liveCandle,
   depth,
   trades,
   positions,
@@ -50,6 +60,8 @@ export const DashboardView = ({
   removeFromWatchlist,
   setShowAddSymbolModal,
   executeTrade,
+  stockAdapterId,
+  setStockAdapter,
 }: DashboardViewProps) => {
   const { bids, asks } = depth;
 
@@ -70,6 +82,15 @@ export const DashboardView = ({
               value={marketMode}
               onChange={setMarketMode}
             />
+            {marketMode === 'CN_STOCK' && (
+              <ButtonGroup
+                options={STOCK_ADAPTERS}
+                value={stockAdapterId}
+                onChange={setStockAdapter}
+                variant="ghost"
+                size="xs"
+              />
+            )}
             <button className="text-gray-400 hover:text-white p-1 hover:bg-[#222] rounded-sm" onClick={() => setShowAddSymbolModal(true)}>
               <Plus size={10} />
             </button>
@@ -132,7 +153,7 @@ export const DashboardView = ({
           />
         }
       >
-        <MarketChart data={candles} symbol={activeSymbol} />
+        <MarketChart data={candles} symbol={activeSymbol} liveCandle={liveCandle} />
       </Panel>
 
       {/* Order Book */}
