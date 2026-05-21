@@ -39,7 +39,7 @@ QuantCore Pro is a **professional quantitative trading terminal** packaged as an
 │   ├── types.ts            ← All shared types: ViewState, MarketTicker, CandleData, Order, etc.
 │   │
 │   ├── components/
-│   │   ├── MarketChart.tsx      ← Recharts ComposedChart; zoom (wheel) + pan (drag); MA lines
+│   │   ├── MarketChart.tsx      ← lightweight-charts candlestick; native zoom/pan/scroll; MA7/25/99 + volume
 │   │   ├── OrderBook.tsx        ← L2 bid/ask depth bars
 │   │   └── StrategyEditor.tsx   ← Monaco IDE + AI Copilot panel + file explorer
 │   │

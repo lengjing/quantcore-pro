@@ -9,7 +9,6 @@ import {
   type IChartApi,
   type ISeriesApi,
   type UTCTimestamp,
-  type SeriesType,
 } from 'lightweight-charts';
 import { CandleData } from '../types';
 import { RotateCcw } from 'lucide-react';
@@ -34,14 +33,17 @@ const C = {
   ma99: '#00ffff',
 };
 
+type MaPeriod = 7 | 25 | 99;
+const MA_COLORS: Record<MaPeriod, string> = { 7: C.ma7, 25: C.ma25, 99: C.ma99 };
+const MA_PERIODS: MaPeriod[] = [7, 25, 99];
+const LINE_WIDTH = 1 as const;
+
 const MarketChart: React.FC<MarketChartProps> = ({ data, symbol }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const volRef = useRef<ISeriesApi<'Histogram'> | null>(null);
-  const ma7Ref = useRef<ISeriesApi<'Line'> | null>(null);
-  const ma25Ref = useRef<ISeriesApi<'Line'> | null>(null);
-  const ma99Ref = useRef<ISeriesApi<'Line'> | null>(null);
+  const maRefs = useRef<Record<MaPeriod, ISeriesApi<'Line'> | null>>({ 7: null, 25: null, 99: null });
 
   // Create chart once
   useEffect(() => {
@@ -109,15 +111,15 @@ const MarketChart: React.FC<MarketChartProps> = ({ data, symbol }) => {
       scaleMargins: { top: 0.8, bottom: 0 },
     });
 
-    const lineOpts = {
-      lineWidth: 1 as const,
+    const sharedLineOpts = {
+      lineWidth: LINE_WIDTH,
       priceLineVisible: false,
       lastValueVisible: false,
       crosshairMarkerVisible: false,
     };
-    ma7Ref.current = chart.addSeries(LineSeries, { ...lineOpts, color: C.ma7 });
-    ma25Ref.current = chart.addSeries(LineSeries, { ...lineOpts, color: C.ma25 });
-    ma99Ref.current = chart.addSeries(LineSeries, { ...lineOpts, color: C.ma99 });
+    MA_PERIODS.forEach((p) => {
+      maRefs.current[p] = chart.addSeries(LineSeries, { ...sharedLineOpts, color: MA_COLORS[p] });
+    });
 
     // Responsive sizing
     const ro = new ResizeObserver(() => {
@@ -161,15 +163,14 @@ const MarketChart: React.FC<MarketChartProps> = ({ data, symbol }) => {
       })),
     );
 
-    ma7Ref.current?.setData(
-      sorted.filter((d) => d.ma7 != null).map((d) => ({ time: toTs(d.time), value: d.ma7! })),
-    );
-    ma25Ref.current?.setData(
-      sorted.filter((d) => d.ma25 != null).map((d) => ({ time: toTs(d.time), value: d.ma25! })),
-    );
-    ma99Ref.current?.setData(
-      sorted.filter((d) => d.ma99 != null).map((d) => ({ time: toTs(d.time), value: d.ma99! })),
-    );
+    MA_PERIODS.forEach((p) => {
+      const key = `ma${p}` as keyof CandleData;
+      maRefs.current[p]?.setData(
+        sorted
+          .filter((d) => d[key] != null)
+          .map((d) => ({ time: toTs(d.time), value: d[key] as number })),
+      );
+    });
   }, [data]);
 
   // Scroll to latest when symbol changes
@@ -195,9 +196,9 @@ const MarketChart: React.FC<MarketChartProps> = ({ data, symbol }) => {
 
       {/* MA Legend */}
       <div className="absolute top-2 right-14 flex items-center gap-3 pointer-events-none z-10 font-mono text-[9px]">
-        <span style={{ color: C.ma7 }}>MA7</span>
-        <span style={{ color: C.ma25 }}>MA25</span>
-        <span style={{ color: C.ma99 }}>MA99</span>
+        {MA_PERIODS.map((p) => (
+          <span key={p} style={{ color: MA_COLORS[p] }}>MA{p}</span>
+        ))}
       </div>
 
       {/* Chart */}
