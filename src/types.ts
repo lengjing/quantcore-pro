@@ -1,4 +1,19 @@
 
+// ---------------------------------------------------------------------------
+// App-level UI types (shared across components / hooks / views)
+// ---------------------------------------------------------------------------
+
+export type MarketMode = 'CRYPTO' | 'CN_STOCK';
+export type ScannerSort = 'CHANGE_DESC' | 'CHANGE_ASC' | 'VOL_DESC';
+
+export interface Notification {
+  id: string;
+  type: 'SUCCESS' | 'ERROR' | 'INFO';
+  message: string;
+}
+
+// ---------------------------------------------------------------------------
+
 export enum ViewState {
   DASHBOARD = 'DASHBOARD',
   MARKET = 'MARKET',
