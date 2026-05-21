@@ -5,8 +5,9 @@ export interface ButtonGroupOption<T extends string> {
   label: string;
   icon?: React.ReactNode;
   /**
-   * Tailwind text-color class for the active state, e.g. 'text-blue-400'.
-   * Falls back to terminal-accent when omitted.
+   * Tailwind **text-color** class for the active state.
+   * Must be a `text-*` utility, e.g. `'text-blue-400'`, `'text-red-500'`.
+   * Falls back to `text-terminal-accent` (amber) when omitted.
    */
   activeColor?: string;
 }
