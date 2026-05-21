@@ -8,7 +8,7 @@ A professional-grade quantitative trading terminal built with Electron + React +
 
 ## Features
 
-- **Real-Time Market Data** — Live crypto prices via Binance WebSocket; A-share stock data via Python/akshare backend
+- **Real-Time Market Data** — Live crypto prices via Binance WebSocket; A-share stock data via browser-compatible adapters (EastMoney, Tencent, Sina)
 - **Interactive Charts** — Candlestick-style line chart with zoom/pan, MA7/MA25/MA99 overlays
 - **L2 Order Book** — Real-time bid/ask depth visualization
 - **Time & Sales** — Live trade tape for crypto pairs
@@ -33,85 +33,93 @@ quantcore-pro/
 │   └── tsconfig.json       # TypeScript config (electron)
 ├── src/                    # React frontend
 │   ├── index.tsx           # React DOM entry
-│   ├── App.tsx             # Root component (all views/state)
+│   ├── App.tsx             # Root coordinator (thin — wires hooks → views)
 │   ├── types.ts            # Shared TypeScript interfaces & enums
+│   ├── constants/
+│   │   └── resources.ts        # i18n strings (EN/CN)
 │   ├── components/
+│   │   ├── ui/                 # Modal, Panel, CommandBar, Toast, NavIcon, OrderTicket
 │   │   ├── MarketChart.tsx     # Zoomable price chart (Recharts)
 │   │   ├── OrderBook.tsx       # L2 depth visualization
 │   │   └── StrategyEditor.tsx  # Monaco IDE + AI copilot
+│   ├── hooks/
+│   │   ├── useMarketData.ts    # Binance/stock polling + WebSocket
+│   │   ├── useWatchlist.ts     # Watchlist add/remove
+│   │   ├── useNotifications.ts # Toast notifications
+│   │   ├── useStrategyFiles.ts # Strategy file CRUD
+│   │   └── useBacktest.ts      # Backtest engine
 │   ├── services/
-│   │   ├── binanceService.ts      # Binance REST API (klines, depth, tickers)
-│   │   ├── websocketService.ts    # Binance WebSocket (aggTrade, depth20)
-│   │   ├── stockService.ts        # A-share REST API via Python backend
-│   │   ├── stockWebSocketService.ts # A-share realtime via Socket.IO
-│   │   └── geminiService.ts       # Gemini AI (news, strategy gen, metrics)
+│   │   ├── crypto/             # binanceRestService, binanceWsService
+│   │   ├── stock/              # adapters: EastMoney (default), Tencent, Sina
+│   │   └── ai/                 # geminiService (news, strategy gen)
+│   ├── views/
+│   │   ├── DashboardView.tsx   # F1 — watchlist + chart + portfolio
+│   │   ├── MarketView.tsx      # F2 — full-screen chart + depth
+│   │   ├── BacktestView.tsx    # F4 — equity curve + trade log
+│   │   ├── NewsView.tsx        # F5 — AI news feed
+│   │   ├── ScannerView.tsx     # F6 — market scanner
+│   │   └── SettingsView.tsx    # Settings panel
 │   └── utils/
 │       └── technicalIndicators.ts # SMA calculations
-└── python/                 # Python backend (Flask + akshare)
-    ├── main.py             # Flask REST + Socket.IO server (port 5000)
-    └── requirements.txt    # Python dependencies
+└── python/                 # Python backend (Flask + Socket.IO, health-check only)
+    ├── main.py             # /health endpoint + Socket.IO stub (port 5000)
+    └── requirements.txt    # flask, flask-cors, flask-socketio, eventlet
 ```
 
 ## Prerequisites
 
-- **Node.js** ≥ 18
-- **Python** ≥ 3.10 (for A-share stock data features)
+- **Node.js** ≥ 18 and **pnpm** ≥ 9 (`npm i -g pnpm`)
 - A **Gemini API key** (for AI news & strategy features)
 
 ## Quick Start — Web Dev Mode (Vite only)
 
 ```bash
 # Install Node dependencies
-npm install
+pnpm install
 
 # Create .env.local and add your key
 echo "GEMINI_API_KEY=your_key_here" > .env.local
 
 # Start the Vite dev server
-npm run dev
+pnpm dev
 # → http://localhost:5173
 ```
 
-> In this mode the crypto features (Binance) and AI features (Gemini) work fully.
-> Stock (A-share) data requires the Python backend to be running (see below).
+> In this mode crypto features (Binance) and AI features (Gemini) work fully.
+> A-share stock data is fetched directly from browser-compatible adapters — no Python backend needed.
 
-## Python Backend (A-Share Data)
+## Python Backend (Optional — Socket.IO Infrastructure)
+
+The Python backend is only needed for real-time Socket.IO quote streaming. A-share data for
+charts and watchlists is fetched directly by the frontend adapters.
 
 ```bash
 cd python
-
-# Create a virtual environment (recommended)
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-
-# Install dependencies
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-
-# Start the server
 python main.py
-# → http://localhost:5000
+# → http://localhost:5000/health
 ```
 
 ## Electron Desktop App
 
 ```bash
 # Compile Electron TypeScript and start with hot-reload
-npm run electron:dev
+pnpm electron:dev
 ```
 
-Requires the Vite dev server AND the Python backend to both be running.
+Requires the Vite dev server to be running.
 
 ## Production Build
 
 ```bash
-# Compile everything
-npm run electron:build
+pnpm electron:build
 # → ./release/
 ```
 
-To include the Python backend as a standalone executable:
+To bundle the Python backend as a standalone executable:
 ```bash
-npm run compile:python
+pnpm compile:python
 # → ./python_dist/main
 ```
 
@@ -127,11 +135,11 @@ Set in `.env.local` (never commit this file).
 
 | Layer        | Technology                                  |
 |--------------|---------------------------------------------|
-| Shell        | Electron 39                                 |
-| Frontend     | React 19, TypeScript, Vite 6, Tailwind CSS  |
+| Shell        | Electron 42                                 |
+| Frontend     | React 19, TypeScript 6, Vite 8, Tailwind CSS|
 | Charts       | Recharts 3                                  |
 | Code Editor  | Monaco Editor (`@monaco-editor/react`)      |
 | Icons        | Lucide React                                |
 | AI           | Google Gemini (`@google/genai`)             |
 | Crypto Data  | Binance REST + WebSocket APIs               |
-| Stock Data   | Python / akshare + Flask + Socket.IO        |
+| Stock Data   | EastMoney / Tencent / Sina (browser-direct) |
