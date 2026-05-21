@@ -50,10 +50,10 @@ import { ViewState, CandleData, Position, MarketTicker, Timeframe, NewsItem, Log
 import MarketChart from './components/MarketChart';
 import OrderBook from './components/OrderBook';
 import StrategyEditor from './components/StrategyEditor';
-import { fetchMarketNews } from './services/geminiService';
-import { fetchTopTickers, fetchKlines, fetchDepth } from './services/binanceService';
-import { fetchStockTickers, fetchStockKlines } from './services/stockService';
-import { connectWebSocket } from './services/websocketService';
+import { fetchMarketNews } from './services/ai/geminiService';
+import { fetchTopTickers, fetchKlines, fetchDepth } from './services/crypto/binanceRestService';
+import { fetchStockTickers, fetchStockKlines } from './services/stock/stockDataService';
+import { connectWebSocket } from './services/crypto/binanceWsService';
 import { enhanceCandlesWithIndicators } from './utils/technicalIndicators';
 
 // --- Localization Resources ---

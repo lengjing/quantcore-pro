@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Play, Save, Bot, Loader2, Bug, Square, Folder, File, Plus, Trash2, ChevronRight, ChevronDown, Terminal } from 'lucide-react';
 import Editor, { loader } from '@monaco-editor/react';
-import { generateStrategyCode } from '../services/geminiService';
+import { generateStrategyCode } from '../services/ai/geminiService';
 import { StrategyFile } from '../types';
 
 interface StrategyEditorProps {

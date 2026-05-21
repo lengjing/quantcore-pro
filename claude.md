@@ -43,12 +43,25 @@ QuantCore Pro is a **professional quantitative trading terminal** packaged as an
 │   │   ├── OrderBook.tsx        ← L2 bid/ask depth bars
 │   │   └── StrategyEditor.tsx   ← Monaco IDE + AI Copilot panel + file explorer
 │   │
-│   ├── services/
-│   │   ├── binanceService.ts        ← Binance REST (fetchTopTickers, fetchKlines, fetchDepth)
-│   │   ├── websocketService.ts      ← Binance WebSocket (aggTrade + depth20 streams)
-│   │   ├── stockService.ts          ← A-share REST via Python backend at localhost:5000
-│   │   ├── stockWebSocketService.ts ← Socket.IO client connecting to Python backend
-│   │   └── geminiService.ts         ← Gemini AI: generateStrategyCode, fetchMarketNews, explainMetrics
+│   ├── services/                ← Domain-organised service layer
+│   │   │
+│   │   ├── ai/
+│   │   │   └── geminiService.ts     ← Gemini AI: generateStrategyCode, fetchMarketNews, explainMetrics
+│   │   │
+│   │   ├── crypto/
+│   │   │   ├── binanceRestService.ts ← Binance REST (fetchTopTickers, fetchKlines, fetchDepth)
+│   │   │   └── binanceWsService.ts   ← Binance WebSocket (aggTrade + depth20 streams)
+│   │   │
+│   │   └── stock/                   ← A-share market data — adapter pattern
+│   │       ├── types.ts             ← StockSnapshot, StockKline, MinutePeriod, DailyPeriod
+│   │       ├── IStockDataAdapter.ts ← Adapter interface + AdapterMeta
+│   │       ├── adapters/
+│   │       │   ├── PythonBackendAdapter.ts ← akshare via local Flask server (FREE, 推荐)
+│   │       │   ├── TencentAdapter.ts       ← 腾讯财经 (FREE, browser-compatible)
+│   │       │   ├── SinaAdapter.ts          ← 新浪财经 (FREE, Electron/proxy required)
+│   │       │   └── EastMoneyAdapter.ts     ← 东方财富 (FREE, browser-compatible)
+│   │       ├── stockDataService.ts  ← Adapter registry + public API (fetchStockTickers, fetchStockKlines)
+│   │       └── stockWsService.ts    ← Socket.IO client for Python backend real-time quotes
 │   │
 │   └── utils/
 │       └── technicalIndicators.ts   ← calculateSMA, enhanceCandlesWithIndicators (MA7/25/99)
@@ -103,6 +116,19 @@ cd python && python main.py     # Flask server on :5000
 
 ---
 
+## A-Share Data Adapters
+
+Four adapters are registered in `src/services/stock/stockDataService.ts`. Switch at runtime via `stockDataService.setActiveAdapter(id)`.
+
+| ID | Name | 费用 | Browser | Notes |
+|----|------|------|---------|-------|
+| `python-backend` | Python / akshare | 免费 | ✅ | **Default.** Requires local Python server. Best data quality + qfq/hfq adjustment. |
+| `tencent` | 腾讯财经 | 免费 | ✅ | Reliable. CORS-permissive. No price adjustment for historical klines. |
+| `sina` | 新浪财经 | 免费 | ⚠️ Electron/proxy | Real-time endpoint lacks CORS headers. Historical klines browser-accessible. |
+| `eastmoney` | 东方财富 | 免费 | ✅ | Supports qfq/hfq. Comprehensive intraday + daily data. |
+
+---
+
 ## Environment Variables
 
 ```
@@ -119,10 +145,12 @@ Place in `.env.local` (gitignored). Vite injects it as `process.env.API_KEY` and
 Crypto:   Binance REST API ──────────────────────────────► App.tsx (tickers, klines, depth)
           Binance WebSocket ──────────────────────────────► App.tsx (live trades, depth updates)
 
-A-Share:  Python/akshare → Flask REST ─────────────────► stockService.ts → App.tsx
-          Python/akshare → Flask Socket.IO ────────────► stockWebSocketService.ts → App.tsx
+A-Share:  Active Adapter (Python/Tencent/Sina/EastMoney)
+            └─ stockDataService.fetchStockTickers() ──────► App.tsx (watchlist, scanner)
+            └─ stockDataService.fetchStockKlines()  ──────► App.tsx (chart)
+          Python Socket.IO ────────────────────────────────► stockWsService → (available for real-time)
 
-AI:       Google Gemini API ────────────────────────────► geminiService.ts → App.tsx / StrategyEditor
+AI:       Google Gemini API ────────────────────────────► geminiService → App.tsx / StrategyEditor
 ```
 
 ---
