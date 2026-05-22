@@ -34,6 +34,7 @@ interface MarketViewProps {
   marketMode: MarketMode;
   setActiveSymbol: (s: string) => void;
   setView: (v: ViewStateType) => void;
+  addToWatchlist?: (symbol: string) => void;
   onRefresh?: () => void;
 }
 
@@ -68,7 +69,7 @@ const RangeBar = ({ price, low, high }: { price: number; low: number; high: numb
   const pct = range > 0 ? Math.min(100, Math.max(0, ((price - low) / range) * 100)) : 50;
   return (
     <div className="flex items-center gap-1">
-      <span className="text-gray-600 text-[8px] w-8 text-right">{shortName('')}{low.toFixed(priceDp(low))}</span>
+      <span className="text-gray-600 text-[8px] w-8 text-right">{low.toFixed(priceDp(low))}</span>
       <div className="relative w-16 h-1 bg-[#222] rounded-full">
         <div
           className="absolute top-0 h-full bg-terminal-accent/50 rounded-full"
@@ -129,6 +130,7 @@ export const MarketView = ({
   marketMode,
   setActiveSymbol,
   setView,
+  addToWatchlist,
   onRefresh,
 }: MarketViewProps) => {
   const [mainTab, setMainTab] = useState<MainTab>('TABLE');
@@ -790,7 +792,7 @@ export const MarketView = ({
                                   <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover/row:opacity-100">
                                     <button
                                       title="Watchlist"
-                                      onClick={(e) => { e.stopPropagation(); /* addToWatchlist not in props here — use context or pass it */ }}
+                                      onClick={(e) => { e.stopPropagation(); addToWatchlist?.(c.symbol); }}
                                       className="text-gray-600 hover:text-terminal-accent"
                                     >
                                       <BookmarkPlus size={8} />

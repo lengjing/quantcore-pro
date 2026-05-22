@@ -226,6 +226,7 @@ const App = () => {
               marketMode={marketMode}
               setActiveSymbol={setActiveSymbol}
               setView={setView}
+              addToWatchlist={addToWatchlist}
               onRefresh={updateMarketData}
             />
           )}
