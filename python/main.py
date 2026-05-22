@@ -14,6 +14,8 @@ from flask_socketio import SocketIO, emit
 import logging
 
 from ai_routes import ai_bp
+from baostock_routes import baostock_bp
+from agent_routes import agent_bp
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -27,6 +29,8 @@ socketio = SocketIO(app, cors_allowed_origins='*', async_mode='eventlet')
 
 # Register blueprints
 app.register_blueprint(ai_bp)
+app.register_blueprint(baostock_bp)
+app.register_blueprint(agent_bp)
 
 # ==================== WebSocket Events ====================
 

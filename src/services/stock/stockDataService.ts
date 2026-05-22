@@ -24,6 +24,7 @@ import type { DailyPeriod, MinutePeriod } from './types';
 import { TencentAdapter } from './adapters/TencentAdapter';
 import { SinaAdapter } from './adapters/SinaAdapter';
 import { EastMoneyAdapter } from './adapters/EastMoneyAdapter';
+import { BaoStockAdapter } from './adapters/BaoStockAdapter';
 
 // Default stock symbols exposed to the scanner / watchlist.
 export const DEFAULT_STOCK_SYMBOLS = [
@@ -66,6 +67,7 @@ class StockDataService {
     this.adapters.set('tencent', new TencentAdapter());
     this.adapters.set('sina', new SinaAdapter());
     this.adapters.set('eastmoney', new EastMoneyAdapter());
+    this.adapters.set('baostock', new BaoStockAdapter());
   }
 
   /** ID of the currently active adapter. Defaults to EastMoney (browser-compatible, supports adjustment). */
@@ -97,7 +99,7 @@ class StockDataService {
 
   /**
    * Switch the active data adapter.
-   * @param id One of: 'tencent', 'sina', 'eastmoney'.
+   * @param id One of: 'tencent', 'sina', 'eastmoney', 'baostock'.
    * @throws If the given id is not registered.
    */
   setActiveAdapter(id: string): void {
