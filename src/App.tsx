@@ -9,6 +9,7 @@ import {
   Search,
   Terminal as TerminalIcon,
   AlertTriangle,
+  BotMessageSquare,
 } from 'lucide-react';
 
 import { ViewState } from './types';
@@ -39,12 +40,16 @@ import { BacktestView } from './views/BacktestView';
 import { NewsView } from './views/NewsView';
 import { ScannerView } from './views/ScannerView';
 import { SettingsView } from './views/SettingsView';
+import { AIAssistantView } from './views/AIAssistantView';
 
 // Existing Components
 import StrategyEditor from './components/StrategyEditor';
 
 // Utilities
 import { clearAllState } from './utils/storage';
+
+// Sectors
+import type { CustomSectorDef } from './data/sectors';
 
 import type { Timeframe } from './types';
 
@@ -56,6 +61,9 @@ const App = () => {
   const [timeframe, setTimeframe] = usePersisted<Timeframe>('timeframe', '1H');
   const [lang, setLang] = usePersisted<LangKey>('lang', 'EN');
   const [stockAdapterId, setStockAdapterId] = usePersisted<string>('stockAdapterId', 'eastmoney');
+
+  // Custom sectors — hoisted here so both MarketView and AIAssistantView share state
+  const [customSectors, setCustomSectors] = usePersisted<CustomSectorDef[]>('customSectors', []);
 
   // --- Ephemeral UI State ---
   const [commandInput, setCommandInput] = usePersisted<string>('commandInput', '');
@@ -124,6 +132,7 @@ const App = () => {
       if (e.key === 'F4') { e.preventDefault(); setView(ViewState.BACKTEST); }
       if (e.key === 'F5') { e.preventDefault(); setView(ViewState.NEWS); }
       if (e.key === 'F6') { e.preventDefault(); setView(ViewState.SCANNER); }
+      if (e.key === 'F7') { e.preventDefault(); setView(ViewState.AI); }
       if (e.key === 'Escape') {
         setIsHelpOpen(false);
         setIsMenuOpen(false);
@@ -173,6 +182,8 @@ const App = () => {
           <div className="h-px bg-terminal-border my-2 mx-1"></div>
           <NavIcon icon={Globe} active={view === ViewState.NEWS} onClick={() => setView(ViewState.NEWS)} tooltip={t('NAV_NEWS')} />
           <NavIcon icon={Search} active={view === ViewState.SCANNER} onClick={() => setView(ViewState.SCANNER)} tooltip={t('NAV_SCANNER')} />
+          <div className="h-px bg-terminal-border my-2 mx-1"></div>
+          <NavIcon icon={BotMessageSquare} active={view === ViewState.AI} onClick={() => setView(ViewState.AI)} tooltip="AI ASSISTANT [F7]" />
         </div>
         <div className="mt-auto flex flex-col space-y-4 mb-2">
           <NavIcon icon={Settings} active={view === ViewState.SETTINGS} onClick={() => setView(ViewState.SETTINGS)} tooltip={t('NAV_SETTINGS')} />
@@ -228,6 +239,8 @@ const App = () => {
               setView={setView}
               addToWatchlist={addToWatchlist}
               onRefresh={updateMarketData}
+              customSectors={customSectors}
+              setCustomSectors={setCustomSectors}
             />
           )}
 
@@ -274,6 +287,16 @@ const App = () => {
               setMarketMode={setMarketMode}
               stockAdapterId={stockAdapterId}
               setStockAdapter={setStockAdapterId}
+            />
+          )}
+
+          {view === ViewState.AI && (
+            <AIAssistantView
+              customSectors={customSectors}
+              setCustomSectors={setCustomSectors}
+              stockWatchlist={stockWatchlist}
+              addToWatchlist={addToWatchlist}
+              showNotification={showNotification}
             />
           )}
 

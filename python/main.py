@@ -13,6 +13,8 @@ from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 import logging
 
+from ai_routes import ai_bp
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -22,6 +24,9 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'quantcore-secret-2024'
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins='*', async_mode='eventlet')
+
+# Register blueprints
+app.register_blueprint(ai_bp)
 
 # ==================== WebSocket Events ====================
 

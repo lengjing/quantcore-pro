@@ -29,7 +29,6 @@ import {
 } from '../data/sectors';
 import { SectorCharts, type SectorChartType } from '../components/SectorCharts';
 import { SectorDetailPanel } from '../components/SectorDetailPanel';
-import { usePersisted } from '../hooks/usePersisted';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -48,6 +47,8 @@ interface MarketViewProps {
   setView: (v: ViewStateType) => void;
   addToWatchlist?: (symbol: string) => void;
   onRefresh?: () => void;
+  customSectors: CustomSectorDef[];
+  setCustomSectors: (fn: (prev: CustomSectorDef[]) => CustomSectorDef[]) => void;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -144,6 +145,8 @@ export const MarketView = ({
   setView,
   addToWatchlist,
   onRefresh,
+  customSectors,
+  setCustomSectors,
 }: MarketViewProps) => {
   const [mainTab, setMainTab] = useState<MainTab>('TABLE');
   const [tab, setTab] = useState<Tab>('ALL');
@@ -158,8 +161,7 @@ export const MarketView = ({
   const [sectorChartType, setSectorChartType] = useState<SectorChartType>('BAR');
   const lastSnapshotRef = useRef<number>(0);
 
-  // ── Custom (user-defined) sectors ──────────────────────────────────────────
-  const [customSectors, setCustomSectors] = usePersisted<CustomSectorDef[]>('customSectors', []);
+  // ── Custom (user-defined) sectors — state is owned by App.tsx ─────────────
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newSectorName, setNewSectorName] = useState('');
   const [newSectorNameEn, setNewSectorNameEn] = useState('');
