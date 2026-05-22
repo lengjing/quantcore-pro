@@ -7,6 +7,9 @@ import {
   ExternalLink,
   Clock,
   BookmarkPlus,
+  BarChart2,
+  Grid,
+  TrendingUp as LineIcon,
 } from 'lucide-react';
 import type { MarketTicker, MarketMode, ViewState as ViewStateType } from '../types';
 import { ViewState } from '../types';
@@ -18,6 +21,7 @@ import {
   type SectorStats,
   type SectorSnapshot,
 } from '../data/sectors';
+import { SectorCharts, type SectorChartType } from '../components/SectorCharts';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -143,6 +147,7 @@ export const MarketView = ({
   const [snapshots, setSnapshots] = useState<SectorSnapshot[]>([]);
   const [activeSnapshot, setActiveSnapshot] = useState<SectorSnapshot | null>(null);
   const [selectedSectorId, setSelectedSectorId] = useState<string | null>(null);
+  const [sectorChartType, setSectorChartType] = useState<SectorChartType>('BAR');
   const lastSnapshotRef = useRef<number>(0);
 
   // Push a snapshot every 5 minutes when tickers change
@@ -459,6 +464,35 @@ export const MarketView = ({
               </>
             )}
 
+            {mainTab === 'SECTORS' && (
+              <>
+                <div className="h-3 w-px bg-[#333] mx-1" />
+                {/* Chart type toggle */}
+                <div className="flex items-center gap-0.5">
+                  {([
+                    { type: 'BAR' as SectorChartType, icon: BarChart2, label: 'BAR' },
+                    { type: 'HEATMAP' as SectorChartType, icon: Grid, label: 'HEAT' },
+                    { type: 'LINE' as SectorChartType, icon: LineIcon, label: 'LINE' },
+                  ] as { type: SectorChartType; icon: React.ElementType; label: string }[]).map(({ type, icon: Icon, label }) => (
+                    <button
+                      key={type}
+                      onClick={() => setSectorChartType(type)}
+                      title={label}
+                      className={[
+                        'flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 uppercase tracking-wider transition-colors',
+                        sectorChartType === type
+                          ? 'bg-terminal-accent text-black'
+                          : 'text-gray-500 hover:text-gray-200 border border-transparent hover:border-[#333]',
+                      ].join(' ')}
+                    >
+                      <Icon size={8} />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
             {mainTab === 'SECTORS' && snapshots.length > 0 && (
               <>
                 <div className="h-3 w-px bg-[#333] mx-1" />
@@ -607,105 +641,23 @@ export const MarketView = ({
         {/* ── SECTORS content ────────────────────────────────────────── */}
         {mainTab === 'SECTORS' && (
           <div className="flex h-full min-h-0 gap-1 p-1">
-            {/* Sector grid */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
+            {/* Chart area */}
+            <div className="flex-1 flex flex-col min-h-0 min-w-0">
               {activeSnapshot && (
-                <div className="flex items-center gap-1 mb-2 text-[9px] font-mono text-yellow-600 bg-yellow-900/10 border border-yellow-900/30 px-2 py-1">
+                <div className="flex items-center gap-1 mb-1 text-[9px] font-mono text-yellow-600 bg-yellow-900/10 border border-yellow-900/30 px-2 py-1 shrink-0">
                   <Clock size={8} />
                   VIEWING SNAPSHOT @ {fmtTime(activeSnapshot.ts)} — CLICK LIVE TO RETURN TO REAL-TIME
                 </div>
               )}
-              {marketTickers.length === 0 ? (
-                <div className="flex items-center justify-center h-32 text-gray-600 text-[10px] font-mono">
-                  LOADING MARKET DATA…
-                </div>
-              ) : (
-                <div className="grid grid-cols-3 gap-1">
-                  {displayedSectorStats.map((stat) => {
-                    const isUp = stat.avgChange >= 0;
-                    const total = stat.advancing + stat.declining;
-                    const advPct = total > 0 ? (stat.advancing / total) * 100 : 50;
-                    const isSelected = selectedSectorId === stat.def.id;
-                    const hasData = stat.components.length > 0;
-
-                    return (
-                      <div
-                        key={stat.def.id}
-                        onClick={() => setSelectedSectorId(isSelected ? null : stat.def.id)}
-                        className={[
-                          'p-2 border cursor-pointer transition-all font-mono',
-                          isSelected
-                            ? 'border-terminal-accent bg-terminal-accent/5'
-                            : 'border-[#1e1e1e] hover:border-[#2e2e2e] bg-terminal-panel/50',
-                        ].join(' ')}
-                      >
-                        {/* Header */}
-                        <div className="flex items-center justify-between mb-1.5">
-                          <div className="flex items-center gap-1.5">
-                            <div
-                              className="w-2 h-2 rounded-sm shrink-0"
-                              style={{ backgroundColor: stat.def.color }}
-                            />
-                            <span className="text-[9px] font-bold text-gray-200 truncate">
-                              {stat.def.name}
-                            </span>
-                          </div>
-                          {hasData && (
-                            <span className={`text-[10px] font-bold tabular-nums ${isUp ? 'text-terminal-success' : 'text-terminal-error'}`}>
-                              {isUp ? '+' : ''}{stat.avgChange.toFixed(2)}%
-                            </span>
-                          )}
-                        </div>
-
-                        {hasData ? (
-                          <>
-                            {/* Breadth bar */}
-                            <div className="h-1 bg-[#111] rounded overflow-hidden flex mb-1.5">
-                              <div
-                                className="h-full bg-terminal-success/60"
-                                style={{ width: `${advPct}%` }}
-                              />
-                              <div
-                                className="h-full bg-terminal-error/60"
-                                style={{ width: `${100 - advPct}%` }}
-                              />
-                            </div>
-                            {/* Stats row */}
-                            <div className="flex justify-between text-[8px] text-gray-500">
-                              <span>
-                                <span className="text-terminal-success">{stat.advancing}↑</span>
-                                {' / '}
-                                <span className="text-terminal-error">{stat.declining}↓</span>
-                                {' / '}
-                                <span className="text-gray-500">{stat.components.length - stat.advancing - stat.declining}–</span>
-                              </span>
-                              <span className="text-gray-600">{fmtVol(stat.totalVolume)}</span>
-                            </div>
-                            {/* Top mover */}
-                            {stat.components.length > 0 && (
-                              <div className="mt-1 pt-1 border-t border-[#1a1a1a]">
-                                {[...stat.components]
-                                  .sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))
-                                  .slice(0, 2)
-                                  .map((c) => (
-                                    <div key={c.symbol} className="flex justify-between text-[8px] py-0.5">
-                                      <span className="text-gray-500 truncate">{shortName(c.symbol)}</span>
-                                      <span className={c.changePercent >= 0 ? 'text-terminal-success' : 'text-terminal-error'}>
-                                        {c.changePercent >= 0 ? '+' : ''}{c.changePercent.toFixed(2)}%
-                                      </span>
-                                    </div>
-                                  ))}
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <div className="text-[8px] text-gray-700 mt-1">NO DATA IN UNIVERSE</div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <div className="flex-1 min-h-0">
+                <SectorCharts
+                  chartType={sectorChartType}
+                  liveSectorStats={displayedSectorStats}
+                  snapshots={snapshots}
+                  selectedSectorId={selectedSectorId}
+                  onSelectSector={setSelectedSectorId}
+                />
+              </div>
             </div>
 
             {/* Component detail panel */}
