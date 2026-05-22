@@ -339,8 +339,8 @@ def chat():
             return (
                 jsonify(
                     {
-                        "error": str(exc),
-                        "message": f"AI 请求失败：{exc}",
+                        "error": "API request failed",
+                        "message": "AI 请求失败，请稍后重试",
                         "actions": actions,
                         "toolUse": tool_use_log,
                     }
