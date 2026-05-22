@@ -255,7 +255,6 @@ const App = () => {
           {view === ViewState.SCANNER && (
             <ScannerView
               marketMode={marketMode}
-              setMarketMode={setMarketMode}
               marketTickers={marketTickers}
               isScannerLoading={isScannerLoading}
               updateMarketData={updateMarketData}

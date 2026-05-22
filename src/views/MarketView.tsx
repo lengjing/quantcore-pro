@@ -1,18 +1,27 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   TrendingUp,
   TrendingDown,
   ArrowUp,
   ArrowDown,
   ExternalLink,
-  RefreshCw,
+  Clock,
+  BookmarkPlus,
 } from 'lucide-react';
 import type { MarketTicker, MarketMode, ViewState as ViewStateType } from '../types';
 import { ViewState } from '../types';
 import { Panel } from '../components/ui/Panel';
+import {
+  CRYPTO_SECTORS,
+  CN_SECTORS,
+  computeSectorStats,
+  type SectorStats,
+  type SectorSnapshot,
+} from '../data/sectors';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
+type MainTab = 'TABLE' | 'SECTORS';
 type Tab = 'ALL' | 'GAINERS' | 'LOSERS' | 'ACTIVE';
 type SortKey = keyof Pick<
   MarketTicker,
@@ -45,6 +54,11 @@ const priceDp = (p: number): number => {
 
 const shortName = (symbol: string): string =>
   symbol.replace('-USDT', '').replace('sh', '').replace('sz', '');
+
+const fmtTime = (ts: number): string => {
+  const d = new Date(ts);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
@@ -117,10 +131,32 @@ export const MarketView = ({
   setView,
   onRefresh,
 }: MarketViewProps) => {
+  const [mainTab, setMainTab] = useState<MainTab>('TABLE');
   const [tab, setTab] = useState<Tab>('ALL');
   const [sortKey, setSortKey] = useState<SortKey>('volume');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [search, setSearch] = useState('');
+
+  // ── Sectors state ──────────────────────────────────────────────────────────
+  const [snapshots, setSnapshots] = useState<SectorSnapshot[]>([]);
+  const [activeSnapshot, setActiveSnapshot] = useState<SectorSnapshot | null>(null);
+  const [selectedSectorId, setSelectedSectorId] = useState<string | null>(null);
+  const lastSnapshotRef = useRef<number>(0);
+
+  // Push a snapshot every 5 minutes when tickers change
+  useEffect(() => {
+    if (marketTickers.length === 0) return;
+    const now = Date.now();
+    if (now - lastSnapshotRef.current >= 5 * 60 * 1000) {
+      lastSnapshotRef.current = now;
+      const sectors = marketMode === 'CRYPTO' ? CRYPTO_SECTORS : CN_SECTORS;
+      const stats = computeSectorStats(marketTickers, sectors);
+      setSnapshots((prev) => {
+        const next = [...prev, { ts: now, sectorStats: stats }];
+        return next.slice(-12);
+      });
+    }
+  }, [marketTickers, marketMode]);
 
   // ── Market-wide statistics ──────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -155,6 +191,16 @@ export const MarketView = ({
 
     return { advancing, declining, unchanged, avgChange, totalVolume, btcDominance, topGainers, topLosers, mostActive };
   }, [marketTickers, marketMode]);
+
+  // ── Live sector stats ───────────────────────────────────────────────────────
+  const liveSectorStats = useMemo((): SectorStats[] => {
+    const sectors = marketMode === 'CRYPTO' ? CRYPTO_SECTORS : CN_SECTORS;
+    return computeSectorStats(marketTickers, sectors);
+  }, [marketTickers, marketMode]);
+
+  const displayedSectorStats = activeSnapshot ? activeSnapshot.sectorStats : liveSectorStats;
+
+  const selectedSector = displayedSectorStats.find((s) => s.def.id === selectedSectorId) ?? null;
 
   // ── Table data ──────────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -351,208 +397,424 @@ export const MarketView = ({
         </Panel>
       </div>
 
-      {/* ── Main Table ────────────────────────────────────────────────── */}
+      {/* ── Main Panel (TABLE / SECTORS) ────────────────────────────── */}
       <Panel
         title={`MARKET INTELLIGENCE — ${marketMode === 'CRYPTO' ? 'CRYPTO / BINANCE USDT' : 'A-SHARE MARKET'}`}
         className="flex-1 min-w-0"
         onRefresh={onRefresh}
         tools={
           <div className="flex items-center gap-1 mr-1">
-            {/* Tab buttons */}
-            {(['ALL', 'GAINERS', 'LOSERS', 'ACTIVE'] as Tab[]).map((t) => {
-              const labels: Record<Tab, string> = {
-                ALL: 'ALL',
-                GAINERS: '↑ GAINERS',
-                LOSERS: '↓ LOSERS',
-                ACTIVE: '⚡ ACTIVE',
-              };
-              return (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  className={[
-                    'text-[9px] font-mono font-bold px-2 py-0.5 uppercase tracking-wider transition-colors',
-                    tab === t
-                      ? 'bg-terminal-accent text-black'
-                      : 'text-gray-500 hover:text-gray-200 border border-transparent hover:border-[#333]',
-                  ].join(' ')}
-                >
-                  {labels[t]}
-                </button>
-              );
-            })}
+            {/* Main tab toggle */}
+            {(['TABLE', 'SECTORS'] as MainTab[]).map((mt) => (
+              <button
+                key={mt}
+                onClick={() => setMainTab(mt)}
+                className={[
+                  'text-[9px] font-mono font-bold px-2 py-0.5 uppercase tracking-wider transition-colors',
+                  mainTab === mt
+                    ? 'bg-terminal-accent text-black'
+                    : 'text-gray-500 hover:text-gray-200 border border-transparent hover:border-[#333]',
+                ].join(' ')}
+              >
+                {mt}
+              </button>
+            ))}
 
-            <div className="h-3 w-px bg-[#333] mx-1" />
+            {mainTab === 'TABLE' && (
+              <>
+                <div className="h-3 w-px bg-[#333] mx-1" />
+                {(['ALL', 'GAINERS', 'LOSERS', 'ACTIVE'] as Tab[]).map((t) => {
+                  const labels: Record<Tab, string> = {
+                    ALL: 'ALL',
+                    GAINERS: '↑ GAINERS',
+                    LOSERS: '↓ LOSERS',
+                    ACTIVE: '⚡ ACTIVE',
+                  };
+                  return (
+                    <button
+                      key={t}
+                      onClick={() => setTab(t)}
+                      className={[
+                        'text-[9px] font-mono font-bold px-2 py-0.5 uppercase tracking-wider transition-colors',
+                        tab === t
+                          ? 'bg-terminal-accent text-black'
+                          : 'text-gray-500 hover:text-gray-200 border border-transparent hover:border-[#333]',
+                      ].join(' ')}
+                    >
+                      {labels[t]}
+                    </button>
+                  );
+                })}
+                <div className="h-3 w-px bg-[#333] mx-1" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="FILTER…"
+                  className="bg-[#0d0d0d] border border-[#333] text-[9px] font-mono text-white px-2 py-0.5 w-20 focus:outline-none focus:border-terminal-accent placeholder-gray-700 uppercase"
+                />
+                <span className="text-[9px] text-gray-600 font-mono ml-1">{filtered.length} rows</span>
+              </>
+            )}
 
-            {/* Search */}
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="FILTER…"
-              className="bg-[#0d0d0d] border border-[#333] text-[9px] font-mono text-white px-2 py-0.5 w-20 focus:outline-none focus:border-terminal-accent placeholder-gray-700 uppercase"
-            />
-
-            <span className="text-[9px] text-gray-600 font-mono ml-1">{filtered.length} rows</span>
+            {mainTab === 'SECTORS' && snapshots.length > 0 && (
+              <>
+                <div className="h-3 w-px bg-[#333] mx-1" />
+                <div className="flex items-center gap-0.5">
+                  <Clock size={8} className="text-gray-600" />
+                  <button
+                    onClick={() => setActiveSnapshot(null)}
+                    className={`text-[9px] font-mono px-1.5 py-0.5 ${!activeSnapshot ? 'text-terminal-success font-bold' : 'text-gray-600 hover:text-gray-300'}`}
+                  >
+                    LIVE
+                  </button>
+                  {snapshots.map((snap) => (
+                    <button
+                      key={snap.ts}
+                      onClick={() => setActiveSnapshot(snap)}
+                      className={`text-[9px] font-mono px-1.5 py-0.5 ${activeSnapshot?.ts === snap.ts ? 'text-terminal-accent font-bold' : 'text-gray-600 hover:text-gray-300'}`}
+                    >
+                      {fmtTime(snap.ts)}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         }
       >
-        <div className="h-full overflow-auto custom-scrollbar">
-          <table className="w-full font-mono text-[10px] border-collapse">
-            <thead className="sticky top-0 bg-[#0c0c0c] z-10">
-              <tr className="border-b border-terminal-border">
-                {/* Symbol */}
-                <Th sortKey="symbol" {...sortProps} left>
-                  SYMBOL
-                </Th>
-                {marketMode === 'CN_STOCK' && (
-                  <th className="px-2 py-1.5 text-left text-gray-500 whitespace-nowrap">NAME</th>
-                )}
-                {/* LAST */}
-                <Th sortKey="price" {...sortProps}>LAST</Th>
-                {/* CHG% */}
-                <Th sortKey="changePercent" {...sortProps}>CHG%</Th>
-                {/* CHG */}
-                <Th sortKey="change" {...sortProps}>CHG</Th>
-                {/* HIGH */}
-                <Th sortKey="high" {...sortProps}>24H HIGH</Th>
-                {/* LOW */}
-                <Th sortKey="low" {...sortProps}>24H LOW</Th>
-                {/* DAY RANGE */}
-                <th className="px-2 py-1.5 text-center text-gray-500 whitespace-nowrap">DAY RANGE</th>
-                {/* VOL */}
-                <Th sortKey="volume" {...sortProps}>VOLUME</Th>
-                {/* BID */}
-                <th className="px-2 py-1.5 text-right text-gray-500">BID</th>
-                {/* ASK */}
-                <th className="px-2 py-1.5 text-right text-gray-500">ASK</th>
-                {/* SPREAD */}
-                <Th sortKey="spread" {...sortProps}>SPREAD%</Th>
-                {/* ACTION */}
-                <th className="px-2 py-1.5 text-right text-gray-600 w-8"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={13} className="text-center py-12 text-gray-600">
-                    {marketTickers.length === 0
-                      ? 'LOADING MARKET DATA…'
-                      : 'NO RESULTS FOR FILTER'}
-                  </td>
+        {/* ── TABLE content ──────────────────────────────────────────── */}
+        {mainTab === 'TABLE' && (
+          <div className="h-full overflow-auto custom-scrollbar">
+            <table className="w-full font-mono text-[10px] border-collapse">
+              <thead className="sticky top-0 bg-[#0c0c0c] z-10">
+                <tr className="border-b border-terminal-border">
+                  <Th sortKey="symbol" {...sortProps} left>SYMBOL</Th>
+                  {marketMode === 'CN_STOCK' && (
+                    <th className="px-2 py-1.5 text-left text-gray-500 whitespace-nowrap">NAME</th>
+                  )}
+                  <Th sortKey="price" {...sortProps}>LAST</Th>
+                  <Th sortKey="changePercent" {...sortProps}>CHG%</Th>
+                  <Th sortKey="change" {...sortProps}>CHG</Th>
+                  <Th sortKey="high" {...sortProps}>24H HIGH</Th>
+                  <Th sortKey="low" {...sortProps}>24H LOW</Th>
+                  <th className="px-2 py-1.5 text-center text-gray-500 whitespace-nowrap">DAY RANGE</th>
+                  <Th sortKey="volume" {...sortProps}>VOLUME</Th>
+                  <th className="px-2 py-1.5 text-right text-gray-500">BID</th>
+                  <th className="px-2 py-1.5 text-right text-gray-500">ASK</th>
+                  <Th sortKey="spread" {...sortProps}>SPREAD%</Th>
+                  <th className="px-2 py-1.5 text-right text-gray-600 w-8"></th>
                 </tr>
-              ) : (
-                filtered.map((ticker) => {
-                  const dp = priceDp(ticker.price);
-                  const spread =
-                    ticker.ask && ticker.bid
-                      ? ((ticker.ask - ticker.bid) / ticker.ask) * 100
-                      : null;
-                  const isUp = ticker.changePercent >= 0;
-                  const flashBg =
-                    ticker.lastTickDir === 'UP'
-                      ? 'bg-green-900/10'
-                      : ticker.lastTickDir === 'DOWN'
-                      ? 'bg-red-900/10'
-                      : '';
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={13} className="text-center py-12 text-gray-600">
+                      {marketTickers.length === 0 ? 'LOADING MARKET DATA…' : 'NO RESULTS FOR FILTER'}
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((ticker) => {
+                    const dp = priceDp(ticker.price);
+                    const spread =
+                      ticker.ask && ticker.bid
+                        ? ((ticker.ask - ticker.bid) / ticker.ask) * 100
+                        : null;
+                    const isUp = ticker.changePercent >= 0;
+                    const flashBg =
+                      ticker.lastTickDir === 'UP'
+                        ? 'bg-green-900/10'
+                        : ticker.lastTickDir === 'DOWN'
+                        ? 'bg-red-900/10'
+                        : '';
 
-                  return (
-                    <tr
-                      key={ticker.symbol}
-                      className={`border-b border-[#0f0f0f] hover:bg-[#141414] cursor-pointer group/row transition-colors ${flashBg}`}
-                      onClick={() => goToSymbol(ticker.symbol)}
-                    >
-                      {/* SYMBOL */}
-                      <td className="px-2 py-1 text-left">
-                        <div className="flex items-center gap-1">
-                          <span className="font-bold text-terminal-accent">{shortName(ticker.symbol)}</span>
-                          {marketMode === 'CRYPTO' && (
-                            <span className="text-gray-600 text-[8px]">USDT</span>
+                    return (
+                      <tr
+                        key={ticker.symbol}
+                        className={`border-b border-[#0f0f0f] hover:bg-[#141414] cursor-pointer group/row transition-colors ${flashBg}`}
+                        onClick={() => goToSymbol(ticker.symbol)}
+                      >
+                        <td className="px-2 py-1 text-left">
+                          <div className="flex items-center gap-1">
+                            <span className="font-bold text-terminal-accent">{shortName(ticker.symbol)}</span>
+                            {marketMode === 'CRYPTO' && (
+                              <span className="text-gray-600 text-[8px]">USDT</span>
+                            )}
+                          </div>
+                        </td>
+                        {marketMode === 'CN_STOCK' && (
+                          <td className="px-2 py-1 text-left text-gray-400 max-w-[90px] truncate">
+                            {ticker.name ?? '—'}
+                          </td>
+                        )}
+                        <td className="px-2 py-1 text-right text-white font-bold tabular-nums">
+                          {ticker.price.toFixed(dp)}
+                        </td>
+                        <td className={`px-2 py-1 text-right font-bold tabular-nums ${isUp ? 'text-terminal-success' : 'text-terminal-error'}`}>
+                          <span className="inline-flex items-center justify-end gap-0.5">
+                            {isUp ? <ArrowUp size={7} /> : <ArrowDown size={7} />}
+                            {isUp ? '+' : ''}{ticker.changePercent.toFixed(2)}%
+                          </span>
+                        </td>
+                        <td className={`px-2 py-1 text-right tabular-nums ${isUp ? 'text-terminal-success' : 'text-terminal-error'}`}>
+                          {ticker.change >= 0 ? '+' : ''}{ticker.change.toFixed(dp)}
+                        </td>
+                        <td className="px-2 py-1 text-right text-gray-400 tabular-nums">
+                          {ticker.high.toFixed(dp)}
+                        </td>
+                        <td className="px-2 py-1 text-right text-gray-400 tabular-nums">
+                          {ticker.low.toFixed(dp)}
+                        </td>
+                        <td className="px-2 py-1 text-center">
+                          {ticker.high > ticker.low ? (
+                            <RangeBar price={ticker.price} low={ticker.low} high={ticker.high} />
+                          ) : (
+                            <span className="text-gray-700">—</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-1 text-right text-gray-300 tabular-nums">
+                          {fmtVol(ticker.volume)}
+                        </td>
+                        <td className="px-2 py-1 text-right text-sky-400 tabular-nums">
+                          {ticker.bid ? ticker.bid.toFixed(dp) : <span className="text-gray-700">—</span>}
+                        </td>
+                        <td className="px-2 py-1 text-right text-orange-400 tabular-nums">
+                          {ticker.ask ? ticker.ask.toFixed(dp) : <span className="text-gray-700">—</span>}
+                        </td>
+                        <td className={`px-2 py-1 text-right tabular-nums ${spread !== null ? (spread > 0.1 ? 'text-yellow-600' : 'text-gray-500') : 'text-gray-700'}`}>
+                          {spread !== null ? `${spread.toFixed(3)}%` : '—'}
+                        </td>
+                        <td className="px-2 py-1 text-right">
+                          <button
+                            className="text-gray-700 group-hover/row:text-terminal-accent opacity-0 group-hover/row:opacity-100 transition-opacity"
+                            title="Open chart"
+                            onClick={(e) => { e.stopPropagation(); goToSymbol(ticker.symbol); }}
+                          >
+                            <ExternalLink size={9} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* ── SECTORS content ────────────────────────────────────────── */}
+        {mainTab === 'SECTORS' && (
+          <div className="flex h-full min-h-0 gap-1 p-1">
+            {/* Sector grid */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+              {activeSnapshot && (
+                <div className="flex items-center gap-1 mb-2 text-[9px] font-mono text-yellow-600 bg-yellow-900/10 border border-yellow-900/30 px-2 py-1">
+                  <Clock size={8} />
+                  VIEWING SNAPSHOT @ {fmtTime(activeSnapshot.ts)} — CLICK LIVE TO RETURN TO REAL-TIME
+                </div>
+              )}
+              {marketTickers.length === 0 ? (
+                <div className="flex items-center justify-center h-32 text-gray-600 text-[10px] font-mono">
+                  LOADING MARKET DATA…
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-1">
+                  {displayedSectorStats.map((stat) => {
+                    const isUp = stat.avgChange >= 0;
+                    const total = stat.advancing + stat.declining;
+                    const advPct = total > 0 ? (stat.advancing / total) * 100 : 50;
+                    const isSelected = selectedSectorId === stat.def.id;
+                    const hasData = stat.components.length > 0;
+
+                    return (
+                      <div
+                        key={stat.def.id}
+                        onClick={() => setSelectedSectorId(isSelected ? null : stat.def.id)}
+                        className={[
+                          'p-2 border cursor-pointer transition-all font-mono',
+                          isSelected
+                            ? 'border-terminal-accent bg-terminal-accent/5'
+                            : 'border-[#1e1e1e] hover:border-[#2e2e2e] bg-terminal-panel/50',
+                        ].join(' ')}
+                      >
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <div
+                              className="w-2 h-2 rounded-sm shrink-0"
+                              style={{ backgroundColor: stat.def.color }}
+                            />
+                            <span className="text-[9px] font-bold text-gray-200 truncate">
+                              {stat.def.name}
+                            </span>
+                          </div>
+                          {hasData && (
+                            <span className={`text-[10px] font-bold tabular-nums ${isUp ? 'text-terminal-success' : 'text-terminal-error'}`}>
+                              {isUp ? '+' : ''}{stat.avgChange.toFixed(2)}%
+                            </span>
                           )}
                         </div>
-                      </td>
 
-                      {/* NAME (A-share) */}
-                      {marketMode === 'CN_STOCK' && (
-                        <td className="px-2 py-1 text-left text-gray-400 max-w-[90px] truncate">
-                          {ticker.name ?? '—'}
-                        </td>
-                      )}
-
-                      {/* LAST */}
-                      <td className="px-2 py-1 text-right text-white font-bold tabular-nums">
-                        {ticker.price.toFixed(dp)}
-                      </td>
-
-                      {/* CHG% */}
-                      <td className={`px-2 py-1 text-right font-bold tabular-nums ${isUp ? 'text-terminal-success' : 'text-terminal-error'}`}>
-                        <span className="inline-flex items-center justify-end gap-0.5">
-                          {isUp ? <ArrowUp size={7} /> : <ArrowDown size={7} />}
-                          {isUp ? '+' : ''}{ticker.changePercent.toFixed(2)}%
-                        </span>
-                      </td>
-
-                      {/* CHG */}
-                      <td className={`px-2 py-1 text-right tabular-nums ${isUp ? 'text-terminal-success' : 'text-terminal-error'}`}>
-                        {ticker.change >= 0 ? '+' : ''}{ticker.change.toFixed(dp)}
-                      </td>
-
-                      {/* HIGH */}
-                      <td className="px-2 py-1 text-right text-gray-400 tabular-nums">
-                        {ticker.high.toFixed(dp)}
-                      </td>
-
-                      {/* LOW */}
-                      <td className="px-2 py-1 text-right text-gray-400 tabular-nums">
-                        {ticker.low.toFixed(dp)}
-                      </td>
-
-                      {/* DAY RANGE */}
-                      <td className="px-2 py-1 text-center">
-                        {ticker.high > ticker.low ? (
-                          <RangeBar price={ticker.price} low={ticker.low} high={ticker.high} />
+                        {hasData ? (
+                          <>
+                            {/* Breadth bar */}
+                            <div className="h-1 bg-[#111] rounded overflow-hidden flex mb-1.5">
+                              <div
+                                className="h-full bg-terminal-success/60"
+                                style={{ width: `${advPct}%` }}
+                              />
+                              <div
+                                className="h-full bg-terminal-error/60"
+                                style={{ width: `${100 - advPct}%` }}
+                              />
+                            </div>
+                            {/* Stats row */}
+                            <div className="flex justify-between text-[8px] text-gray-500">
+                              <span>
+                                <span className="text-terminal-success">{stat.advancing}↑</span>
+                                {' / '}
+                                <span className="text-terminal-error">{stat.declining}↓</span>
+                                {' / '}
+                                <span className="text-gray-500">{stat.components.length - stat.advancing - stat.declining}–</span>
+                              </span>
+                              <span className="text-gray-600">{fmtVol(stat.totalVolume)}</span>
+                            </div>
+                            {/* Top mover */}
+                            {stat.components.length > 0 && (
+                              <div className="mt-1 pt-1 border-t border-[#1a1a1a]">
+                                {[...stat.components]
+                                  .sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))
+                                  .slice(0, 2)
+                                  .map((c) => (
+                                    <div key={c.symbol} className="flex justify-between text-[8px] py-0.5">
+                                      <span className="text-gray-500 truncate">{shortName(c.symbol)}</span>
+                                      <span className={c.changePercent >= 0 ? 'text-terminal-success' : 'text-terminal-error'}>
+                                        {c.changePercent >= 0 ? '+' : ''}{c.changePercent.toFixed(2)}%
+                                      </span>
+                                    </div>
+                                  ))}
+                              </div>
+                            )}
+                          </>
                         ) : (
-                          <span className="text-gray-700">—</span>
+                          <div className="text-[8px] text-gray-700 mt-1">NO DATA IN UNIVERSE</div>
                         )}
-                      </td>
-
-                      {/* VOLUME */}
-                      <td className="px-2 py-1 text-right text-gray-300 tabular-nums">
-                        {fmtVol(ticker.volume)}
-                      </td>
-
-                      {/* BID */}
-                      <td className="px-2 py-1 text-right text-sky-400 tabular-nums">
-                        {ticker.bid ? ticker.bid.toFixed(dp) : <span className="text-gray-700">—</span>}
-                      </td>
-
-                      {/* ASK */}
-                      <td className="px-2 py-1 text-right text-orange-400 tabular-nums">
-                        {ticker.ask ? ticker.ask.toFixed(dp) : <span className="text-gray-700">—</span>}
-                      </td>
-
-                      {/* SPREAD% */}
-                      <td className={`px-2 py-1 text-right tabular-nums ${spread !== null ? (spread > 0.1 ? 'text-yellow-600' : 'text-gray-500') : 'text-gray-700'}`}>
-                        {spread !== null ? `${spread.toFixed(3)}%` : '—'}
-                      </td>
-
-                      {/* ACTION */}
-                      <td className="px-2 py-1 text-right">
-                        <button
-                          className="text-gray-700 group-hover/row:text-terminal-accent opacity-0 group-hover/row:opacity-100 transition-opacity"
-                          title="Open chart"
-                          onClick={(e) => { e.stopPropagation(); goToSymbol(ticker.symbol); }}
-                        >
-                          <ExternalLink size={9} />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
+                      </div>
+                    );
+                  })}
+                </div>
               )}
-            </tbody>
-          </table>
-        </div>
+            </div>
+
+            {/* Component detail panel */}
+            {selectedSector && (
+              <div className="w-64 shrink-0 flex flex-col bg-terminal-panel border border-terminal-border min-h-0">
+                {/* Header */}
+                <div className="px-2 py-1.5 border-b border-terminal-border flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-1.5">
+                    <div
+                      className="w-2 h-2 rounded-sm"
+                      style={{ backgroundColor: selectedSector.def.color }}
+                    />
+                    <span className="text-[10px] font-bold font-mono text-gray-200">{selectedSector.def.name}</span>
+                    <span className="text-[9px] text-gray-600">({selectedSector.def.nameEn})</span>
+                  </div>
+                  <button
+                    onClick={() => setSelectedSectorId(null)}
+                    className="text-gray-600 hover:text-gray-300 text-[10px] font-mono"
+                  >
+                    ✕
+                  </button>
+                </div>
+                {/* Summary */}
+                <div className="px-2 py-1.5 border-b border-[#1a1a1a] shrink-0 font-mono text-[9px]">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">AVG CHG</span>
+                    <span className={selectedSector.avgChange >= 0 ? 'text-terminal-success font-bold' : 'text-terminal-error font-bold'}>
+                      {selectedSector.avgChange >= 0 ? '+' : ''}{selectedSector.avgChange.toFixed(2)}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between mt-0.5">
+                    <span className="text-gray-500">TOTAL VOL</span>
+                    <span className="text-gray-300">{fmtVol(selectedSector.totalVolume)}</span>
+                  </div>
+                  <div className="flex justify-between mt-0.5">
+                    <span className="text-gray-500">ADV / DEC</span>
+                    <span>
+                      <span className="text-terminal-success">{selectedSector.advancing}</span>
+                      <span className="text-gray-600"> / </span>
+                      <span className="text-terminal-error">{selectedSector.declining}</span>
+                    </span>
+                  </div>
+                </div>
+                {/* Component table */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                  {selectedSector.components.length === 0 ? (
+                    <div className="text-center py-6 text-[9px] font-mono text-gray-600">
+                      NO COMPONENTS IN UNIVERSE
+                    </div>
+                  ) : (
+                    <table className="w-full font-mono text-[9px]">
+                      <thead className="sticky top-0 bg-[#111]">
+                        <tr className="text-gray-600 border-b border-[#1a1a1a]">
+                          <th className="px-2 py-1 text-left">SYMBOL</th>
+                          <th className="px-2 py-1 text-right">LAST</th>
+                          <th className="px-2 py-1 text-right">CHG%</th>
+                          <th className="px-2 py-1 w-6"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...selectedSector.components]
+                          .sort((a, b) => b.changePercent - a.changePercent)
+                          .map((c) => {
+                            const isUp = c.changePercent >= 0;
+                            return (
+                              <tr
+                                key={c.symbol}
+                                className="border-b border-[#0f0f0f] hover:bg-[#141414] cursor-pointer group/row"
+                                onClick={() => goToSymbol(c.symbol)}
+                              >
+                                <td className="px-2 py-1 text-left">
+                                  <div className="font-bold text-terminal-accent">{shortName(c.symbol)}</div>
+                                  {c.name && (
+                                    <div className="text-[8px] text-gray-600 truncate max-w-[80px]">{c.name}</div>
+                                  )}
+                                </td>
+                                <td className="px-2 py-1 text-right text-white tabular-nums">
+                                  {c.price.toFixed(priceDp(c.price))}
+                                </td>
+                                <td className={`px-2 py-1 text-right font-bold tabular-nums ${isUp ? 'text-terminal-success' : 'text-terminal-error'}`}>
+                                  {isUp ? '+' : ''}{c.changePercent.toFixed(2)}%
+                                </td>
+                                <td className="px-2 py-1 text-right">
+                                  <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover/row:opacity-100">
+                                    <button
+                                      title="Watchlist"
+                                      onClick={(e) => { e.stopPropagation(); /* addToWatchlist not in props here — use context or pass it */ }}
+                                      className="text-gray-600 hover:text-terminal-accent"
+                                    >
+                                      <BookmarkPlus size={8} />
+                                    </button>
+                                    <button
+                                      title="Chart"
+                                      onClick={(e) => { e.stopPropagation(); goToSymbol(c.symbol); }}
+                                      className="text-gray-600 hover:text-terminal-accent"
+                                    >
+                                      <ExternalLink size={8} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </Panel>
     </div>
   );
