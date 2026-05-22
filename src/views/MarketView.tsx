@@ -10,18 +10,26 @@ import {
   BarChart2,
   Grid,
   TrendingUp as LineIcon,
+  Plus,
+  X,
 } from 'lucide-react';
 import type { MarketTicker, MarketMode, ViewState as ViewStateType } from '../types';
 import { ViewState } from '../types';
 import { Panel } from '../components/ui/Panel';
+import { Modal } from '../components/ui/Modal';
 import {
   CRYPTO_SECTORS,
   CN_SECTORS,
   computeSectorStats,
   type SectorStats,
   type SectorSnapshot,
+  type CustomSectorDef,
+  nextCustomColor,
+  newCustomSectorId,
 } from '../data/sectors';
 import { SectorCharts, type SectorChartType } from '../components/SectorCharts';
+import { SectorDetailPanel } from '../components/SectorDetailPanel';
+import { usePersisted } from '../hooks/usePersisted';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -150,20 +158,59 @@ export const MarketView = ({
   const [sectorChartType, setSectorChartType] = useState<SectorChartType>('BAR');
   const lastSnapshotRef = useRef<number>(0);
 
+  // ── Custom (user-defined) sectors ──────────────────────────────────────────
+  const [customSectors, setCustomSectors] = usePersisted<CustomSectorDef[]>('customSectors', []);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newSectorName, setNewSectorName] = useState('');
+  const [newSectorNameEn, setNewSectorNameEn] = useState('');
+  const [newSectorSymbols, setNewSectorSymbols] = useState('');
+
+  const handleCreateSector = useCallback(() => {
+    const name = newSectorName.trim();
+    if (!name) return;
+    const symbols = newSectorSymbols
+      .split(/[\n,，\s]+/)
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean);
+    const sector: CustomSectorDef = {
+      id: newCustomSectorId(),
+      name,
+      nameEn: newSectorNameEn.trim() || name,
+      color: nextCustomColor(customSectors),
+      symbols,
+      isCustom: true,
+    };
+    setCustomSectors((prev) => [...prev, sector]);
+    setNewSectorName('');
+    setNewSectorNameEn('');
+    setNewSectorSymbols('');
+    setShowCreateModal(false);
+    setSelectedSectorId(sector.id);
+  }, [newSectorName, newSectorNameEn, newSectorSymbols, customSectors, setCustomSectors]);
+
+  const handleDeleteCustomSector = useCallback(
+    (id: string) => {
+      setCustomSectors((prev) => prev.filter((s) => s.id !== id));
+      setSelectedSectorId((prev) => (prev === id ? null : prev));
+    },
+    [setCustomSectors],
+  );
+
   // Push a snapshot every 5 minutes when tickers change
   useEffect(() => {
     if (marketTickers.length === 0) return;
     const now = Date.now();
     if (now - lastSnapshotRef.current >= 5 * 60 * 1000) {
       lastSnapshotRef.current = now;
-      const sectors = marketMode === 'CRYPTO' ? CRYPTO_SECTORS : CN_SECTORS;
+      const builtIn = marketMode === 'CRYPTO' ? CRYPTO_SECTORS : CN_SECTORS;
+      const sectors = [...builtIn, ...customSectors];
       const stats = computeSectorStats(marketTickers, sectors);
       setSnapshots((prev) => {
         const next = [...prev, { ts: now, sectorStats: stats }];
         return next.slice(-12);
       });
     }
-  }, [marketTickers, marketMode]);
+  }, [marketTickers, marketMode, customSectors]);
 
   // ── Market-wide statistics ──────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -201,9 +248,10 @@ export const MarketView = ({
 
   // ── Live sector stats ───────────────────────────────────────────────────────
   const liveSectorStats = useMemo((): SectorStats[] => {
-    const sectors = marketMode === 'CRYPTO' ? CRYPTO_SECTORS : CN_SECTORS;
+    const builtIn = marketMode === 'CRYPTO' ? CRYPTO_SECTORS : CN_SECTORS;
+    const sectors = [...builtIn, ...customSectors];
     return computeSectorStats(marketTickers, sectors);
-  }, [marketTickers, marketMode]);
+  }, [marketTickers, marketMode, customSectors]);
 
   const displayedSectorStats = activeSnapshot ? activeSnapshot.sectorStats : liveSectorStats;
 
@@ -516,6 +564,18 @@ export const MarketView = ({
                 </div>
               </>
             )}
+            {mainTab === 'SECTORS' && (
+              <>
+                <div className="h-3 w-px bg-[#333] mx-1" />
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  title="Create custom concept sector"
+                  className="flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 text-gray-500 hover:text-gray-200 border border-transparent hover:border-[#333] transition-colors"
+                >
+                  <Plus size={8} />CONCEPT
+                </button>
+              </>
+            )}
           </div>
         }
       >
@@ -662,114 +722,85 @@ export const MarketView = ({
 
             {/* Component detail panel */}
             {selectedSector && (
-              <div className="w-64 shrink-0 flex flex-col bg-terminal-panel border border-terminal-border min-h-0">
-                {/* Header */}
-                <div className="px-2 py-1.5 border-b border-terminal-border flex items-center justify-between shrink-0">
-                  <div className="flex items-center gap-1.5">
-                    <div
-                      className="w-2 h-2 rounded-sm"
-                      style={{ backgroundColor: selectedSector.def.color }}
-                    />
-                    <span className="text-[10px] font-bold font-mono text-gray-200">{selectedSector.def.name}</span>
-                    <span className="text-[9px] text-gray-600">({selectedSector.def.nameEn})</span>
-                  </div>
-                  <button
-                    onClick={() => setSelectedSectorId(null)}
-                    className="text-gray-600 hover:text-gray-300 text-[10px] font-mono"
-                  >
-                    ✕
-                  </button>
-                </div>
-                {/* Summary */}
-                <div className="px-2 py-1.5 border-b border-[#1a1a1a] shrink-0 font-mono text-[9px]">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">AVG CHG</span>
-                    <span className={selectedSector.avgChange >= 0 ? 'text-terminal-success font-bold' : 'text-terminal-error font-bold'}>
-                      {selectedSector.avgChange >= 0 ? '+' : ''}{selectedSector.avgChange.toFixed(2)}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between mt-0.5">
-                    <span className="text-gray-500">TOTAL VOL</span>
-                    <span className="text-gray-300">{fmtVol(selectedSector.totalVolume)}</span>
-                  </div>
-                  <div className="flex justify-between mt-0.5">
-                    <span className="text-gray-500">ADV / DEC</span>
-                    <span>
-                      <span className="text-terminal-success">{selectedSector.advancing}</span>
-                      <span className="text-gray-600"> / </span>
-                      <span className="text-terminal-error">{selectedSector.declining}</span>
-                    </span>
-                  </div>
-                </div>
-                {/* Component table */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
-                  {selectedSector.components.length === 0 ? (
-                    <div className="text-center py-6 text-[9px] font-mono text-gray-600">
-                      NO COMPONENTS IN UNIVERSE
-                    </div>
-                  ) : (
-                    <table className="w-full font-mono text-[9px]">
-                      <thead className="sticky top-0 bg-[#111]">
-                        <tr className="text-gray-600 border-b border-[#1a1a1a]">
-                          <th className="px-2 py-1 text-left">SYMBOL</th>
-                          <th className="px-2 py-1 text-right">LAST</th>
-                          <th className="px-2 py-1 text-right">CHG%</th>
-                          <th className="px-2 py-1 w-6"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[...selectedSector.components]
-                          .sort((a, b) => b.changePercent - a.changePercent)
-                          .map((c) => {
-                            const isUp = c.changePercent >= 0;
-                            return (
-                              <tr
-                                key={c.symbol}
-                                className="border-b border-[#0f0f0f] hover:bg-[#141414] cursor-pointer group/row"
-                                onClick={() => goToSymbol(c.symbol)}
-                              >
-                                <td className="px-2 py-1 text-left">
-                                  <div className="font-bold text-terminal-accent">{shortName(c.symbol)}</div>
-                                  {c.name && (
-                                    <div className="text-[8px] text-gray-600 truncate max-w-[80px]">{c.name}</div>
-                                  )}
-                                </td>
-                                <td className="px-2 py-1 text-right text-white tabular-nums">
-                                  {c.price.toFixed(priceDp(c.price))}
-                                </td>
-                                <td className={`px-2 py-1 text-right font-bold tabular-nums ${isUp ? 'text-terminal-success' : 'text-terminal-error'}`}>
-                                  {isUp ? '+' : ''}{c.changePercent.toFixed(2)}%
-                                </td>
-                                <td className="px-2 py-1 text-right">
-                                  <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover/row:opacity-100">
-                                    <button
-                                      title="Watchlist"
-                                      onClick={(e) => { e.stopPropagation(); addToWatchlist?.(c.symbol); }}
-                                      className="text-gray-600 hover:text-terminal-accent"
-                                    >
-                                      <BookmarkPlus size={8} />
-                                    </button>
-                                    <button
-                                      title="Chart"
-                                      onClick={(e) => { e.stopPropagation(); goToSymbol(c.symbol); }}
-                                      className="text-gray-600 hover:text-terminal-accent"
-                                    >
-                                      <ExternalLink size={8} />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              </div>
+              <SectorDetailPanel
+                sector={selectedSector}
+                marketMode={marketMode}
+                isCustom={'isCustom' in selectedSector.def && (selectedSector.def as CustomSectorDef).isCustom}
+                onClose={() => setSelectedSectorId(null)}
+                onGoToSymbol={goToSymbol}
+                onAddToWatchlist={addToWatchlist}
+                onDeleteCustom={handleDeleteCustomSector}
+              />
             )}
           </div>
         )}
       </Panel>
+
+      {/* ── Create custom sector modal ─────────────────────────────────────── */}
+      <Modal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title="NEW CONCEPT SECTOR"
+        width="max-w-md"
+      >
+        <div className="space-y-3 font-mono text-[10px]">
+          <div>
+            <label className="block text-gray-500 mb-1 uppercase tracking-wider text-[9px]">Sector Name *</label>
+            <input
+              type="text"
+              value={newSectorName}
+              onChange={(e) => setNewSectorName(e.target.value)}
+              placeholder="e.g. MLCC 概念"
+              className="w-full bg-[#0d0d0d] border border-[#333] text-white text-[10px] font-mono px-2 py-1.5 focus:outline-none focus:border-terminal-accent placeholder-gray-700"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="block text-gray-500 mb-1 uppercase tracking-wider text-[9px]">English Name</label>
+            <input
+              type="text"
+              value={newSectorNameEn}
+              onChange={(e) => setNewSectorNameEn(e.target.value)}
+              placeholder="e.g. MLCC"
+              className="w-full bg-[#0d0d0d] border border-[#333] text-white text-[10px] font-mono px-2 py-1.5 focus:outline-none focus:border-terminal-accent placeholder-gray-700"
+            />
+          </div>
+          <div>
+            <label className="block text-gray-500 mb-1 uppercase tracking-wider text-[9px]">
+              Symbols (comma or newline separated)
+            </label>
+            <textarea
+              value={newSectorSymbols}
+              onChange={(e) => setNewSectorSymbols(e.target.value)}
+              placeholder={marketMode === 'CRYPTO'
+                ? 'BTC-USDT\nETH-USDT\nSOL-USDT'
+                : 'sh600563\nsz300510\nsz002812'}
+              rows={6}
+              className="w-full bg-[#0d0d0d] border border-[#333] text-white text-[10px] font-mono px-2 py-1.5 focus:outline-none focus:border-terminal-accent placeholder-gray-700 resize-none"
+            />
+            <p className="text-[8px] text-gray-600 mt-0.5">
+              {marketMode === 'CRYPTO'
+                ? 'Use Binance pairs like BTC-USDT, ETH-USDT'
+                : 'Use A-share codes like sh600563, sz300510'}
+            </p>
+          </div>
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <button
+              onClick={() => setShowCreateModal(false)}
+              className="flex items-center gap-1 text-[9px] font-mono font-bold px-3 py-1.5 text-gray-500 hover:text-gray-200 border border-[#333] hover:border-[#555] transition-colors"
+            >
+              <X size={8} />CANCEL
+            </button>
+            <button
+              onClick={handleCreateSector}
+              disabled={!newSectorName.trim()}
+              className="flex items-center gap-1 text-[9px] font-mono font-bold px-3 py-1.5 bg-terminal-accent text-black hover:bg-yellow-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <Plus size={8} />CREATE
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

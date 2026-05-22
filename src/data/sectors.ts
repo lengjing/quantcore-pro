@@ -269,6 +269,34 @@ export const CN_SECTORS: SectorDef[] = [
   },
 ];
 
+// ── Custom sector helpers ────────────────────────────────────────────────────────
+
+/**
+ * A user-defined concept group (e.g. "MLCC", "国产替代").
+ * Stored in localStorage; conforms to SectorDef so it integrates seamlessly.
+ */
+export interface CustomSectorDef extends SectorDef {
+  /** Marks that this sector was created by the user (not a built-in). */
+  isCustom: true;
+}
+
+/**
+ * Pick the next color from the palette that isn't already used by the
+ * existing custom sectors, cycling through if needed.
+ */
+export function nextCustomColor(existing: CustomSectorDef[]): string {
+  const used = new Set(existing.map((s) => s.color));
+  return (
+    SECTOR_PALETTE.find((c) => !used.has(c)) ??
+    SECTOR_PALETTE[existing.length % SECTOR_PALETTE.length]
+  );
+}
+
+/** Generate a stable unique ID for a new custom sector. */
+export function newCustomSectorId(): string {
+  return `custom_${Date.now().toString(36)}`;
+}
+
 // ── Helper ──────────────────────────────────────────────────────────────────────
 
 export function computeSectorStats(
