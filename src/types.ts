@@ -1,4 +1,26 @@
 
+// ---------------------------------------------------------------------------
+// App-level UI types (shared across components / hooks / views)
+// ---------------------------------------------------------------------------
+
+export type MarketMode = 'CRYPTO' | 'CN_STOCK';
+export type ScannerSort = 'CHANGE_DESC' | 'CHANGE_ASC' | 'VOL_DESC';
+
+/**
+ * PAPER — all orders are simulated; positions track P&L but no real funds are used.
+ * LIVE  — orders are intended to be routed to a real exchange.
+ *         A confirmation dialog is always shown before execution.
+ */
+export type TradingMode = 'PAPER' | 'LIVE';
+
+export interface Notification {
+  id: string;
+  type: 'SUCCESS' | 'ERROR' | 'INFO';
+  message: string;
+}
+
+// ---------------------------------------------------------------------------
+
 export enum ViewState {
   DASHBOARD = 'DASHBOARD',
   MARKET = 'MARKET',
@@ -6,7 +28,8 @@ export enum ViewState {
   BACKTEST = 'BACKTEST',
   NEWS = 'NEWS',
   SCANNER = 'SCANNER',
-  SETTINGS = 'SETTINGS'
+  SETTINGS = 'SETTINGS',
+  AI = 'AI',
 }
 
 export enum OrderSide {
@@ -112,4 +135,37 @@ export interface StrategyFile {
   name: string;
   language: string; // 'python' | 'json' | 'markdown' | 'javascript'
   content: string;
+}
+
+// ---------------------------------------------------------------------------
+// AI Assistant types
+// ---------------------------------------------------------------------------
+
+export interface ToolUseEvent {
+  tool: string;
+  input: Record<string, unknown>;
+  output: unknown;
+}
+
+export type AIAction =
+  | {
+      type: 'ADD_SECTOR';
+      payload: { name: string; nameEn: string; description?: string; symbols: string[] };
+    }
+  | { type: 'ADD_TO_WATCHLIST'; payload: { symbols: string[] } };
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  toolUse?: ToolUseEvent[];
+  actions?: AIAction[];
+  timestamp: number;
+  isLoading?: boolean;
+}
+
+export interface BackendStatus {
+  claude: boolean;
+  baostock: boolean;
+  baostock_logged_in: boolean;
 }
