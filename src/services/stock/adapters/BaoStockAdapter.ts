@@ -1,17 +1,15 @@
 /**
  * BaoStock Adapter (百股通 / BaoStock)
  *
- * Fetches A-share data from BaoStock via the QuantCore Pro Python backend.
- * BaoStock is a Python-only library, so all calls are proxied through
- * the local Flask server at port 5000.
+ * Fetches A-share data from the local QuantCore Pro Python backend.
  *
  * Cost:       免费，需要注册（免费账号） (Free, requires free registration)
- * Browser:    ❌ Requires Electron / local Python backend (port 5000)
+ * Browser:    ❌ Requires the local Python backend (port 5000)
  * Data type:  End-of-day (非实时) — snapshots reflect the latest available
  *             closing price, not intraday ticks.
  * Minute bars: 5 / 15 / 30 / 60 min only (1-min NOT supported by BaoStock)
  *
- * Endpoints (Python backend):
+ * Local Python backend endpoints:
  *   GET /api/baostock/snapshot?symbols=...
  *   GET /api/baostock/klines/daily?symbol=...&period=...&start=...&end=...&adjust=...
  *   GET /api/baostock/klines/minute?symbol=...&period=...
@@ -20,12 +18,7 @@
 import type { IStockDataAdapter } from '../IStockDataAdapter';
 import type { StockSnapshot, StockKline, MinutePeriod, DailyPeriod } from '../types';
 
-/** Base URL for the local Python backend. Configurable via env var at build time. */
-const BACKEND_BASE =
-  (typeof process !== 'undefined' && process.env.QUANTCORE_API_URL) ||
-  'http://localhost:5000';
-
-const API_BASE = `${BACKEND_BASE}/api/baostock`;
+const API_BASE = 'http://localhost:5000/api/baostock';
 
 /** 1-min bars are not supported by BaoStock; map to 5-min as the closest alternative. */
 const MINUTE_PERIOD_MAP: Record<MinutePeriod, string> = {
@@ -46,7 +39,7 @@ export class BaoStockAdapter implements IStockDataAdapter {
   readonly notes =
     'End-of-day data only (no intraday ticks). ' +
     'Minute bars: 5/15/30/60 min (1-min unsupported). ' +
-    'Requires local Python backend on port 5000.';
+    'Requires the local Python backend on port 5000.';
 
   async fetchSnapshots(symbols: string[]): Promise<StockSnapshot[]> {
     if (symbols.length === 0) return [];

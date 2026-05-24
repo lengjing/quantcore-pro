@@ -4,8 +4,7 @@
  * Frontend service that communicates with the QuantCore Python backend's
  * Claude-powered AI agent endpoint (`POST /api/ai/chat`).
  *
- * The backend runs the full agentic loop (multi-turn Claude + BaoStock tool
- * calls) and returns:
+ * The backend runs the full agentic loop (multi-turn Claude tool calls) and returns:
  *   - `message`  — Claude's final text reply
  *   - `actions`  — Mutations the frontend must apply (ADD_SECTOR, ADD_TO_WATCHLIST)
  *   - `toolUse`  — Tool-call log for the UI to display
@@ -69,11 +68,10 @@ export async function sendAIMessage(
 }
 
 /**
- * Check backend / BaoStock / Claude readiness.
+ * Check backend / Claude readiness.
  */
 export async function fetchBackendStatus(): Promise<{
   claude: boolean;
-  baostock: boolean;
 }> {
   const response = await fetch(`${BACKEND_URL}/api/ai/status`, {
     signal: AbortSignal.timeout(3000),

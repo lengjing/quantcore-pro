@@ -17,6 +17,7 @@ const STOCK_ADAPTERS = [
   { value: 'eastmoney', label: '东方财富', activeColor: 'text-orange-400' },
   { value: 'tencent',   label: '腾讯财经', activeColor: 'text-blue-400' },
   { value: 'sina',      label: '新浪财经', activeColor: 'text-red-400' },
+  { value: 'baostock',  label: 'BaoStock', activeColor: 'text-green-400' },
 ];
 
 export const SettingsView = ({ lang, setLang, marketMode, setMarketMode, stockAdapterId, setStockAdapter }: SettingsViewProps) => (

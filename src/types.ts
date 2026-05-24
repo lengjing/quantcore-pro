@@ -166,6 +166,4 @@ export interface ChatMessage {
 
 export interface BackendStatus {
   claude: boolean;
-  baostock: boolean;
-  baostock_logged_in: boolean;
 }

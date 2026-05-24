@@ -117,13 +117,14 @@ cd python && python main.py     # Flask server on :5000
 
 ## A-Share Data Adapters
 
-Three adapters are registered in `src/services/stock/stockDataService.ts`. Switch at runtime via `stockDataService.setActiveAdapter(id)`.
+Four adapters are registered in `src/services/stock/stockDataService.ts`. Switch at runtime via `stockDataService.setActiveAdapter(id)`.
 
 | ID | Name | 费用 | Browser | Notes |
 |----|------|------|---------|-------|
 | `eastmoney` | 东方财富 | 免费 | ✅ | **Default.** Supports qfq/hfq. Comprehensive intraday + daily data. |
 | `tencent` | 腾讯财经 | 免费 | ✅ | Reliable. CORS-permissive. No price adjustment for historical klines. |
 | `sina` | 新浪财经 | 免费 | ⚠️ Electron/proxy | Real-time endpoint lacks CORS headers. Historical klines browser-accessible. |
+| `baostock` | BaoStock | 免费 | ❌ | Requires the local Python backend (`python/baostock_routes.py`). |
 
 ---
 
@@ -143,7 +144,7 @@ Place in `.env.local` (gitignored). Vite injects it as `process.env.API_KEY` and
 Crypto:   Binance REST API ──────────────────────────────► App.tsx (tickers, klines, depth)
           Binance WebSocket ──────────────────────────────► App.tsx (live trades, depth updates)
 
-A-Share:  Active Adapter (EastMoney/Tencent/Sina — browser-direct)
+A-Share:  Active Adapter (EastMoney/Tencent/Sina/BaoStock local backend)
             └─ stockDataService.fetchStockTickers() ──────► App.tsx (watchlist, scanner)
             └─ stockDataService.fetchStockKlines()  ──────► App.tsx (chart)
           Python Socket.IO ────────────────────────────────► stockWsService → (available for real-time)
@@ -169,7 +170,7 @@ AI:       Google Gemini API ─────────────────�
 
 ## Known Limitations / Notes
 
-- A-share stock data is fetched directly from browser-compatible adapters (EastMoney, Tencent, Sina) — no Python backend required for stock data
+- A-share stock data is fetched directly from frontend adapters. BaoStock mode requires the local Python backend on port 5000
 - Gemini AI features require a valid `GEMINI_API_KEY`
 - The app degrades gracefully when either backend is unavailable (shows empty data)
 - Monaco Editor is loaded from jsDelivr CDN in `StrategyEditor.tsx`

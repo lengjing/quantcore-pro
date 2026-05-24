@@ -1,7 +1,7 @@
 /**
  * AIAssistantView
  *
- * Full-screen AI chat interface powered by Claude + BaoStock skills.
+ * Full-screen AI chat interface powered by Claude.
  *
  * The user can ask in natural language (Chinese or English) to:
  *   • Create custom sectors (e.g. "帮我创建一个MLCC板块")
@@ -371,7 +371,7 @@ export const AIAssistantView = ({
           <span className="text-terminal-accent font-bold text-xs tracking-widest uppercase">
             AI ASSISTANT
           </span>
-          <span className="text-[9px] text-gray-600 ml-1">powered by Claude + BaoStock</span>
+          <span className="text-[9px] text-gray-600 ml-1">powered by Claude</span>
         </div>
         <div className="flex items-center gap-3">
           {/* Status indicators */}

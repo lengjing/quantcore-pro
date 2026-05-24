@@ -8,7 +8,7 @@ A professional-grade quantitative trading terminal built with Electron + React +
 
 ## Features
 
-- **Real-Time Market Data** — Live crypto prices via Binance WebSocket; A-share stock data via browser-compatible adapters (EastMoney, Tencent, Sina)
+- **Real-Time Market Data** — Live crypto prices via Binance WebSocket; A-share stock data via adapters (EastMoney, Tencent, Sina, BaoStock local backend)
 - **Interactive Charts** — Candlestick-style line chart with zoom/pan, MA7/MA25/MA99 overlays
 - **L2 Order Book** — Real-time bid/ask depth visualization
 - **Time & Sales** — Live trade tape for crypto pairs
@@ -50,7 +50,7 @@ quantcore-pro/
 │   │   └── useBacktest.ts      # Backtest engine
 │   ├── services/
 │   │   ├── crypto/             # binanceRestService, binanceWsService
-│   │   ├── stock/              # adapters: EastMoney (default), Tencent, Sina
+│   │   ├── stock/              # adapters: EastMoney (default), Tencent, Sina, BaoStock (local backend)
 │   │   └── ai/                 # geminiService (news, strategy gen)
 │   ├── views/
 │   │   ├── DashboardView.tsx   # F1 — watchlist + chart + portfolio
@@ -86,7 +86,7 @@ pnpm dev
 ```
 
 > In this mode crypto features (Binance) and AI features (Gemini) work fully.
-> A-share stock data is fetched directly from browser-compatible adapters — no Python backend needed.
+> A-share stock data is fetched directly from frontend adapters. BaoStock requires the local Python backend.
 
 ## Python Backend (Optional — Socket.IO Infrastructure)
 
@@ -142,4 +142,4 @@ Set in `.env.local` (never commit this file).
 | Icons        | Lucide React                                |
 | AI           | Google Gemini (`@google/genai`)             |
 | Crypto Data  | Binance REST + WebSocket APIs               |
-| Stock Data   | EastMoney / Tencent / Sina (browser-direct) |
+| Stock Data   | EastMoney / Tencent / Sina / BaoStock (local backend) |
