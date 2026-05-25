@@ -56,9 +56,7 @@ const buildMenus = (): MenuDef[] => {
         { label: 'Report Issue', action: () => e?.openExternal('https://github.com/lengjing/quantcore-pro/issues') },
         { label: '', separator: true },
         { label: 'About QuantCore Pro', action: () => {
-          e?.getVersion().then((ver: string) => {
-            alert(`QuantCore Pro v${ver}\n\nProfessional Quantitative Trading Terminal`);
-          });
+          e?.showAbout();
         }},
       ],
     },

@@ -31,7 +31,8 @@ autoUpdater.on('update-not-available', (info) => sendUpdateStatus('not-available
 autoUpdater.on('download-progress', (progress) => sendUpdateStatus('downloading', progress));
 autoUpdater.on('update-downloaded', (info) => {
     sendUpdateStatus('downloaded', info);
-    dialog.showMessageBox(mainWindow!, {
+    if (!mainWindow) return;
+    dialog.showMessageBox(mainWindow, {
         type: 'info',
         title: 'Update Ready',
         message: `Version ${info.version} has been downloaded. Restart to apply the update.`,
@@ -157,7 +158,8 @@ ipcMain.handle('window-is-maximized', () => mainWindow?.isMaximized() ?? false);
 // ── Menu action IPC handlers ────────────────────────────────────────────────
 ipcMain.on('menu-check-updates', () => {
     if (isDev) {
-        dialog.showMessageBox(mainWindow!, {
+        if (!mainWindow) return;
+        dialog.showMessageBox(mainWindow, {
             type: 'info',
             title: 'Update Check',
             message: 'Update checking is disabled in development mode.',
@@ -186,6 +188,16 @@ ipcMain.on('menu-zoom-out', () => {
 ipcMain.on('menu-zoom-reset', () => mainWindow?.webContents.setZoomLevel(0));
 ipcMain.on('menu-open-external', (_e, url: string) => shell.openExternal(url));
 ipcMain.handle('app-get-version', () => app.getVersion());
+ipcMain.on('menu-show-about', () => {
+    if (!mainWindow) return;
+    dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'About QuantCore Pro',
+        message: 'QuantCore Pro',
+        detail: `Version: ${app.getVersion()}\n\nProfessional Quantitative Trading Terminal\n\n© ${new Date().getFullYear()} QuantCore`,
+        icon: path.join(__dirname, isDev ? '../public/logo.png' : '../dist/logo.png'),
+    });
+});
 
 app.on('ready', () => {
     createWindow();

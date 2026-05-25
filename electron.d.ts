@@ -21,6 +21,7 @@ declare global {
             zoomReset: () => void;
             openExternal: (url: string) => void;
             getVersion: () => Promise<string>;
+            showAbout: () => void;
             // Update events
             onUpdateStatus: (callback: (data: { status: string; info?: any }) => void) => void;
         };

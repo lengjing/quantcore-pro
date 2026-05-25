@@ -63,7 +63,7 @@ const fmtVol = (n: number) =>
 
 const pctChange = (o: number, c: number) => {
   if (o === 0) return '0.00';
-  return ((c - o) / o * 100).toFixed(2);
+  return (((c - o) / o) * 100).toFixed(2);
 };
 
 const MarketChart: React.FC<MarketChartProps> = ({ data, symbol, liveCandle }) => {
