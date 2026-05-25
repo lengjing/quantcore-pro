@@ -1,4 +1,4 @@
-name: Build Desktop App
+name: Build & Release Desktop App
 
 on:
   push:
@@ -74,6 +74,9 @@ jobs:
             release/*.exe
             release/*.dmg
             release/*.AppImage
+            release/*.yml
+            release/*.yaml
+            release/*.blockmap
           if-no-files-found: ignore
 
   release:
@@ -87,6 +90,19 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
+
+      - name: List artifacts
+        run: find artifacts -type f | head -50
+
+      - name: Upload to Cloudflare R2
+        uses: ryand56/r2-upload-action@latest
+        with:
+          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          r2-bucket: ${{ secrets.R2_BUCKET }}
+          source-dir: artifacts
+          destination-dir: ./
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

@@ -1,7 +1,7 @@
 {
   "name": "quantcore-pro",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "QuantCore Pro — quantitative trading terminal",
   "author": "QuantCore",
   "main": "dist-electron/main.js",
@@ -32,17 +32,29 @@
       {
         "from": "python_dist",
         "to": "python_dist",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
+    "publish": {
+      "provider": "generic",
+      "url": "https://pub-8a0bf3b6674f429abf20220dbbd6acc7.r2.dev"
+    },
     "win": {
-      "target": ["nsis"]
+      "target": [
+        "nsis"
+      ]
     },
     "mac": {
-      "target": ["dmg"]
+      "target": [
+        "dmg"
+      ]
     },
     "linux": {
-      "target": ["AppImage"]
+      "target": [
+        "AppImage"
+      ]
     },
     "nsis": {
       "oneClick": false,
@@ -52,6 +64,7 @@
   "dependencies": {
     "@google/genai": "^2.5.0",
     "@monaco-editor/react": "^4.7.0",
+    "electron-updater": "^6.8.3",
     "lightweight-charts": "5.2.0",
     "lucide-react": "^1.16.0",
     "react": "^19.2.0",

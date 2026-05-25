@@ -328,7 +328,7 @@ const App = () => {
             <span className="text-terminal-accent">
               {marketMode === 'CRYPTO' ? 'CRYPTO' : `A-SHARE / ${stockAdapterId.toUpperCase()}`}
             </span>
-            <span>BUILD: v3.0.0-PRO</span>
+            <span>BUILD: v1.0.0-PRO</span>
           </div>
         </div>
       </main>

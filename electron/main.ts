@@ -1,4 +1,5 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import { spawn, ChildProcess } from 'child_process';
 
@@ -6,6 +7,42 @@ const isDev = !app.isPackaged;
 
 let mainWindow: BrowserWindow | null = null;
 let pythonProcess: ChildProcess | null = null;
+
+// ── Auto-updater configuration ──────────────────────────────────────────────
+autoUpdater.autoDownload = true;
+autoUpdater.autoInstallOnAppQuit = true;
+
+if (!isDev) {
+    autoUpdater.setFeedURL({
+        provider: 'generic',
+        url: 'https://pub-8a0bf3b6674f429abf20220dbbd6acc7.r2.dev',
+    });
+}
+
+function sendUpdateStatus(status: string, info?: any) {
+    if (mainWindow) {
+        mainWindow.webContents.send('update-status', { status, info });
+    }
+}
+
+autoUpdater.on('checking-for-update', () => sendUpdateStatus('checking'));
+autoUpdater.on('update-available', (info) => sendUpdateStatus('available', info));
+autoUpdater.on('update-not-available', (info) => sendUpdateStatus('not-available', info));
+autoUpdater.on('download-progress', (progress) => sendUpdateStatus('downloading', progress));
+autoUpdater.on('update-downloaded', (info) => {
+    sendUpdateStatus('downloaded', info);
+    dialog.showMessageBox(mainWindow!, {
+        type: 'info',
+        title: 'Update Ready',
+        message: `Version ${info.version} has been downloaded. Restart to apply the update.`,
+        buttons: ['Restart Now', 'Later'],
+    }).then((result) => {
+        if (result.response === 0) {
+            autoUpdater.quitAndInstall();
+        }
+    });
+});
+autoUpdater.on('error', (err) => sendUpdateStatus('error', err.message));
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -117,9 +154,46 @@ ipcMain.on('window-maximize', () => {
 ipcMain.on('window-close', () => mainWindow?.close());
 ipcMain.handle('window-is-maximized', () => mainWindow?.isMaximized() ?? false);
 
+// ── Menu action IPC handlers ────────────────────────────────────────────────
+ipcMain.on('menu-check-updates', () => {
+    if (isDev) {
+        dialog.showMessageBox(mainWindow!, {
+            type: 'info',
+            title: 'Update Check',
+            message: 'Update checking is disabled in development mode.',
+        });
+    } else {
+        sendUpdateStatus('checking');
+        autoUpdater.checkForUpdatesAndNotify();
+    }
+});
+ipcMain.on('menu-open-devtools', () => mainWindow?.webContents.toggleDevTools());
+ipcMain.on('menu-reload', () => mainWindow?.reload());
+ipcMain.on('menu-force-reload', () => mainWindow?.webContents.reloadIgnoringCache());
+ipcMain.on('menu-toggle-fullscreen', () => mainWindow?.setFullScreen(!mainWindow?.isFullScreen()));
+ipcMain.on('menu-zoom-in', () => {
+    if (mainWindow) {
+        const zoom = mainWindow.webContents.getZoomLevel();
+        mainWindow.webContents.setZoomLevel(zoom + 0.5);
+    }
+});
+ipcMain.on('menu-zoom-out', () => {
+    if (mainWindow) {
+        const zoom = mainWindow.webContents.getZoomLevel();
+        mainWindow.webContents.setZoomLevel(zoom - 0.5);
+    }
+});
+ipcMain.on('menu-zoom-reset', () => mainWindow?.webContents.setZoomLevel(0));
+ipcMain.on('menu-open-external', (_e, url: string) => shell.openExternal(url));
+ipcMain.handle('app-get-version', () => app.getVersion());
+
 app.on('ready', () => {
     createWindow();
     startPythonProcess();
+    // Auto-check for updates in production
+    if (!isDev) {
+        setTimeout(() => autoUpdater.checkForUpdatesAndNotify(), 5000);
+    }
 });
 
 app.on('window-all-closed', () => {
