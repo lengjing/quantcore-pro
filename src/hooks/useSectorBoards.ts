@@ -6,6 +6,7 @@ import type { BoardSnapshot } from '../components/BoardCharts';
 const BOARD_POLL_MS = 30_000; // refresh every 30s
 const SNAPSHOT_INTERVAL_MS = 30_000; // snapshot every 30s (matches poll)
 const MAX_SNAPSHOTS = 24;
+const MAX_BOARD_STOCKS = 50;
 
 export function useSectorBoards() {
   const [category, setCategory] = useState<BoardCategory>('concept');
@@ -57,7 +58,7 @@ export function useSectorBoards() {
   const fetchBoardStocks = useCallback(async (boardCode: string) => {
     setIsBoardStocksLoading(true);
     try {
-      const result = await sectorBoardService.fetchBoardStocks(boardCode, 1, 50);
+      const result = await sectorBoardService.fetchBoardStocks(boardCode, 1, MAX_BOARD_STOCKS);
       if (mountedRef.current) {
         setBoardStocks(result.stocks);
       }

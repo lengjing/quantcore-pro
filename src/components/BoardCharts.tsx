@@ -67,6 +67,11 @@ const BOARD_PALETTE = [
   '#14b8a6', '#a855f7', '#e11d48', '#0ea5e9', '#22c55e',
 ];
 
+// Display limits
+const MAX_BARS = 40;
+const MAX_HEATMAP_TILES = 60;
+const MAX_LINE_SERIES = 12;
+
 // ── BAR Chart ──────────────────────────────────────────────────────────────────
 
 const BoardBarChart = ({
@@ -82,7 +87,7 @@ const BoardBarChart = ({
     () =>
       [...boards]
         .sort((a, b) => b.changePercent - a.changePercent)
-        .slice(0, 40) // limit to top 40 for readability
+        .slice(0, MAX_BARS)
         .map((b, i) => ({
           code: b.code,
           name: b.name,
@@ -163,15 +168,8 @@ const BoardBarChart = ({
         <Bar
           dataKey="change"
           radius={0}
-          onClick={(_d: unknown, _i: number, e: React.MouseEvent) => {
-            // Find the clicked bar's data from the event
-            const target = e?.target as SVGElement | null;
-            const idx = target?.parentElement ? Array.from(target.parentElement.children).indexOf(target) : -1;
-            if (idx >= 0 && idx < data.length) {
-              const code = data[idx].code;
-              onSelectBoard(code === selectedBoardCode ? null : code);
-            }
-          }}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          onClick={(d: any) => onSelectBoard(d?.code === selectedBoardCode ? null : (d?.code ?? null))}
         >
           {data.map((entry, i) => (
             <Cell
@@ -214,7 +212,7 @@ const BoardHeatmap = ({
       <div className="flex flex-wrap gap-0.5 h-full content-start">
         {[...boards]
           .sort((a, b) => Math.abs(b.totalMarketCap) - Math.abs(a.totalMarketCap))
-          .slice(0, 60)
+          .slice(0, MAX_HEATMAP_TILES)
           .map((b) => {
             const capPct = totalCap > 0 ? Math.abs(b.totalMarketCap) / totalCap : 1 / boards.length;
             const widthPct = Math.max(6, capPct * 100);
@@ -270,7 +268,7 @@ const BoardLineChart = ({
     // Use top 12 boards by absolute change for line chart clarity
     const topBoards = [...boards]
       .sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))
-      .slice(0, 12);
+      .slice(0, MAX_LINE_SERIES);
     const topCodes = new Set(topBoards.map((b) => b.code));
 
     const defs = topBoards.map((b, i) => ({
