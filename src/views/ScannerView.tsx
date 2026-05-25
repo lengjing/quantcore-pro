@@ -216,7 +216,7 @@ export const ScannerView = ({
             {conditions.length === 0 ? (
               <div className="text-center py-6 text-[9px] font-mono text-gray-600">
                 <div className="mb-1 text-lg">⊘</div>
-                NO CONDITIONS SET<br />
+                {t('NO_CONDITIONS_SET')}<br />
                 <span className="text-gray-700">{t('SELECT_PRESET_HINT')}</span>
               </div>
             ) : (
@@ -278,7 +278,7 @@ export const ScannerView = ({
               {isScannerLoading ? (
                 <span className="text-yellow-600 animate-pulse">{t('LOADING')}</span>
               ) : (
-                <span className="text-terminal-success">{results.length} HITS</span>
+                <span className="text-terminal-success">{results.length} {t('HITS')}</span>
               )}
             </span>
           </div>

@@ -334,7 +334,7 @@ export const AIAssistantView = ({
       const errorMsg: ChatMessage = {
         id: `e_${Date.now()}`,
         role: 'assistant',
-        content: `⚠ ${t('AI_ERROR')}：${err instanceof Error ? err.message : '未知错误'}\n\n${t('AI_ERROR_HINT')}`,
+        content: `⚠ ${t('AI_ERROR')}：${err instanceof Error ? err.message : t('UNKNOWN_ERROR')}\n\n${t('AI_ERROR_HINT')}`,
         timestamp: Date.now(),
       };
       setMessages((prev) => [...prev.filter((m) => m.id !== 'loading'), errorMsg]);

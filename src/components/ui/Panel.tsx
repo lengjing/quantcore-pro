@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { MoreVertical, Maximize2, Minimize2, RefreshCcw, Loader } from 'lucide-react';
 import type { ResourceKey } from '../../constants/resources';
 
@@ -16,18 +16,21 @@ export const Panel = ({ title, children, className = '', tools, onRefresh, onScr
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const refreshingRef = useRef(false);
 
   const handleRefresh = useCallback(async () => {
-    if (!onRefresh || isRefreshing) return;
+    if (!onRefresh || refreshingRef.current) return;
+    refreshingRef.current = true;
     setIsRefreshing(true);
     try {
       await Promise.resolve(onRefresh());
       // Keep spinner visible briefly so user sees the feedback
       await new Promise((r) => setTimeout(r, 600));
     } finally {
+      refreshingRef.current = false;
       setIsRefreshing(false);
     }
-  }, [onRefresh, isRefreshing]);
+  }, [onRefresh]);
 
   const label = (en: string, key?: ResourceKey) => (t && key ? t(key) : en);
 
