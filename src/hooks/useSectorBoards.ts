@@ -1,14 +1,21 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import sectorBoardService from '../services/stock/sectorBoardService';
 import type { BoardItem, BoardStock, BoardCategory } from '../services/stock/sectorBoardService';
+import type { BoardSnapshot } from '../components/BoardCharts';
 
 const BOARD_POLL_MS = 30_000; // refresh every 30s
+const SNAPSHOT_INTERVAL_MS = 30_000; // snapshot every 30s (matches poll)
+const MAX_SNAPSHOTS = 24;
 
 export function useSectorBoards() {
   const [category, setCategory] = useState<BoardCategory>('concept');
   const [boards, setBoards] = useState<BoardItem[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Snapshots for line chart history
+  const [snapshots, setSnapshots] = useState<BoardSnapshot[]>([]);
+  const lastSnapshotRef = useRef<number>(0);
 
   // Board detail drill-down
   const [selectedBoard, setSelectedBoard] = useState<BoardItem | null>(null);
@@ -17,6 +24,8 @@ export function useSectorBoards() {
 
   const mountedRef = useRef(true);
 
+  const boardsRef = useRef<BoardItem[]>([]);
+
   // Fetch board list
   const fetchBoards = useCallback(async (cat: BoardCategory = category) => {
     setIsLoading(true);
@@ -24,7 +33,18 @@ export function useSectorBoards() {
       const result = await sectorBoardService.fetchBoards(cat, 1, 80);
       if (mountedRef.current) {
         setBoards(result.boards);
+        boardsRef.current = result.boards;
         setTotal(result.total);
+
+        // Push snapshot for line chart history
+        const now = Date.now();
+        if (now - lastSnapshotRef.current >= SNAPSHOT_INTERVAL_MS && result.boards.length > 0) {
+          lastSnapshotRef.current = now;
+          setSnapshots((prev) => {
+            const next = [...prev, { ts: now, boards: result.boards }];
+            return next.slice(-MAX_SNAPSHOTS);
+          });
+        }
       }
     } catch (e) {
       console.error('useSectorBoards fetchBoards:', e);
@@ -37,7 +57,7 @@ export function useSectorBoards() {
   const fetchBoardStocks = useCallback(async (boardCode: string) => {
     setIsBoardStocksLoading(true);
     try {
-      const result = await sectorBoardService.fetchBoardStocks(boardCode, 1, 30);
+      const result = await sectorBoardService.fetchBoardStocks(boardCode, 1, 50);
       if (mountedRef.current) {
         setBoardStocks(result.stocks);
       }
@@ -48,13 +68,21 @@ export function useSectorBoards() {
     }
   }, []);
 
-  // Select a board for detail view
-  const selectBoard = useCallback((board: BoardItem | null) => {
-    setSelectedBoard(board);
-    if (board) {
-      fetchBoardStocks(board.code);
-    } else {
+  // Select a board for detail view (by BoardItem or by code string)
+  const selectBoard = useCallback((boardOrCode: BoardItem | string | null) => {
+    if (boardOrCode === null) {
+      setSelectedBoard(null);
       setBoardStocks([]);
+      return;
+    }
+    if (typeof boardOrCode === 'string') {
+      const found = boardsRef.current.find((b) => b.code === boardOrCode) ?? null;
+      setSelectedBoard(found);
+      if (found) fetchBoardStocks(found.code);
+      else setBoardStocks([]);
+    } else {
+      setSelectedBoard(boardOrCode);
+      fetchBoardStocks(boardOrCode.code);
     }
   }, [fetchBoardStocks]);
 
@@ -63,6 +91,8 @@ export function useSectorBoards() {
     setCategory(cat);
     setSelectedBoard(null);
     setBoardStocks([]);
+    setSnapshots([]);
+    lastSnapshotRef.current = 0;
     fetchBoards(cat);
   }, [fetchBoards]);
 
@@ -90,6 +120,7 @@ export function useSectorBoards() {
     boards,
     total,
     isLoading,
+    snapshots,
     selectedBoard,
     selectBoard,
     boardStocks,
