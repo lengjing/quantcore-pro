@@ -2,6 +2,8 @@
   "name": "quantcore-pro",
   "private": true,
   "version": "0.0.0",
+  "description": "QuantCore Pro — quantitative trading terminal",
+  "author": "QuantCore",
   "main": "dist-electron/main.js",
   "type": "module",
   "packageManager": "pnpm@9.15.9",
@@ -22,8 +24,7 @@
     "productName": "QuantCore Pro",
     "files": [
       "dist/**/*",
-      "dist-electron/**/*",
-      "python_dist/**/*"
+      "dist-electron/**/*"
     ],
     "directories": {
       "output": "release"
@@ -31,9 +32,23 @@
     "extraResources": [
       {
         "from": "python_dist",
-        "to": "python_dist"
+        "to": "python_dist",
+        "filter": ["**/*"]
       }
-    ]
+    ],
+    "win": {
+      "target": ["nsis"]
+    },
+    "mac": {
+      "target": ["dmg"]
+    },
+    "linux": {
+      "target": ["AppImage"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   },
   "dependencies": {
     "@google/genai": "^2.5.0",
