@@ -40,6 +40,7 @@ export class BaoStockAdapter implements IStockDataAdapter {
     'End-of-day data only (no intraday ticks). ' +
     'Minute bars: 5/15/30/60 min (1-min unsupported). ' +
     'Requires the local Python backend on port 5000.';
+  readonly capabilities = ['realtime', 'dailyKlines', 'minuteKlines'] as const;
 
   async fetchSnapshots(symbols: string[]): Promise<StockSnapshot[]> {
     if (symbols.length === 0) return [];

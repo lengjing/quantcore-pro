@@ -12,6 +12,9 @@ import {
   TrendingUp as LineIcon,
   Plus,
   X,
+  Loader,
+  ChevronLeft,
+  RefreshCw,
 } from 'lucide-react';
 import type { MarketTicker, MarketMode, ViewState as ViewStateType } from '../types';
 import { ViewState } from '../types';
@@ -29,10 +32,12 @@ import {
 } from '../data/sectors';
 import { SectorCharts, type SectorChartType } from '../components/SectorCharts';
 import { SectorDetailPanel } from '../components/SectorDetailPanel';
+import { useSectorBoards } from '../hooks/useSectorBoards';
+import type { BoardCategory } from '../services/stock/sectorBoardService';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type MainTab = 'TABLE' | 'SECTORS';
+type MainTab = 'TABLE' | 'SECTORS' | 'BOARDS';
 type Tab = 'ALL' | 'GAINERS' | 'LOSERS' | 'ACTIVE';
 type SortKey = keyof Pick<
   MarketTicker,
@@ -160,6 +165,9 @@ export const MarketView = ({
   const [selectedSectorId, setSelectedSectorId] = useState<string | null>(null);
   const [sectorChartType, setSectorChartType] = useState<SectorChartType>('BAR');
   const lastSnapshotRef = useRef<number>(0);
+
+  // ── API-driven sector boards (题材聚焦 / 题材轮动) ────────────────────────
+  const sectorBoards = useSectorBoards();
 
   // ── Custom (user-defined) sectors — state is owned by App.tsx ─────────────
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -462,7 +470,7 @@ export const MarketView = ({
         tools={
           <div className="flex items-center gap-1 mr-1">
             {/* Main tab toggle */}
-            {(['TABLE', 'SECTORS'] as MainTab[]).map((mt) => (
+            {(['TABLE', 'SECTORS', 'BOARDS'] as MainTab[]).map((mt) => (
               <button
                 key={mt}
                 onClick={() => setMainTab(mt)}
@@ -473,7 +481,7 @@ export const MarketView = ({
                     : 'text-gray-500 hover:text-gray-200 border border-transparent hover:border-[#333]',
                 ].join(' ')}
               >
-                {mt}
+                {mt === 'BOARDS' ? '题材' : mt}
               </button>
             ))}
 
@@ -576,6 +584,49 @@ export const MarketView = ({
                 >
                   <Plus size={8} />CONCEPT
                 </button>
+              </>
+            )}
+
+            {mainTab === 'BOARDS' && (
+              <>
+                <div className="h-3 w-px bg-[#333] mx-1" />
+                {/* Board category toggle */}
+                {(['concept', 'industry'] as BoardCategory[]).map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => sectorBoards.switchCategory(cat)}
+                    className={[
+                      'text-[9px] font-mono font-bold px-2 py-0.5 uppercase tracking-wider transition-colors',
+                      sectorBoards.category === cat
+                        ? 'bg-terminal-accent text-black'
+                        : 'text-gray-500 hover:text-gray-200 border border-transparent hover:border-[#333]',
+                    ].join(' ')}
+                  >
+                    {cat === 'concept' ? '概念板块' : '行业板块'}
+                  </button>
+                ))}
+                <div className="h-3 w-px bg-[#333] mx-1" />
+                <button
+                  onClick={() => sectorBoards.refreshBoards()}
+                  title="Refresh board data"
+                  className="flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 text-gray-500 hover:text-gray-200 border border-transparent hover:border-[#333] transition-colors"
+                >
+                  <RefreshCw size={8} />REFRESH
+                </button>
+                {sectorBoards.selectedBoard && (
+                  <>
+                    <div className="h-3 w-px bg-[#333] mx-1" />
+                    <button
+                      onClick={() => sectorBoards.selectBoard(null)}
+                      className="flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 text-terminal-accent hover:text-yellow-300 transition-colors"
+                    >
+                      <ChevronLeft size={8} />BACK
+                    </button>
+                    <span className="text-[9px] font-mono text-white font-bold ml-1">
+                      {sectorBoards.selectedBoard.name}
+                    </span>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -733,6 +784,141 @@ export const MarketView = ({
                 onAddToWatchlist={addToWatchlist}
                 onDeleteCustom={handleDeleteCustomSector}
               />
+            )}
+          </div>
+        )}
+
+        {/* ── BOARDS content (题材聚焦 / 题材轮动) ────────────────────── */}
+        {mainTab === 'BOARDS' && (
+          <div className="h-full overflow-auto custom-scrollbar">
+            {sectorBoards.isLoading && sectorBoards.boards.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-gray-600 text-[10px] font-mono">
+                <Loader size={12} className="animate-spin mr-2" />
+                LOADING BOARD DATA…
+              </div>
+            ) : !sectorBoards.selectedBoard ? (
+              /* ── Board list table ──────────────────────────────────── */
+              <table className="w-full font-mono text-[10px] border-collapse">
+                <thead className="sticky top-0 bg-[#0c0c0c] z-10">
+                  <tr className="border-b border-terminal-border">
+                    <th className="px-2 py-1.5 text-left text-gray-500 whitespace-nowrap">#</th>
+                    <th className="px-2 py-1.5 text-left text-gray-500 whitespace-nowrap">BOARD NAME</th>
+                    <th className="px-2 py-1.5 text-right text-gray-500 whitespace-nowrap">CHG%</th>
+                    <th className="px-2 py-1.5 text-right text-gray-500 whitespace-nowrap">TURNOVER%</th>
+                    <th className="px-2 py-1.5 text-center text-gray-500 whitespace-nowrap">↑/↓</th>
+                    <th className="px-2 py-1.5 text-right text-gray-500 whitespace-nowrap">MAIN INFLOW</th>
+                    <th className="px-2 py-1.5 text-left text-gray-500 whitespace-nowrap">LEADER</th>
+                    <th className="px-2 py-1.5 text-right text-gray-500 whitespace-nowrap">LEADER CHG%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sectorBoards.boards.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="text-center py-12 text-gray-600">
+                        {marketMode === 'CRYPTO' ? 'BOARDS ONLY AVAILABLE FOR A-SHARE MARKET' : 'NO BOARD DATA AVAILABLE'}
+                      </td>
+                    </tr>
+                  ) : (
+                    sectorBoards.boards.map((board, idx) => {
+                      const isPos = board.changePercent > 0;
+                      const isNeg = board.changePercent < 0;
+                      const inflowAbs = Math.abs(board.mainNetInflow);
+                      const inflowStr = inflowAbs >= 1e8
+                        ? `${(board.mainNetInflow / 1e8).toFixed(2)}亿`
+                        : inflowAbs >= 1e4
+                          ? `${(board.mainNetInflow / 1e4).toFixed(0)}万`
+                          : board.mainNetInflow.toFixed(0);
+                      return (
+                        <tr
+                          key={board.code}
+                          className="border-b border-[#1a1a1a] hover:bg-[#111] cursor-pointer group/row transition-colors"
+                          onClick={() => sectorBoards.selectBoard(board)}
+                        >
+                          <td className="px-2 py-1.5 text-gray-600">{idx + 1}</td>
+                          <td className="px-2 py-1.5 text-white font-bold">{board.name}</td>
+                          <td className={`px-2 py-1.5 text-right tabular-nums font-bold ${isPos ? 'text-terminal-success' : isNeg ? 'text-terminal-error' : 'text-gray-400'}`}>
+                            {isPos ? '+' : ''}{board.changePercent.toFixed(2)}%
+                          </td>
+                          <td className="px-2 py-1.5 text-right tabular-nums text-gray-400">
+                            {board.turnoverRate.toFixed(2)}%
+                          </td>
+                          <td className="px-2 py-1.5 text-center whitespace-nowrap">
+                            <span className="text-terminal-success">{board.advancing}</span>
+                            <span className="text-gray-600 mx-0.5">/</span>
+                            <span className="text-terminal-error">{board.declining}</span>
+                          </td>
+                          <td className={`px-2 py-1.5 text-right tabular-nums ${board.mainNetInflow > 0 ? 'text-terminal-success' : board.mainNetInflow < 0 ? 'text-terminal-error' : 'text-gray-400'}`}>
+                            {board.mainNetInflow > 0 ? '+' : ''}{inflowStr}
+                          </td>
+                          <td className="px-2 py-1.5 text-gray-300 truncate max-w-[80px]">{board.leaderName}</td>
+                          <td className={`px-2 py-1.5 text-right tabular-nums ${board.leaderChangePercent > 0 ? 'text-terminal-success' : board.leaderChangePercent < 0 ? 'text-terminal-error' : 'text-gray-400'}`}>
+                            {board.leaderChangePercent > 0 ? '+' : ''}{board.leaderChangePercent.toFixed(2)}%
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            ) : (
+              /* ── Board detail: component stocks ────────────────────── */
+              <table className="w-full font-mono text-[10px] border-collapse">
+                <thead className="sticky top-0 bg-[#0c0c0c] z-10">
+                  <tr className="border-b border-terminal-border">
+                    <th className="px-2 py-1.5 text-left text-gray-500 whitespace-nowrap">SYMBOL</th>
+                    <th className="px-2 py-1.5 text-left text-gray-500 whitespace-nowrap">NAME</th>
+                    <th className="px-2 py-1.5 text-right text-gray-500 whitespace-nowrap">PRICE</th>
+                    <th className="px-2 py-1.5 text-right text-gray-500 whitespace-nowrap">CHG%</th>
+                    <th className="px-2 py-1.5 text-right text-gray-500 whitespace-nowrap">CHG</th>
+                    <th className="px-2 py-1.5 text-right text-gray-500 whitespace-nowrap">VOLUME</th>
+                    <th className="px-2 py-1.5 text-right text-gray-500 whitespace-nowrap">TURNOVER%</th>
+                    <th className="px-2 py-1.5 text-right text-gray-600 w-8"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sectorBoards.isBoardStocksLoading && sectorBoards.boardStocks.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="text-center py-12 text-gray-600">
+                        <Loader size={12} className="animate-spin inline mr-2" />
+                        LOADING STOCKS…
+                      </td>
+                    </tr>
+                  ) : (
+                    sectorBoards.boardStocks.map((stock) => {
+                      const isPos = stock.changePercent > 0;
+                      const isNeg = stock.changePercent < 0;
+                      return (
+                        <tr
+                          key={stock.symbol}
+                          className="border-b border-[#1a1a1a] hover:bg-[#111] cursor-pointer group/row transition-colors"
+                          onClick={() => goToSymbol(stock.symbol)}
+                        >
+                          <td className="px-2 py-1.5 text-terminal-accent font-bold">{stock.symbol.replace(/^(sh|sz)/, '')}</td>
+                          <td className="px-2 py-1.5 text-gray-300">{stock.name}</td>
+                          <td className="px-2 py-1.5 text-right tabular-nums text-white">{stock.price.toFixed(2)}</td>
+                          <td className={`px-2 py-1.5 text-right tabular-nums font-bold ${isPos ? 'text-terminal-success' : isNeg ? 'text-terminal-error' : 'text-gray-400'}`}>
+                            {isPos ? '+' : ''}{stock.changePercent.toFixed(2)}%
+                          </td>
+                          <td className={`px-2 py-1.5 text-right tabular-nums ${isPos ? 'text-terminal-success' : isNeg ? 'text-terminal-error' : 'text-gray-400'}`}>
+                            {isPos ? '+' : ''}{stock.change.toFixed(2)}
+                          </td>
+                          <td className="px-2 py-1.5 text-right tabular-nums text-gray-400">{fmtVol(stock.volume)}</td>
+                          <td className="px-2 py-1.5 text-right tabular-nums text-gray-400">{stock.turnoverRate.toFixed(2)}%</td>
+                          <td className="px-2 py-1.5 text-right">
+                            <button
+                              className="text-gray-700 group-hover/row:text-terminal-accent opacity-0 group-hover/row:opacity-100 transition-opacity"
+                              title="Open chart"
+                              onClick={(e) => { e.stopPropagation(); goToSymbol(stock.symbol); }}
+                            >
+                              <ExternalLink size={9} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             )}
           </div>
         )}
