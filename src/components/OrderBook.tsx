@@ -1,11 +1,14 @@
 import React, { useMemo } from 'react';
+import type { ResourceKey } from '../constants/resources';
 
 interface OrderBookProps {
   bids: { price: number; size: number }[];
   asks: { price: number; size: number }[];
+  t?: (key: ResourceKey) => string;
 }
 
-const OrderBook: React.FC<OrderBookProps> = ({ bids, asks }) => {
+const OrderBook: React.FC<OrderBookProps> = ({ bids, asks, t: tProp }) => {
+  const t = tProp ?? ((key: string) => key);
   const maxVolume = useMemo(() => {
     const allSizes = [...bids.map((b) => b.size), ...asks.map((a) => a.size)];
     return allSizes.length > 0 ? Math.max(...allSizes) : 1;
@@ -17,7 +20,7 @@ const OrderBook: React.FC<OrderBookProps> = ({ bids, asks }) => {
     return (
       <div className="flex flex-col h-full bg-[#050505] text-[10px] font-mono select-none items-center justify-center gap-2">
         <div className="w-2 h-2 rounded-full bg-gray-700 animate-pulse" />
-        <span className="text-gray-600 tracking-wider uppercase">Awaiting depth data…</span>
+        <span className="text-gray-600 tracking-wider uppercase">{t('AWAITING_DEPTH')}</span>
       </div>
     );
   }
@@ -25,8 +28,8 @@ const OrderBook: React.FC<OrderBookProps> = ({ bids, asks }) => {
   return (
     <div className="flex flex-col h-full bg-[#050505] text-[10px] font-mono select-none">
       <div className="flex justify-between px-2 py-1 text-gray-600 bg-[#0a0a0a] border-b border-terminal-border">
-        <span>PRICE</span>
-        <span>SIZE</span>
+        <span>{t('PRICE')}</span>
+        <span>{t('SIZE')}</span>
       </div>
 
       {/* Asks (Sells) — shown inverted so lowest ask is nearest the spread */}
@@ -45,7 +48,7 @@ const OrderBook: React.FC<OrderBookProps> = ({ bids, asks }) => {
 
       {/* Spread Indicator */}
       <div className="py-0.5 bg-[#111] text-center border-y border-terminal-border flex justify-center items-center space-x-2">
-        <span className="text-gray-500">SPREAD</span>
+        <span className="text-gray-500">{t('SPREAD')}</span>
         <span className="text-white font-bold">
           {spread != null ? spread.toFixed(2) : '—'}
         </span>

@@ -45,8 +45,8 @@ export const NewsView = ({ t }: NewsViewProps) => {
           ))}
           {news.length === 0 && !isNewsLoading && (
             <div className="text-center py-10 text-gray-500">
-              <p>NO NEWS LOADED</p>
-              <button onClick={refreshNews} className="mt-2 text-terminal-accent underline">REFRESH FEED</button>
+              <p>{t('NO_NEWS_LOADED')}</p>
+              <button onClick={refreshNews} className="mt-2 text-terminal-accent underline">{t('REFRESH_FEED')}</button>
             </div>
           )}
           {isNewsLoading && (
@@ -57,7 +57,7 @@ export const NewsView = ({ t }: NewsViewProps) => {
         </div>
       </Panel>
 
-      <Panel title="READER" className="col-span-8 h-full bg-[#111]">
+      <Panel title={t('READER')} className="col-span-8 h-full bg-[#111]">
         {selectedNews ? (
           <div className="p-8 max-w-2xl mx-auto">
             <div className="text-2xl font-bold mb-4 font-sans">{selectedNews.headline}</div>
@@ -87,7 +87,7 @@ export const NewsView = ({ t }: NewsViewProps) => {
           </div>
         ) : (
           <div className="flex h-full items-center justify-center text-gray-600">
-            SELECT AN ARTICLE TO READ
+            {t('SELECT_ARTICLE')}
           </div>
         )}
       </Panel>

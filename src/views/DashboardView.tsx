@@ -101,7 +101,7 @@ export const DashboardView = ({
                 );
               }) : (
                 <tr className="text-gray-600 text-center">
-                  <td colSpan={3} className="py-4">NO WATCHLIST DATA</td>
+                  <td colSpan={3} className="py-4">{t('NO_WATCHLIST_DATA')}</td>
                 </tr>
               )}
             </tbody>
@@ -136,7 +136,7 @@ export const DashboardView = ({
           <div className="flex justify-between px-2 py-1 text-gray-500 bg-[#111] border-b border-[#333]">
             <span>PRICE</span>
             <span>QTY</span>
-            <span>TIME</span>
+            <span>{t('TIME')}</span>
           </div>
           <div className="overflow-hidden relative flex-1">
             <div className="absolute inset-0 overflow-hidden">
@@ -157,13 +157,13 @@ export const DashboardView = ({
         <div className="h-full flex">
           <div className="w-56 border-r border-terminal-border p-2 space-y-3 bg-[#080808]">
             <div className="flex justify-between items-center">
-              <span className="text-gray-500 font-bold">NAV</span>
+              <span className="text-gray-500 font-bold">{t('NAV_LABEL')}</span>
               <span className="text-lg font-mono text-white">
                 {currencySign}{portfolioStats.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-gray-500 font-bold">DAY P&L</span>
+              <span className="text-gray-500 font-bold">{t('DAY_PNL')}</span>
               <span className={`font-mono ${portfolioStats.totalPnL >= 0 ? 'text-terminal-success' : 'text-terminal-error'}`}>
                 {portfolioStats.totalPnL >= 0 ? '+' : ''}
                 {currencySign}{Math.abs(portfolioStats.totalPnL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

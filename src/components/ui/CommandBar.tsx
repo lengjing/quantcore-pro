@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, forwardRef } from 'react';
 import { Wifi, AlertTriangle, ChevronDown } from 'lucide-react';
 import type { MarketMode, TradingMode } from '../../types';
+import type { ResourceKey } from '../../constants/resources';
 
 /**
  * Combined data-source value that encodes both market mode and adapter
@@ -31,6 +32,7 @@ interface CommandBarProps {
   setStockAdapter: (id: string) => void;
   tradingMode: TradingMode;
   setTradingMode: (mode: TradingMode) => void;
+  t: (key: ResourceKey) => string;
 }
 
 const Clock = () => {
@@ -56,6 +58,7 @@ export const CommandBar = forwardRef<HTMLInputElement, CommandBarProps>(
       setStockAdapter,
       tradingMode,
       setTradingMode,
+      t,
     },
     ref,
   ) => {
@@ -80,7 +83,7 @@ export const CommandBar = forwardRef<HTMLInputElement, CommandBarProps>(
     return (
       <div className="h-8 bg-terminal-bg border-b border-terminal-border flex items-center px-2 gap-1 shrink-0 min-w-0">
         {/* Command input */}
-        <div className="text-terminal-accent font-bold text-xs select-none shrink-0">CMD:</div>
+        <div className="text-terminal-accent font-bold text-xs select-none shrink-0">{t('CMD_LABEL')}</div>
         <div className="w-44 shrink-0">
           <input
             ref={ref}
@@ -89,7 +92,7 @@ export const CommandBar = forwardRef<HTMLInputElement, CommandBarProps>(
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && onSubmit()}
             className="w-full bg-transparent border-none text-xs text-white font-mono focus:outline-none uppercase placeholder-gray-700"
-            placeholder="BUY BTC / ADD ETH…"
+            placeholder={t('CMD_PLACEHOLDER')}
             autoFocus
             spellCheck={false}
           />
@@ -140,18 +143,18 @@ export const CommandBar = forwardRef<HTMLInputElement, CommandBarProps>(
           <button
             onClick={() => setTradingMode('PAPER')}
             className="flex items-center gap-1 px-2 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider text-red-400 border border-red-700 bg-red-950/40 hover:bg-red-900/60 animate-pulse rounded-sm"
-            title="Click to switch to Paper mode"
+            title={t('LIVE_SWITCH_HINT')}
           >
             <AlertTriangle size={8} />
-            LIVE
+            {t('LIVE')}
           </button>
         ) : (
           <button
             onClick={() => setTradingMode('LIVE')}
             className="flex items-center gap-1 px-2 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider text-gray-400 border border-[#333] bg-[#181818] hover:border-red-700 hover:text-red-400 rounded-sm"
-            title="Switch to Live trading (real funds)"
+            title={t('PAPER_SWITCH_HINT')}
           >
-            PAPER
+            {t('PAPER')}
           </button>
         )}
 
@@ -164,13 +167,13 @@ export const CommandBar = forwardRef<HTMLInputElement, CommandBarProps>(
             onClick={onHelp}
             className="text-[10px] text-black bg-terminal-accent px-2 py-0.5 font-bold hover:bg-yellow-500"
           >
-            HELP
+            {t('HELP')}
           </button>
           <button
             onClick={onMenu}
             className="text-[10px] text-black bg-gray-400 px-2 py-0.5 font-bold hover:bg-gray-300"
           >
-            MENU
+            {t('MENU')}
           </button>
         </div>
 
@@ -179,7 +182,7 @@ export const CommandBar = forwardRef<HTMLInputElement, CommandBarProps>(
         {/* Connection status + clock */}
         <div className="flex items-center gap-3 text-[10px] font-mono text-gray-400 shrink-0">
           <span className="flex items-center text-terminal-success">
-            <Wifi size={10} className="mr-1" /> CNNCTD
+            <Wifi size={10} className="mr-1" /> {t('CONNECTED')}
           </span>
           <Clock />
         </div>

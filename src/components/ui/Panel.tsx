@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { MoreVertical, Maximize2, Minimize2, RefreshCcw } from 'lucide-react';
+import React, { useState, useCallback, useRef } from 'react';
+import { MoreVertical, Maximize2, Minimize2, RefreshCcw, Loader } from 'lucide-react';
+import type { ResourceKey } from '../../constants/resources';
 
 interface PanelProps {
   title: string;
@@ -8,11 +9,30 @@ interface PanelProps {
   tools?: React.ReactNode;
   onRefresh?: () => void;
   onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
+  t?: (key: ResourceKey) => string;
 }
 
-export const Panel = ({ title, children, className = '', tools, onRefresh, onScroll }: PanelProps) => {
+export const Panel = ({ title, children, className = '', tools, onRefresh, onScroll, t }: PanelProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const refreshingRef = useRef(false);
+
+  const handleRefresh = useCallback(async () => {
+    if (!onRefresh || refreshingRef.current) return;
+    refreshingRef.current = true;
+    setIsRefreshing(true);
+    try {
+      await Promise.resolve(onRefresh());
+      // Keep spinner visible briefly so user sees the feedback
+      await new Promise((r) => setTimeout(r, 600));
+    } finally {
+      refreshingRef.current = false;
+      setIsRefreshing(false);
+    }
+  }, [onRefresh]);
+
+  const label = (en: string, key?: ResourceKey) => (t && key ? t(key) : en);
 
   const containerClass = isMaximized
     ? 'fixed inset-2 z-40 bg-terminal-bg border border-terminal-accent'
@@ -24,6 +44,7 @@ export const Panel = ({ title, children, className = '', tools, onRefresh, onScr
         <div className="flex items-center space-x-2">
           <div className={`w-1 h-3 ${isMaximized ? 'bg-terminal-success' : 'bg-terminal-accent'}`}></div>
           <span className="text-[10px] font-bold tracking-wider text-gray-300 uppercase truncate">{title}</span>
+          {isRefreshing && <Loader size={10} className="animate-spin text-terminal-accent" />}
         </div>
         <div className="flex items-center space-x-2 text-gray-500">
           {tools}
@@ -40,17 +61,18 @@ export const Panel = ({ title, children, className = '', tools, onRefresh, onScr
                   onClick={() => { setIsMaximized(!isMaximized); setIsMenuOpen(false); }}
                 >
                   {isMaximized ? <Minimize2 size={10} /> : <Maximize2 size={10} />}
-                  {isMaximized ? 'RESTORE' : 'MAXIMIZE'}
+                  {label(isMaximized ? 'RESTORE' : 'MAXIMIZE', isMaximized ? 'RESTORE' : 'MAXIMIZE')}
                 </div>
                 <div
-                  className="px-3 py-1 text-[10px] text-gray-400 hover:bg-terminal-accent hover:text-black cursor-pointer flex items-center gap-2"
-                  onClick={() => { onRefresh?.(); setIsMenuOpen(false); }}
+                  className={`px-3 py-1 text-[10px] text-gray-400 hover:bg-terminal-accent hover:text-black cursor-pointer flex items-center gap-2 ${isRefreshing ? 'opacity-50 pointer-events-none' : ''}`}
+                  onClick={() => { handleRefresh(); setIsMenuOpen(false); }}
                 >
-                  <RefreshCcw size={10} /> REFRESH
+                  {isRefreshing ? <Loader size={10} className="animate-spin" /> : <RefreshCcw size={10} />}
+                  {isRefreshing ? label('REFRESHING…', 'REFRESHING') : label('REFRESH', 'BTN_REFRESH')}
                 </div>
                 <div className="h-px bg-[#333] my-1"></div>
                 <div className="px-3 py-1 text-[10px] text-terminal-error hover:bg-red-900/50 cursor-pointer">
-                  CLOSE PANEL
+                  {label('CLOSE PANEL', 'CLOSE_PANEL')}
                 </div>
               </div>
             )}

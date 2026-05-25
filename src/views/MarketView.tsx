@@ -522,11 +522,12 @@ export const MarketView = ({
                 </div>
                 <div className="h-3 w-px bg-[#333] mx-0.5" />
                 <button
-                  onClick={() => sectorBoards.refreshBoards()}
+                  onClick={() => { if (!sectorBoards.isLoading) sectorBoards.refreshBoards(); }}
+                  disabled={sectorBoards.isLoading}
                   title={t('BTN_REFRESH')}
-                  className="flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 text-gray-500 hover:text-gray-200 border border-transparent hover:border-[#333] transition-colors"
+                  className={`flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 border border-transparent transition-colors ${sectorBoards.isLoading ? 'text-gray-600 cursor-not-allowed' : 'text-gray-500 hover:text-gray-200 hover:border-[#333]'}`}
                 >
-                  <RefreshCw size={8} />{t('BTN_REFRESH')}
+                  <RefreshCw size={8} className={sectorBoards.isLoading ? 'animate-spin' : ''} />{t('BTN_REFRESH')}
                 </button>
               </>
             )}

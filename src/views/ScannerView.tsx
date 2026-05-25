@@ -122,6 +122,7 @@ export const ScannerView = ({
   addToWatchlist,
   setActiveSymbol,
   setView,
+  t,
 }: ScannerViewProps) => {
   const [conditions, setConditions] = useState<Condition[]>([]);
   const idRef = useRef(0);
@@ -183,7 +184,7 @@ export const ScannerView = ({
       <div className="w-64 shrink-0 flex flex-col gap-1 min-h-0">
 
         {/* Presets */}
-        <Panel title="PRESETS" className="shrink-0">
+        <Panel title={t('PRESETS')} className="shrink-0">
           <div className="p-2 grid grid-cols-2 gap-1">
             {PRESETS.map((p) => (
               <button
@@ -199,7 +200,7 @@ export const ScannerView = ({
 
         {/* Conditions */}
         <Panel
-          title="CONDITIONS"
+          title={t('CONDITIONS')}
           className="flex-1 overflow-hidden"
           tools={
             <button
@@ -207,7 +208,7 @@ export const ScannerView = ({
               className="flex items-center gap-0.5 text-[9px] font-mono text-terminal-accent hover:text-white mr-1"
             >
               <Plus size={9} />
-              ADD
+              {t('ADD')}
             </button>
           }
         >
@@ -215,8 +216,8 @@ export const ScannerView = ({
             {conditions.length === 0 ? (
               <div className="text-center py-6 text-[9px] font-mono text-gray-600">
                 <div className="mb-1 text-lg">⊘</div>
-                NO CONDITIONS SET<br />
-                <span className="text-gray-700">SELECT A PRESET OR ADD A CONDITION</span>
+                {t('NO_CONDITIONS_SET')}<br />
+                <span className="text-gray-700">{t('SELECT_PRESET_HINT')}</span>
               </div>
             ) : (
               conditions.map((cond) => (
@@ -275,9 +276,9 @@ export const ScannerView = ({
             </span>
             <span>
               {isScannerLoading ? (
-                <span className="text-yellow-600 animate-pulse">LOADING…</span>
+                <span className="text-yellow-600 animate-pulse">{t('LOADING')}</span>
               ) : (
-                <span className="text-terminal-success">{results.length} HITS</span>
+                <span className="text-terminal-success">{results.length} {t('HITS')}</span>
               )}
             </span>
           </div>
@@ -286,24 +287,24 @@ export const ScannerView = ({
 
       {/* ── Right: results panel ─────────────────────────────────────── */}
       <Panel
-        title="SCAN RESULTS"
+        title={t('SCAN_RESULTS')}
         className="flex-1 min-w-0"
         onRefresh={updateMarketData}
       >
         {!hasConditions ? (
           <div className="flex flex-col items-center justify-center h-full text-center font-mono">
             <div className="text-4xl text-gray-700 mb-3">⊙</div>
-            <div className="text-[11px] text-gray-500 font-bold tracking-widest">SCANNER IDLE</div>
+            <div className="text-[11px] text-gray-500 font-bold tracking-widest">{t('SCANNER_IDLE')}</div>
             <div className="text-[9px] text-gray-700 mt-1">
-              Set conditions or choose a preset to run a live scan
+              {t('SET_CONDITIONS_HINT')}
             </div>
           </div>
         ) : results.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center font-mono">
             <div className="text-4xl text-gray-700 mb-3">⊘</div>
-            <div className="text-[11px] text-gray-500 font-bold tracking-widest">NO MATCHES</div>
+            <div className="text-[11px] text-gray-500 font-bold tracking-widest">{t('NO_MATCHES')}</div>
             <div className="text-[9px] text-gray-700 mt-1">
-              {isScannerLoading ? 'Loading market data…' : 'No instruments pass all conditions'}
+              {isScannerLoading ? t('LOADING_MARKET_DATA') : t('NO_INSTRUMENTS_PASS')}
             </div>
           </div>
         ) : (

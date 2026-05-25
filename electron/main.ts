@@ -11,6 +11,9 @@ function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1200,
         height: 800,
+        frame: false,
+        titleBarStyle: 'hidden',
+        icon: path.join(__dirname, isDev ? '../public/logo.png' : '../dist/logo.png'),
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -101,6 +104,18 @@ function startPythonProcess() {
             });
     }
 }
+
+// ── Window control IPC handlers ──────────────────────────────────────────────
+ipcMain.on('window-minimize', () => mainWindow?.minimize());
+ipcMain.on('window-maximize', () => {
+    if (mainWindow?.isMaximized()) {
+        mainWindow.unmaximize();
+    } else {
+        mainWindow?.maximize();
+    }
+});
+ipcMain.on('window-close', () => mainWindow?.close());
+ipcMain.handle('window-is-maximized', () => mainWindow?.isMaximized() ?? false);
 
 app.on('ready', () => {
     createWindow();
