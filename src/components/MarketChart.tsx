@@ -11,7 +11,7 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts';
 import { CandleData } from '../types';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Crosshair, TrendingUp, BarChart3, Maximize2, Minus } from 'lucide-react';
 
 interface MarketChartProps {
   data: CandleData[];
@@ -28,19 +28,21 @@ interface OhlcvInfo {
   volume: number;
 }
 
+type ChartStyle = 'candle' | 'line';
+
 const toTs = (timeStr: string): UTCTimestamp =>
   Math.floor(new Date(timeStr).getTime() / 1000) as UTCTimestamp;
 
 const C = {
   bg: '#050505',
-  grid: '#1a1a1a',
-  border: '#333',
-  text: '#888',
+  grid: '#111111',
+  border: '#222',
+  text: '#666',
   up: '#00cc66',
   down: '#ff3333',
-  ma7: '#ffff00',
-  ma25: '#ff00ff',
-  ma99: '#00ffff',
+  ma7: '#f5c842',
+  ma25: '#e040fb',
+  ma99: '#00bcd4',
 };
 
 type MaPeriod = 7 | 25 | 99;
@@ -48,9 +50,21 @@ const MA_COLORS: Record<MaPeriod, string> = { 7: C.ma7, 25: C.ma25, 99: C.ma99 }
 const MA_PERIODS: MaPeriod[] = [7, 25, 99];
 const LINE_WIDTH = 1 as const;
 
-const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = (n: number) =>
+  n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtVol = (n: number) =>
-  n >= 1_000_000 ? `${(n / 1_000_000).toFixed(2)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : n.toFixed(0);
+  n >= 1_000_000_000
+    ? `${(n / 1_000_000_000).toFixed(2)}B`
+    : n >= 1_000_000
+      ? `${(n / 1_000_000).toFixed(2)}M`
+      : n >= 1_000
+        ? `${(n / 1_000).toFixed(1)}K`
+        : n.toFixed(0);
+
+const pctChange = (o: number, c: number) => {
+  if (o === 0) return '0.00';
+  return (((c - o) / o) * 100).toFixed(2);
+};
 
 const MarketChart: React.FC<MarketChartProps> = ({ data, symbol, liveCandle }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -60,6 +74,19 @@ const MarketChart: React.FC<MarketChartProps> = ({ data, symbol, liveCandle }) =
   const maRefs = useRef<Record<MaPeriod, ISeriesApi<'Line'> | null>>({ 7: null, 25: null, 99: null });
 
   const [hoveredBar, setHoveredBar] = useState<OhlcvInfo | null>(null);
+  const [showMA, setShowMA] = useState<Record<MaPeriod, boolean>>({ 7: true, 25: true, 99: true });
+  const [showVolume, setShowVolume] = useState(true);
+  const [crosshairMode, setCrosshairMode] = useState<'normal' | 'magnet'>('normal');
+
+  // Latest bar for top stats
+  const latestBar = data.length > 0 ? data[data.length - 1] : null;
+  const currentBar = hoveredBar ?? (latestBar ? {
+    open: latestBar.open,
+    high: latestBar.high,
+    low: latestBar.low,
+    close: latestBar.close,
+    volume: latestBar.volume,
+  } : null);
 
   // Create chart once
   useEffect(() => {
@@ -78,21 +105,23 @@ const MarketChart: React.FC<MarketChartProps> = ({ data, symbol, liveCandle }) =
       },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: { color: '#555', width: 1, style: 3, labelBackgroundColor: '#333' },
-        horzLine: { color: '#555', width: 1, style: 3, labelBackgroundColor: '#333' },
+        vertLine: { color: '#444', width: 1, style: 3, labelBackgroundColor: '#1a1a1a' },
+        horzLine: { color: '#444', width: 1, style: 3, labelBackgroundColor: '#1a1a1a' },
       },
       rightPriceScale: {
         borderColor: C.border,
         textColor: C.text,
-        scaleMargins: { top: 0.08, bottom: 0.22 },
+        scaleMargins: { top: 0.05, bottom: 0.22 },
+        entireTextOnly: true,
       },
       timeScale: {
         borderColor: C.border,
         timeVisible: true,
         secondsVisible: false,
-        rightOffset: 8,
+        rightOffset: 12,
         fixLeftEdge: false,
         fixRightEdge: false,
+        barSpacing: 8,
       },
       handleScroll: {
         mouseWheel: true,
@@ -124,7 +153,7 @@ const MarketChart: React.FC<MarketChartProps> = ({ data, symbol, liveCandle }) =
       priceScaleId: 'vol',
     });
     chart.priceScale('vol').applyOptions({
-      scaleMargins: { top: 0.8, bottom: 0 },
+      scaleMargins: { top: 0.82, bottom: 0 },
     });
 
     const sharedLineOpts = {
@@ -198,7 +227,7 @@ const MarketChart: React.FC<MarketChartProps> = ({ data, symbol, liveCandle }) =
       sorted.map((d) => ({
         time: toTs(d.time),
         value: d.volume,
-        color: d.close >= d.open ? `${C.up}55` : `${C.down}55`,
+        color: d.close >= d.open ? `${C.up}33` : `${C.down}33`,
       })),
     );
 
@@ -227,9 +256,39 @@ const MarketChart: React.FC<MarketChartProps> = ({ data, symbol, liveCandle }) =
     volRef.current?.update({
       time: ts,
       value: liveCandle.volume,
-      color: liveCandle.close >= liveCandle.open ? `${C.up}55` : `${C.down}55`,
+      color: liveCandle.close >= liveCandle.open ? `${C.up}33` : `${C.down}33`,
     });
   }, [liveCandle]);
+
+  // Toggle MA visibility
+  useEffect(() => {
+    MA_PERIODS.forEach((p) => {
+      maRefs.current[p]?.applyOptions({
+        visible: showMA[p],
+      });
+    });
+  }, [showMA]);
+
+  // Toggle volume visibility
+  useEffect(() => {
+    volRef.current?.applyOptions({ visible: showVolume });
+    if (chartRef.current) {
+      chartRef.current.priceScale('vol').applyOptions({
+        scaleMargins: { top: showVolume ? 0.82 : 1, bottom: 0 },
+      });
+    }
+  }, [showVolume]);
+
+  // Crosshair mode
+  useEffect(() => {
+    if (chartRef.current) {
+      chartRef.current.applyOptions({
+        crosshair: {
+          mode: crosshairMode === 'magnet' ? CrosshairMode.Magnet : CrosshairMode.Normal,
+        },
+      });
+    }
+  }, [crosshairMode]);
 
   // Scroll to latest when symbol changes
   useEffect(() => {
@@ -240,58 +299,115 @@ const MarketChart: React.FC<MarketChartProps> = ({ data, symbol, liveCandle }) =
     chartRef.current?.timeScale().scrollToRealTime();
   }, []);
 
-  const isUp = hoveredBar ? hoveredBar.close >= hoveredBar.open : true;
+  const fitContent = useCallback(() => {
+    chartRef.current?.timeScale().fitContent();
+  }, []);
+
+  const isUp = currentBar ? currentBar.close >= currentBar.open : true;
+  const changeVal = currentBar ? (currentBar.close - currentBar.open) : 0;
+  const changePct = currentBar ? pctChange(currentBar.open, currentBar.close) : '0.00';
 
   return (
-    <div className="w-full h-full relative bg-[#050505] select-none overflow-hidden">
-      {/* Watermark */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-[0.04]">
-        <span className="text-8xl font-black tracking-tighter text-white">QUANTCORE</span>
+    <div className="w-full h-full relative bg-[#050505] select-none overflow-hidden flex flex-col">
+      {/* ── Top Info Bar ─────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-2 py-1 bg-[#080808] border-b border-[#1a1a1a] shrink-0 z-20">
+        {/* Symbol + Price Info */}
+        <div className="flex items-center gap-4 font-mono text-[10px]">
+          <span className="text-sm font-bold text-white tracking-tight">{symbol}</span>
+          {currentBar && (
+            <>
+              <div className="flex items-center gap-1">
+                <span className={`text-sm font-bold ${isUp ? 'text-terminal-success' : 'text-terminal-error'}`}>
+                  {fmt(currentBar.close)}
+                </span>
+                <span className={`text-[10px] ${isUp ? 'text-terminal-success' : 'text-terminal-error'}`}>
+                  {changeVal >= 0 ? '+' : ''}{fmt(changeVal)} ({changePct}%)
+                </span>
+              </div>
+              <div className="h-3 w-px bg-[#333]" />
+              <span className="text-gray-500">O <span className="text-gray-300">{fmt(currentBar.open)}</span></span>
+              <span className="text-gray-500">H <span className="text-gray-300">{fmt(currentBar.high)}</span></span>
+              <span className="text-gray-500">L <span className="text-gray-300">{fmt(currentBar.low)}</span></span>
+              <span className="text-gray-500">V <span className="text-gray-300">{fmtVol(currentBar.volume)}</span></span>
+            </>
+          )}
+          {liveCandle && !hoveredBar && (
+            <span className="text-terminal-success animate-pulse text-[9px]">● LIVE</span>
+          )}
+        </div>
+
+        {/* MA Legend */}
+        <div className="flex items-center gap-2 font-mono text-[9px]">
+          {MA_PERIODS.map((p) => (
+            <button
+              key={p}
+              onClick={() => setShowMA((prev) => ({ ...prev, [p]: !prev[p] }))}
+              className={`flex items-center gap-0.5 px-1 py-0.5 rounded-sm transition-opacity ${showMA[p] ? 'opacity-100' : 'opacity-30'}`}
+              title={`Toggle MA${p}`}
+            >
+              <span
+                className="w-2 h-0.5 inline-block rounded-full"
+                style={{ backgroundColor: MA_COLORS[p] }}
+              />
+              <span style={{ color: MA_COLORS[p] }}>MA{p}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Symbol watermark */}
-      <div className="absolute top-2 left-2 pointer-events-none z-0">
-        <span className="text-4xl font-bold text-white/10 tracking-tighter select-none">{symbol}</span>
+      {/* ── Chart Body ──────────────────────────────────────────────────── */}
+      <div className="flex-1 relative min-h-0">
+        {/* Watermark */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-[0.03]">
+          <span className="text-7xl font-black tracking-tighter text-white">QUANTCORE</span>
+        </div>
+
+        {/* Chart */}
+        <div ref={containerRef} className="w-full h-full z-10 relative" />
+
+        {/* ── Right Toolbar ────────────────────────────────────────────── */}
+        <div className="absolute top-2 right-2 z-20 flex flex-col gap-1">
+          <button
+            onClick={() => setCrosshairMode((m) => (m === 'normal' ? 'magnet' : 'normal'))}
+            className={`p-1.5 rounded-sm border transition-colors ${
+              crosshairMode === 'magnet'
+                ? 'bg-terminal-accent/20 border-terminal-accent/50 text-terminal-accent'
+                : 'bg-[#111] border-[#333] text-gray-500 hover:text-white hover:border-[#555]'
+            }`}
+            title={`Crosshair: ${crosshairMode === 'magnet' ? 'Magnet' : 'Normal'}`}
+          >
+            <Crosshair size={11} />
+          </button>
+          <button
+            onClick={() => setShowVolume((v) => !v)}
+            className={`p-1.5 rounded-sm border transition-colors ${
+              showVolume
+                ? 'bg-blue-900/30 border-blue-700/50 text-blue-400'
+                : 'bg-[#111] border-[#333] text-gray-500 hover:text-white hover:border-[#555]'
+            }`}
+            title="Toggle Volume"
+          >
+            <BarChart3 size={11} />
+          </button>
+          <div className="h-px bg-[#333] my-0.5" />
+          <button
+            onClick={fitContent}
+            className="p-1.5 bg-[#111] rounded-sm border border-[#333] text-gray-500 hover:text-white hover:border-[#555] transition-colors"
+            title="Fit All Data"
+          >
+            <Maximize2 size={11} />
+          </button>
+          <button
+            onClick={jumpToLatest}
+            className="p-1.5 bg-[#111] rounded-sm border border-[#333] text-gray-500 hover:text-white hover:border-[#555] transition-colors"
+            title="Scroll to Latest"
+          >
+            <RotateCcw size={11} />
+          </button>
+        </div>
       </div>
-
-      {/* OHLCV crosshair info bar */}
-      <div className="absolute top-2 left-2 z-10 font-mono text-[9px] pointer-events-none flex items-center gap-3 mt-10">
-        {hoveredBar ? (
-          <>
-            <span className="text-gray-500">O <span className={isUp ? 'text-terminal-success' : 'text-terminal-error'}>{fmt(hoveredBar.open)}</span></span>
-            <span className="text-gray-500">H <span className={isUp ? 'text-terminal-success' : 'text-terminal-error'}>{fmt(hoveredBar.high)}</span></span>
-            <span className="text-gray-500">L <span className={isUp ? 'text-terminal-success' : 'text-terminal-error'}>{fmt(hoveredBar.low)}</span></span>
-            <span className="text-gray-500">C <span className={isUp ? 'text-terminal-success' : 'text-terminal-error'}>{fmt(hoveredBar.close)}</span></span>
-            <span className="text-gray-500">V <span className="text-gray-300">{fmtVol(hoveredBar.volume)}</span></span>
-          </>
-        ) : liveCandle ? (
-          <span className={`animate-pulse ${liveCandle.close >= liveCandle.open ? 'text-terminal-success' : 'text-terminal-error'}`}>
-            ● LIVE  {fmt(liveCandle.close)}
-          </span>
-        ) : null}
-      </div>
-
-      {/* MA Legend */}
-      <div className="absolute top-2 right-14 flex items-center gap-3 pointer-events-none z-10 font-mono text-[9px]">
-        {MA_PERIODS.map((p) => (
-          <span key={p} style={{ color: MA_COLORS[p] }}>MA{p}</span>
-        ))}
-      </div>
-
-      {/* Chart */}
-      <div ref={containerRef} className="w-full h-full z-10 relative" />
-
-      {/* Jump to latest */}
-      <button
-        onClick={jumpToLatest}
-        className="absolute bottom-8 right-14 z-20 bg-[#111] hover:bg-[#2a2a2a] border border-[#444] text-gray-400 hover:text-white font-mono text-[9px] px-2 py-1 flex items-center gap-1 transition-colors"
-        title="Scroll to latest bar"
-      >
-        <RotateCcw size={9} /> LATEST
-      </button>
     </div>
   );
 };
 
 export default MarketChart;
-
