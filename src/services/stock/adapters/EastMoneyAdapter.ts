@@ -98,6 +98,7 @@ export class EastMoneyAdapter implements IStockDataAdapter {
   readonly notes =
     'Comprehensive data. Supports forward/backward price adjustment. ' +
     'Good reliability; used by major retail brokerage apps.';
+  readonly capabilities = ['realtime', 'dailyKlines', 'minuteKlines'] as const;
 
   async fetchSnapshots(symbols: string[]): Promise<StockSnapshot[]> {
     if (symbols.length === 0) return [];

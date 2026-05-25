@@ -5,19 +5,26 @@
  * adapter-specific types (StockSnapshot / StockKline) to the UI-facing types
  * (MarketTicker / CandleData) that App.tsx already consumes.
  *
+ * Supports two operating modes:
+ *   1. **Single adapter** (default): All requests route to one active adapter.
+ *   2. **Multi-adapter**: Each capability (realtime, dailyKlines, minuteKlines)
+ *      can be independently assigned to a different adapter, allowing multiple
+ *      data sources to work simultaneously.
+ *
  * Usage:
  *   // List available adapters
  *   stockDataService.getAdapters();
  *
- *   // Switch the active adapter (e.g. from Settings UI)
+ *   // Switch the active adapter (single-mode, for backward compat)
  *   stockDataService.setActiveAdapter('tencent');
  *
- *   // Use the standard API (same signature as before the refactor)
- *   const tickers = await fetchStockTickers();
- *   const candles  = await fetchStockKlines('sh600519', '1D');
+ *   // Multi-adapter: assign capabilities to specific adapters
+ *   stockDataService.setCapabilityAdapter('realtime', 'eastmoney');
+ *   stockDataService.setCapabilityAdapter('dailyKlines', 'baostock');
+ *   stockDataService.setMultiAdapterMode(true);
  */
 
-import type { IStockDataAdapter, AdapterMeta } from './IStockDataAdapter';
+import type { IStockDataAdapter, AdapterMeta, AdapterCapability } from './IStockDataAdapter';
 import type { CandleData, MarketTicker } from '../../types';
 import type { DailyPeriod, MinutePeriod } from './types';
 
@@ -55,6 +62,9 @@ const DAILY_PERIOD_MAP: Record<string, DailyPeriod> = {
   '1MO': 'monthly',
 };
 
+/** All supported capability types. */
+const ALL_CAPABILITIES: readonly AdapterCapability[] = ['realtime', 'dailyKlines', 'minuteKlines'];
+
 // ---------------------------------------------------------------------------
 // Adapter registry
 // ---------------------------------------------------------------------------
@@ -73,12 +83,22 @@ class StockDataService {
   /** ID of the currently active adapter. Defaults to EastMoney (browser-compatible, supports adjustment). */
   private activeAdapterId: string = 'eastmoney';
 
+  /** Whether multi-adapter routing is enabled. */
+  private multiAdapterEnabled: boolean = false;
+
+  /** Per-capability adapter assignments for multi-adapter mode. */
+  private capabilityMap: Record<AdapterCapability, string> = {
+    realtime: 'eastmoney',
+    dailyKlines: 'eastmoney',
+    minuteKlines: 'eastmoney',
+  };
+
   // -- Adapter management ---------------------------------------------------
 
   /** Return static metadata for all registered adapters. */
   getAdapters(): AdapterMeta[] {
     return Array.from(this.adapters.values()).map(
-      ({ id, name, provider, isFree, costNote, browserCompatible, notes }) => ({
+      ({ id, name, provider, isFree, costNote, browserCompatible, notes, capabilities }) => ({
         id,
         name,
         provider,
@@ -86,6 +106,7 @@ class StockDataService {
         costNote,
         browserCompatible,
         notes,
+        capabilities: capabilities ?? [...ALL_CAPABILITIES],
       }),
     );
   }
@@ -98,7 +119,7 @@ class StockDataService {
   }
 
   /**
-   * Switch the active data adapter.
+   * Switch the active data adapter (single-adapter mode).
    * @param id One of: 'tencent', 'sina', 'eastmoney', 'baostock'.
    * @throws If the given id is not registered.
    */
@@ -109,6 +130,47 @@ class StockDataService {
     this.activeAdapterId = id;
   }
 
+  // -- Multi-adapter management ─────────────────────────────────────────────
+
+  /** Enable or disable multi-adapter mode. */
+  setMultiAdapterMode(enabled: boolean): void {
+    this.multiAdapterEnabled = enabled;
+  }
+
+  /** Check if multi-adapter mode is active. */
+  isMultiAdapterMode(): boolean {
+    return this.multiAdapterEnabled;
+  }
+
+  /**
+   * Assign a specific adapter to handle a capability.
+   * @param capability The capability to assign.
+   * @param adapterId The adapter ID to handle this capability.
+   */
+  setCapabilityAdapter(capability: AdapterCapability, adapterId: string): void {
+    if (!this.adapters.has(adapterId)) {
+      throw new Error(`Unknown adapter id: "${adapterId}"`);
+    }
+    this.capabilityMap[capability] = adapterId;
+  }
+
+  /** Get the current capability → adapter mapping. */
+  getCapabilityMap(): Record<AdapterCapability, string> {
+    return { ...this.capabilityMap };
+  }
+
+  /**
+   * Resolve the adapter to use for a given capability.
+   * In single mode, returns the active adapter.
+   * In multi mode, returns the adapter assigned to the capability.
+   */
+  private resolveAdapter(capability: AdapterCapability): IStockDataAdapter {
+    const id = this.multiAdapterEnabled
+      ? this.capabilityMap[capability]
+      : this.activeAdapterId;
+    return this.adapters.get(id) ?? this.adapters.get(this.activeAdapterId)!;
+  }
+
   // -- Public API (maps to UI types) ----------------------------------------
 
   /**
@@ -116,7 +178,7 @@ class StockDataService {
    * the UI-facing MarketTicker type.
    */
   async fetchStockTickers(): Promise<MarketTicker[]> {
-    const adapter = this.adapters.get(this.activeAdapterId)!;
+    const adapter = this.resolveAdapter('realtime');
     const snapshots = await adapter.fetchSnapshots([...DEFAULT_STOCK_SYMBOLS]);
     return snapshots.map((s) => ({
       symbol: s.symbol,
@@ -142,8 +204,9 @@ class StockDataService {
    * @param timeframe UI timeframe key: '1M', '5M', '15M', '30M', '1H', '1D', '1W'.
    */
   async fetchStockKlines(symbol: string, timeframe: string): Promise<CandleData[]> {
-    const adapter = this.adapters.get(this.activeAdapterId)!;
     const minutePeriod = MINUTE_PERIOD_MAP[timeframe];
+    const capability: AdapterCapability = minutePeriod != null ? 'minuteKlines' : 'dailyKlines';
+    const adapter = this.resolveAdapter(capability);
 
     // Date range for daily klines: past 1 year.
     const endDate = new Date();

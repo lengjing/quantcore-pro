@@ -16,6 +16,7 @@ import logging
 from ai_routes import ai_bp
 from baostock_routes import baostock_bp
 from agent_routes import agent_bp
+from board_routes import board_bp
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -31,6 +32,7 @@ socketio = SocketIO(app, cors_allowed_origins='*', async_mode='eventlet')
 app.register_blueprint(ai_bp)
 app.register_blueprint(baostock_bp)
 app.register_blueprint(agent_bp)
+app.register_blueprint(board_bp)
 
 # ==================== WebSocket Events ====================
 

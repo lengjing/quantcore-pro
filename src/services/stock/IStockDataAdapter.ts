@@ -1,5 +1,15 @@
 import type { StockSnapshot, StockKline, MinutePeriod, DailyPeriod } from './types';
 
+/**
+ * Capabilities that a data adapter can declare.
+ * When multi-adapter mode is active, the service routes each request to the
+ * adapter that declares the matching capability.
+ */
+export type AdapterCapability =
+  | 'realtime'      // real-time snapshots / quotes
+  | 'dailyKlines'   // daily / weekly / monthly OHLCV
+  | 'minuteKlines'; // intraday minute-level OHLCV
+
 /** Static metadata about a data adapter. */
 export interface AdapterMeta {
   /** Unique identifier used to select this adapter at runtime. */
@@ -24,6 +34,12 @@ export interface AdapterMeta {
   readonly browserCompatible: boolean;
   /** Optional notes about limitations, reliability, or usage constraints. */
   readonly notes?: string;
+  /**
+   * Capabilities this adapter supports. When multi-adapter routing is enabled,
+   * each capability is served by the adapter assigned to it.
+   * Defaults to all capabilities if not specified.
+   */
+  readonly capabilities?: readonly AdapterCapability[];
 }
 
 /**

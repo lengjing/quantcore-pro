@@ -13,12 +13,13 @@ import {
 } from 'lucide-react';
 
 import { ViewState } from './types';
-import type { MarketMode } from './types';
+import type { MarketMode, ColorScheme } from './types';
 import { RESOURCES } from './constants/resources';
 import type { ResourceKey, LangKey } from './constants/resources';
 
 // UI Components
 import { Modal } from './components/ui/Modal';
+import { ConfirmDialog } from './components/ui/ConfirmDialog';
 import { Panel } from './components/ui/Panel';
 import { CommandBar } from './components/ui/CommandBar';
 import { ToastContainer } from './components/ui/Toast';
@@ -61,6 +62,7 @@ const App = () => {
   const [timeframe, setTimeframe] = usePersisted<Timeframe>('timeframe', '1H');
   const [lang, setLang] = usePersisted<LangKey>('lang', 'EN');
   const [stockAdapterId, setStockAdapterId] = usePersisted<string>('stockAdapterId', 'eastmoney');
+  const [colorScheme, setColorScheme] = usePersisted<ColorScheme>('colorScheme', 'greenUp');
 
   // Custom sectors — hoisted here so both MarketView and AIAssistantView share state
   const [customSectors, setCustomSectors] = usePersisted<CustomSectorDef[]>('customSectors', []);
@@ -71,6 +73,7 @@ const App = () => {
   const [isMenuOpen, setIsMenuOpen] = usePersisted<boolean>('isMenuOpen', false);
   const [showAddSymbolModal, setShowAddSymbolModal] = usePersisted<boolean>('showAddSymbolModal', false);
   const [newSymbolInput, setNewSymbolInput] = usePersisted<string>('newSymbolInput', '');
+  const [showResetConfirm, setShowResetConfirm] = React.useState(false);
 
   const commandInputRef = useRef<HTMLInputElement>(null);
 
@@ -241,6 +244,8 @@ const App = () => {
               onRefresh={updateMarketData}
               customSectors={customSectors}
               setCustomSectors={setCustomSectors}
+              lang={lang}
+              colorScheme={colorScheme}
             />
           )}
 
@@ -287,6 +292,8 @@ const App = () => {
               setMarketMode={setMarketMode}
               stockAdapterId={stockAdapterId}
               setStockAdapter={setStockAdapterId}
+              colorScheme={colorScheme}
+              setColorScheme={setColorScheme}
             />
           )}
 
@@ -341,12 +348,23 @@ const App = () => {
       <Modal isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} title="MENU" width="max-w-xs">
         <button className="w-full text-left p-2 hover:bg-[#333]" onClick={() => window.location.reload()}>RELOAD</button>
         <button className="w-full text-left p-2 hover:bg-[#333]" onClick={() => {
-          if (window.confirm('Reset all settings and data to factory defaults?')) {
-            clearAllState();
-            window.location.reload();
-          }
+          setIsMenuOpen(false);
+          setShowResetConfirm(true);
         }}>RESET FACTORY</button>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={showResetConfirm}
+        onCancel={() => setShowResetConfirm(false)}
+        onConfirm={() => {
+          clearAllState();
+          window.location.reload();
+        }}
+        title="CONFIRM RESET"
+        message="Reset all settings and data to factory defaults? This action cannot be undone."
+        confirmLabel="RESET ALL"
+        variant="danger"
+      />
 
       {/* Add Symbol Modal */}
       <Modal isOpen={showAddSymbolModal} onClose={() => setShowAddSymbolModal(false)} title="ADD SYMBOL" width="max-w-xs">

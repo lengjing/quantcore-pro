@@ -75,6 +75,7 @@ export class SinaAdapter implements IStockDataAdapter {
   readonly notes =
     'Real-time endpoint (hq.sinajs.cn) requires Electron or a CORS proxy due to missing CORS headers. ' +
     'Historical kline endpoint is browser-accessible. Data is unadjusted.';
+  readonly capabilities = ['realtime', 'dailyKlines', 'minuteKlines'] as const;
 
   async fetchSnapshots(symbols: string[]): Promise<StockSnapshot[]> {
     if (symbols.length === 0) return [];

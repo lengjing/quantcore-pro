@@ -13,7 +13,7 @@ import {
   Line,
   Legend,
 } from 'recharts';
-import type { SectorStats, SectorSnapshot } from '../data/sectors';
+import type { BoardItem } from '../services/stock/sectorBoardService';
 import type { ColorScheme } from '../types';
 import type { LangKey, ResourceKey } from '../constants/resources';
 import { RESOURCES } from '../constants/resources';
@@ -21,24 +21,31 @@ import { useColors } from '../hooks/useColors';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-export type SectorChartType = 'BAR' | 'HEATMAP' | 'LINE';
+export type BoardChartType = 'BAR' | 'HEATMAP' | 'LINE';
 
-interface SectorChartsProps {
-  chartType: SectorChartType;
-  liveSectorStats: SectorStats[];
-  snapshots: SectorSnapshot[];
-  selectedSectorId: string | null;
-  onSelectSector: (id: string | null) => void;
+export interface BoardSnapshot {
+  ts: number;
+  boards: BoardItem[];
+}
+
+interface BoardChartsProps {
+  chartType: BoardChartType;
+  boards: BoardItem[];
+  snapshots: BoardSnapshot[];
+  selectedBoardCode: string | null;
+  onSelectBoard: (code: string | null) => void;
   colorScheme: ColorScheme;
   lang: LangKey;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-const fmtVol = (v: number): string => {
-  if (v >= 1e9) return `${(v / 1e9).toFixed(1)}B`;
-  if (v >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
-  if (v >= 1e3) return `${(v / 1e3).toFixed(1)}K`;
+const fmtCNY = (v: number, lang: LangKey): string => {
+  const abs = Math.abs(v);
+  const yi = RESOURCES[lang].FMT_YI;
+  const wan = RESOURCES[lang].FMT_WAN;
+  if (abs >= 1e8) return `${(v / 1e8).toFixed(1)}${yi}`;
+  if (abs >= 1e4) return `${(v / 1e4).toFixed(0)}${wan}`;
   return v.toFixed(0);
 };
 
@@ -47,7 +54,7 @@ const fmtTime = (ts: number): string => {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
-/** Map change% to a CSS background color interpolated, respecting color scheme. */
+/** Map change% to a CSS background color interpolated between up/down colors. */
 const changeColor = (pct: number, scheme: ColorScheme): string => {
   const clamped = Math.max(-5, Math.min(5, pct));
   const isUpGreen = scheme === 'greenUp';
@@ -72,22 +79,30 @@ const changeColor = (pct: number, scheme: ColorScheme): string => {
   }
 };
 
-// ── Chart sub-components ───────────────────────────────────────────────────────
+// Board colors - cycle through a palette
+const BOARD_PALETTE = [
+  '#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6',
+  '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#6366f1',
+  '#14b8a6', '#a855f7', '#e11d48', '#0ea5e9', '#22c55e',
+];
 
-/**
- * Horizontal bar chart — one bar per sector, sorted by avg change%.
- * Uses recharts BarChart with a custom cell per bar.
- */
-const SectorBarChart = ({
-  stats,
-  selectedSectorId,
-  onSelectSector,
+// Display limits
+const MAX_BARS = 40;
+const MAX_HEATMAP_TILES = 60;
+const MAX_LINE_SERIES = 12;
+
+// ── BAR Chart ──────────────────────────────────────────────────────────────────
+
+const BoardBarChart = ({
+  boards,
+  selectedBoardCode,
+  onSelectBoard,
   colorScheme,
   lang,
 }: {
-  stats: SectorStats[];
-  selectedSectorId: string | null;
-  onSelectSector: (id: string | null) => void;
+  boards: BoardItem[];
+  selectedBoardCode: string | null;
+  onSelectBoard: (code: string | null) => void;
   colorScheme: ColorScheme;
   lang: LangKey;
 }) => {
@@ -95,26 +110,26 @@ const SectorBarChart = ({
   const t = (key: ResourceKey): string => RESOURCES[lang][key];
   const data = useMemo(
     () =>
-      [...stats]
-        .sort((a, b) => b.avgChange - a.avgChange)
-        .map((s) => ({
-          id: s.def.id,
-          name: s.def.name,
-          nameEn: s.def.nameEn,
-          change: parseFloat(s.avgChange.toFixed(2)),
-          color: s.def.color,
-          volume: s.totalVolume,
-          advancing: s.advancing,
-          declining: s.declining,
-          total: s.components.length,
+      [...boards]
+        .sort((a, b) => b.changePercent - a.changePercent)
+        .slice(0, MAX_BARS)
+        .map((b, i) => ({
+          code: b.code,
+          name: b.name,
+          change: parseFloat(b.changePercent.toFixed(2)),
+          color: BOARD_PALETTE[i % BOARD_PALETTE.length],
+          advancing: b.advancing,
+          declining: b.declining,
+          mainNetInflow: b.mainNetInflow,
+          leaderName: b.leaderName,
         })),
-    [stats],
+    [boards],
   );
 
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-gray-600 text-[10px] font-mono">
-        {t('LOADING_SECTOR_DATA')}
+        {t('LOADING_BOARD_DATA')}
       </div>
     );
   }
@@ -125,7 +140,7 @@ const SectorBarChart = ({
         data={data}
         layout="vertical"
         margin={{ top: 4, right: 56, left: 8, bottom: 4 }}
-        barCategoryGap="22%"
+        barCategoryGap="18%"
       >
         <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" horizontal={false} />
         <XAxis
@@ -154,7 +169,7 @@ const SectorBarChart = ({
             fontSize: 10,
           }}
           labelStyle={{ color: '#ccc', marginBottom: 4 }}
-          formatter={(value, _name, props: { payload?: { advancing?: number; declining?: number; total?: number; volume?: number } }) => {
+          formatter={(value, _name, props: { payload?: { advancing?: number; declining?: number; mainNetInflow?: number; leaderName?: string } }) => {
             const v = Number(value ?? 0);
             const p = props.payload ?? {};
             return [
@@ -163,8 +178,11 @@ const SectorBarChart = ({
                   {v >= 0 ? '+' : ''}{v}%
                 </span>
                 <span style={{ color: '#555' }}>
-                  {' '}· {p.advancing ?? 0}↑{p.declining ?? 0}↓ · {t('TH_VOL')} {fmtVol(p.volume ?? 0)}
+                  {' '}· {p.advancing ?? 0}↑{p.declining ?? 0}↓ · {t('MAIN_INFLOW')} {fmtCNY(p.mainNetInflow ?? 0, lang)}
                 </span>
+                {p.leaderName && (
+                  <span style={{ color: '#888' }}> · {t('LEADER')} {p.leaderName}</span>
+                )}
               </span>,
               '',
             ];
@@ -172,13 +190,18 @@ const SectorBarChart = ({
           labelFormatter={(label) => <span style={{ color: '#e0e0e0' }}>{label}</span>}
         />
         <ReferenceLine x={0} stroke="#333" strokeWidth={1} />
-        <Bar dataKey="change" radius={0} onClick={(d: { id?: string }) => onSelectSector(d?.id === selectedSectorId ? null : (d?.id ?? null))}>
-          {data.map((entry) => (
+        <Bar
+          dataKey="change"
+          radius={0}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          onClick={(d: any) => onSelectBoard(d?.code === selectedBoardCode ? null : (d?.code ?? null))}
+        >
+          {data.map((entry, i) => (
             <Cell
-              key={entry.id}
-              fill={entry.color}
-              fillOpacity={selectedSectorId && selectedSectorId !== entry.id ? 0.25 : 0.85}
-              stroke={selectedSectorId === entry.id ? '#fff' : 'transparent'}
+              key={entry.code}
+              fill={colors.hex(entry.change)}
+              fillOpacity={selectedBoardCode && selectedBoardCode !== entry.code ? 0.25 : 0.75}
+              stroke={selectedBoardCode === entry.code ? '#fff' : 'transparent'}
               strokeWidth={1}
             />
           ))}
@@ -188,33 +211,29 @@ const SectorBarChart = ({
   );
 };
 
-// ── Heatmap ────────────────────────────────────────────────────────────────────
+// ── HEATMAP ────────────────────────────────────────────────────────────────────
 
-/**
- * Custom div-based heatmap where each sector tile is sized proportional to its
- * trading volume and colored by its avg change %.
- */
-const SectorHeatmap = ({
-  stats,
-  selectedSectorId,
-  onSelectSector,
+const BoardHeatmap = ({
+  boards,
+  selectedBoardCode,
+  onSelectBoard,
   colorScheme,
   lang,
 }: {
-  stats: SectorStats[];
-  selectedSectorId: string | null;
-  onSelectSector: (id: string | null) => void;
+  boards: BoardItem[];
+  selectedBoardCode: string | null;
+  onSelectBoard: (code: string | null) => void;
   colorScheme: ColorScheme;
   lang: LangKey;
 }) => {
   const colors = useColors(colorScheme);
   const t = (key: ResourceKey): string => RESOURCES[lang][key];
-  const totalVol = useMemo(() => stats.reduce((s, x) => s + x.totalVolume, 0), [stats]);
+  const totalCap = useMemo(() => boards.reduce((s, b) => s + Math.abs(b.totalMarketCap), 0), [boards]);
 
-  if (stats.length === 0) {
+  if (boards.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-gray-600 text-[10px] font-mono">
-        {t('LOADING_SECTOR_DATA')}
+        {t('LOADING_BOARD_DATA')}
       </div>
     );
   }
@@ -222,44 +241,38 @@ const SectorHeatmap = ({
   return (
     <div className="h-full p-1 overflow-hidden">
       <div className="flex flex-wrap gap-0.5 h-full content-start">
-        {[...stats]
-          .sort((a, b) => b.totalVolume - a.totalVolume)
-          .map((s) => {
-            const volPct = totalVol > 0 ? s.totalVolume / totalVol : 1 / stats.length;
-            // Minimum 6% width to keep tiles legible
-            const widthPct = Math.max(6, volPct * 100);
-            const isSelected = selectedSectorId === s.def.id;
-            const isUp = s.avgChange >= 0;
+        {[...boards]
+          .sort((a, b) => Math.abs(b.totalMarketCap) - Math.abs(a.totalMarketCap))
+          .slice(0, MAX_HEATMAP_TILES)
+          .map((b) => {
+            const capPct = totalCap > 0 ? Math.abs(b.totalMarketCap) / totalCap : 1 / boards.length;
+            const widthPct = Math.max(6, capPct * 100);
+            const isSelected = selectedBoardCode === b.code;
+            const isUp = b.changePercent >= 0;
 
             return (
               <div
-                key={s.def.id}
-                onClick={() => onSelectSector(isSelected ? null : s.def.id)}
+                key={b.code}
+                onClick={() => onSelectBoard(isSelected ? null : b.code)}
                 className="flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden font-mono select-none"
                 style={{
                   width: `calc(${widthPct}% - 2px)`,
-                  minWidth: 52,
+                  minWidth: 60,
                   height: 72,
-                  background: changeColor(s.avgChange, colorScheme),
-                  border: isSelected ? '1px solid #fff' : `1px solid ${s.def.color}30`,
-                  boxShadow: isSelected ? `0 0 8px ${s.def.color}60` : undefined,
-                  opacity: selectedSectorId && !isSelected ? 0.6 : 1,
+                  background: changeColor(b.changePercent, colorScheme),
+                  border: isSelected ? '1px solid #fff' : '1px solid rgba(255,255,255,0.05)',
+                  boxShadow: isSelected ? '0 0 8px rgba(245,158,11,0.4)' : undefined,
+                  opacity: selectedBoardCode && !isSelected ? 0.6 : 1,
                 }}
               >
-                <div
-                  className="w-1.5 h-1.5 rounded-sm mb-0.5"
-                  style={{ background: s.def.color }}
-                />
-                <div className="text-[8px] text-white/90 font-bold text-center px-0.5 leading-tight truncate w-full text-center">
-                  {s.def.name}
+                <div className="text-[8px] text-white/90 font-bold text-center px-0.5 leading-tight truncate w-full">
+                  {b.name}
                 </div>
-                <div
-                  className={`text-[10px] font-bold mt-0.5 ${colors.clsBold(s.avgChange)}`}
-                >
-                  {isUp ? '+' : ''}{s.avgChange.toFixed(2)}%
+                <div className={`text-[10px] font-bold mt-0.5 ${colors.clsBold(b.changePercent)}`}>
+                  {isUp ? '+' : ''}{b.changePercent.toFixed(2)}%
                 </div>
                 <div className="text-[7px] text-white/40 mt-0.5">
-                  {s.advancing}↑ {s.declining}↓
+                  {b.advancing}↑ {b.declining}↓
                 </div>
               </div>
             );
@@ -269,57 +282,65 @@ const SectorHeatmap = ({
   );
 };
 
-// ── Line / trend chart ─────────────────────────────────────────────────────────
+// ── LINE Chart ─────────────────────────────────────────────────────────────────
 
-/**
- * Multi-line trend chart with one line per sector using historical snapshots
- * plus the current live data point.
- */
-const SectorLineChart = ({
-  stats,
+const BoardLineChart = ({
+  boards,
   snapshots,
-  selectedSectorId,
-  onSelectSector,
+  selectedBoardCode,
+  onSelectBoard,
   colorScheme,
   lang,
 }: {
-  stats: SectorStats[];
-  snapshots: SectorSnapshot[];
-  selectedSectorId: string | null;
-  onSelectSector: (id: string | null) => void;
+  boards: BoardItem[];
+  snapshots: BoardSnapshot[];
+  selectedBoardCode: string | null;
+  onSelectBoard: (code: string | null) => void;
   colorScheme: ColorScheme;
   lang: LangKey;
 }) => {
   const colors = useColors(colorScheme);
   const t = (key: ResourceKey): string => RESOURCES[lang][key];
-  const { lineData, sectorDefs } = useMemo(() => {
-    const defs = stats.map((s) => ({ id: s.def.id, name: s.def.name, color: s.def.color }));
+  const { lineData, boardDefs } = useMemo(() => {
+    // Use top 12 boards by absolute change for line chart clarity
+    const topBoards = [...boards]
+      .sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))
+      .slice(0, MAX_LINE_SERIES);
+    const topCodes = new Set(topBoards.map((b) => b.code));
 
-    // Build a time-series: each snapshot is one row, plus the current live point
+    const defs = topBoards.map((b, i) => ({
+      code: b.code,
+      name: b.name,
+      color: BOARD_PALETTE[i % BOARD_PALETTE.length],
+    }));
+
+    // Build time-series from snapshots
     const rows: Record<string, string | number>[] = snapshots.map((snap) => {
       const row: Record<string, string | number> = { time: fmtTime(snap.ts) };
-      snap.sectorStats.forEach((ss) => {
-        row[ss.def.id] = parseFloat(ss.avgChange.toFixed(2));
+      snap.boards.forEach((b) => {
+        if (topCodes.has(b.code)) {
+          row[b.code] = parseFloat(b.changePercent.toFixed(2));
+        }
       });
       return row;
     });
 
     // Append live data
-    if (stats.length > 0) {
+    if (topBoards.length > 0) {
       const liveRow: Record<string, string | number> = { time: 'LIVE' };
-      stats.forEach((s) => {
-        liveRow[s.def.id] = parseFloat(s.avgChange.toFixed(2));
+      topBoards.forEach((b) => {
+        liveRow[b.code] = parseFloat(b.changePercent.toFixed(2));
       });
       rows.push(liveRow);
     }
 
-    return { lineData: rows, sectorDefs: defs };
-  }, [stats, snapshots]);
+    return { lineData: rows, boardDefs: defs };
+  }, [boards, snapshots]);
 
-  if (sectorDefs.length === 0) {
+  if (boardDefs.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-gray-600 text-[10px] font-mono">
-        {t('LOADING_SECTOR_DATA')}
+        {t('LOADING_BOARD_DATA')}
       </div>
     );
   }
@@ -328,7 +349,7 @@ const SectorLineChart = ({
     return (
       <div className="flex flex-col items-center justify-center h-full gap-2 text-gray-600 text-[10px] font-mono">
         <span>{t('INSUFFICIENT_HISTORY')}</span>
-        <span className="text-gray-700">{t('HISTORY_HINT_SECTOR')}</span>
+        <span className="text-gray-700">{t('HISTORY_HINT_BOARD')}</span>
       </div>
     );
   }
@@ -361,7 +382,7 @@ const SectorLineChart = ({
           labelStyle={{ color: '#aaa', marginBottom: 4 }}
           formatter={(value, name) => {
             const v = Number(value ?? 0);
-            const def = sectorDefs.find((d) => d.id === String(name));
+            const def = boardDefs.find((d) => d.code === String(name));
             return [
               <span key={String(name)} style={{ color: colors.hex(v), fontWeight: 700 }}>
                 {v >= 0 ? '+' : ''}{v}%
@@ -373,23 +394,23 @@ const SectorLineChart = ({
         <Legend
           wrapperStyle={{ fontSize: 9, fontFamily: 'monospace', color: '#666', paddingTop: 4 }}
           onClick={(e) => {
-            const id = e.dataKey as string;
-            onSelectSector(selectedSectorId === id ? null : id);
+            const code = e.dataKey as string;
+            onSelectBoard(selectedBoardCode === code ? null : code);
           }}
           formatter={(value) => {
-            const def = sectorDefs.find((d) => d.id === value);
+            const def = boardDefs.find((d) => d.code === value);
             return def?.name ?? value;
           }}
         />
         <ReferenceLine y={0} stroke="#333" strokeDasharray="4 4" />
-        {sectorDefs.map((def) => (
+        {boardDefs.map((def) => (
           <Line
-            key={def.id}
+            key={def.code}
             type="monotone"
-            dataKey={def.id}
+            dataKey={def.code}
             stroke={def.color}
-            strokeWidth={selectedSectorId === def.id ? 2 : 1}
-            strokeOpacity={selectedSectorId && selectedSectorId !== def.id ? 0.2 : 1}
+            strokeWidth={selectedBoardCode === def.code ? 2 : 1}
+            strokeOpacity={selectedBoardCode && selectedBoardCode !== def.code ? 0.2 : 1}
             dot={false}
             activeDot={{ r: 3 }}
           />
@@ -401,21 +422,21 @@ const SectorLineChart = ({
 
 // ── Main export ────────────────────────────────────────────────────────────────
 
-export const SectorCharts = ({
+export const BoardCharts = ({
   chartType,
-  liveSectorStats,
+  boards,
   snapshots,
-  selectedSectorId,
-  onSelectSector,
+  selectedBoardCode,
+  onSelectBoard,
   colorScheme,
   lang,
-}: SectorChartsProps) => {
+}: BoardChartsProps) => {
   if (chartType === 'BAR') {
     return (
-      <SectorBarChart
-        stats={liveSectorStats}
-        selectedSectorId={selectedSectorId}
-        onSelectSector={onSelectSector}
+      <BoardBarChart
+        boards={boards}
+        selectedBoardCode={selectedBoardCode}
+        onSelectBoard={onSelectBoard}
         colorScheme={colorScheme}
         lang={lang}
       />
@@ -424,10 +445,10 @@ export const SectorCharts = ({
 
   if (chartType === 'HEATMAP') {
     return (
-      <SectorHeatmap
-        stats={liveSectorStats}
-        selectedSectorId={selectedSectorId}
-        onSelectSector={onSelectSector}
+      <BoardHeatmap
+        boards={boards}
+        selectedBoardCode={selectedBoardCode}
+        onSelectBoard={onSelectBoard}
         colorScheme={colorScheme}
         lang={lang}
       />
@@ -435,11 +456,11 @@ export const SectorCharts = ({
   }
 
   return (
-    <SectorLineChart
-      stats={liveSectorStats}
+    <BoardLineChart
+      boards={boards}
       snapshots={snapshots}
-      selectedSectorId={selectedSectorId}
-      onSelectSector={onSelectSector}
+      selectedBoardCode={selectedBoardCode}
+      onSelectBoard={onSelectBoard}
       colorScheme={colorScheme}
       lang={lang}
     />

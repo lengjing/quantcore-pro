@@ -89,6 +89,7 @@ export class TencentAdapter implements IStockDataAdapter {
   readonly costNote = '免费，无需注册';
   readonly browserCompatible = true;
   readonly notes = 'Good reliability. Real-time quotes refresh every ~3 s. No price adjustment for daily klines.';
+  readonly capabilities = ['realtime', 'dailyKlines', 'minuteKlines'] as const;
 
   async fetchSnapshots(symbols: string[]): Promise<StockSnapshot[]> {
     if (symbols.length === 0) return [];

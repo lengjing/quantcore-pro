@@ -9,7 +9,9 @@ This file is the initial index for Claude Code (claude.ai/code) to understand th
 QuantCore Pro is a **professional quantitative trading terminal** packaged as an Electron desktop app. It provides:
 
 - Real-time cryptocurrency market data (Binance)
-- Real-time A-share (Chinese stock market) data (browser-compatible adapters: 腾讯财经, 东方财富, 新浪财经)
+- Real-time A-share (Chinese stock market) data (browser-compatible adapters: 腾讯财经, 东方财富, 新浪财经; BaoStock via Python backend)
+- **Sector/concept board analytics (题材聚焦/题材轮动)** — API-driven industry & concept board rankings via EastMoney
+- **Multi-adapter data source system** — multiple adapters can serve different data capabilities simultaneously
 - AI-powered strategy generation and news feed (Google Gemini)
 - Interactive charts, order book, time & sales
 - Monaco-based code IDE for strategy development
@@ -41,7 +43,12 @@ QuantCore Pro is a **professional quantitative trading terminal** packaged as an
 │   ├── components/
 │   │   ├── MarketChart.tsx      ← lightweight-charts candlestick; native zoom/pan/scroll; MA7/25/99 + volume
 │   │   ├── OrderBook.tsx        ← L2 bid/ask depth bars
-│   │   └── StrategyEditor.tsx   ← Monaco IDE + AI Copilot panel + file explorer
+│   │   ├── StrategyEditor.tsx   ← Monaco IDE + AI Copilot panel + file explorer
+│   │   └── ui/
+│   │       └── ConfirmDialog.tsx ← Unified confirmation dialog (replaces window.confirm)
+│   │
+│   ├── hooks/
+│   │   └── useSectorBoards.ts   ← Hook for sector/concept board data with polling & drill-down
 │   │
 │   ├── services/                ← Domain-organised service layer
 │   │   │
@@ -54,20 +61,24 @@ QuantCore Pro is a **professional quantitative trading terminal** packaged as an
 │   │   │
 │   │   └── stock/                   ← A-share market data — adapter pattern
 │   │       ├── types.ts             ← StockSnapshot, StockKline, MinutePeriod, DailyPeriod
-│   │       ├── IStockDataAdapter.ts ← Adapter interface + AdapterMeta
+│   │       ├── IStockDataAdapter.ts ← Adapter interface + AdapterMeta + AdapterCapability
 │   │       ├── adapters/
 │   │       │   ├── TencentAdapter.ts       ← 腾讯财经 (FREE, browser-compatible)
 │   │       │   ├── SinaAdapter.ts          ← 新浪财经 (FREE, Electron/proxy required)
-│   │       │   └── EastMoneyAdapter.ts     ← 东方财富 (FREE, browser-compatible, default)
-│   │       ├── stockDataService.ts  ← Adapter registry + public API (fetchStockTickers, fetchStockKlines)
+│   │       │   ├── EastMoneyAdapter.ts     ← 东方财富 (FREE, browser-compatible, default)
+│   │       │   └── BaoStockAdapter.ts      ← BaoStock (FREE, requires Python backend)
+│   │       ├── sectorBoardService.ts ← EastMoney API for concept/industry board data (题材聚焦)
+│   │       ├── stockDataService.ts  ← Adapter registry + multi-adapter routing + public API
 │   │       └── stockWsService.ts    ← Socket.IO client for Python backend real-time quotes
 │   │
 │   └── utils/
 │       └── technicalIndicators.ts   ← calculateSMA, enhanceCandlesWithIndicators (MA7/25/99)
 │
-└── python/                 ← Python backend (Flask + Socket.IO, health-check + WS infra)
+└── python/                 ← Python backend (Flask + Socket.IO, health-check + WS infra + BaoStock + boards)
     ├── main.py             ← Flask app; /health endpoint + Socket.IO events; runs on port 5000
-    └── requirements.txt    ← flask, flask-cors, flask-socketio, eventlet, pyinstaller
+    ├── baostock_routes.py  ← BaoStock REST endpoints (snapshot, klines/daily, klines/minute)
+    ├── board_routes.py     ← Sector board endpoints via BaoStock (industry boards, board stocks, performance)
+    └── requirements.txt    ← flask, flask-cors, flask-socketio, eventlet, baostock, pyinstaller
 ```
 
 ---
@@ -90,9 +101,10 @@ QuantCore Pro is a **professional quantitative trading terminal** packaged as an
 ### Python Backend
 - Framework: Flask + Flask-SocketIO (eventlet async mode)
 - Port: **5000**
-- Endpoints: `/health`
+- Endpoints: `/health`, `/api/baostock/*`, `/api/boards/*`
 - Socket.IO events: `connect`, `disconnect`, `subscribe`, `unsubscribe`, `quote_update`
 - Symbol format: `sh600519` (Shanghai) / `sz000858` (Shenzhen)
+- Board endpoints: `/api/boards/industry`, `/api/boards/stocks`, `/api/boards/stock-performance`
 
 ---
 
@@ -119,12 +131,14 @@ cd python && python main.py     # Flask server on :5000
 
 Four adapters are registered in `src/services/stock/stockDataService.ts`. Switch at runtime via `stockDataService.setActiveAdapter(id)`.
 
-| ID | Name | 费用 | Browser | Notes |
-|----|------|------|---------|-------|
-| `eastmoney` | 东方财富 | 免费 | ✅ | **Default.** Supports qfq/hfq. Comprehensive intraday + daily data. |
-| `tencent` | 腾讯财经 | 免费 | ✅ | Reliable. CORS-permissive. No price adjustment for historical klines. |
-| `sina` | 新浪财经 | 免费 | ⚠️ Electron/proxy | Real-time endpoint lacks CORS headers. Historical klines browser-accessible. |
-| `baostock` | BaoStock | 免费 | ❌ | Requires the local Python backend (`python/baostock_routes.py`). |
+**Multi-adapter mode**: Enable via `stockDataService.setMultiAdapterMode(true)` to route different data capabilities (realtime, dailyKlines, minuteKlines) to different adapters simultaneously. Configure per-capability adapter via `stockDataService.setCapabilityAdapter(capability, adapterId)`.
+
+| ID | Name | 费用 | Browser | Capabilities | Notes |
+|----|------|------|---------|-------------|-------|
+| `eastmoney` | 东方财富 | 免费 | ✅ | realtime, dailyKlines, minuteKlines | **Default.** Supports qfq/hfq. Also serves sector board data. |
+| `tencent` | 腾讯财经 | 免费 | ✅ | realtime, dailyKlines, minuteKlines | Reliable. CORS-permissive. No price adjustment for historical klines. |
+| `sina` | 新浪财经 | 免费 | ⚠️ Electron/proxy | realtime, dailyKlines | Real-time endpoint lacks CORS headers. |
+| `baostock` | BaoStock | 免费 | ❌ | dailyKlines, minuteKlines | Requires the local Python backend (`python/baostock_routes.py`). |
 
 ---
 
@@ -144,10 +158,12 @@ Place in `.env.local` (gitignored). Vite injects it as `process.env.API_KEY` and
 Crypto:   Binance REST API ──────────────────────────────► App.tsx (tickers, klines, depth)
           Binance WebSocket ──────────────────────────────► App.tsx (live trades, depth updates)
 
-A-Share:  Active Adapter (EastMoney/Tencent/Sina/BaoStock local backend)
+A-Share:  Multi-Adapter System (EastMoney/Tencent/Sina/BaoStock — capability-routed)
             └─ stockDataService.fetchStockTickers() ──────► App.tsx (watchlist, scanner)
             └─ stockDataService.fetchStockKlines()  ──────► App.tsx (chart)
+          Sector Boards (EastMoney Push API) ────────────► MarketView BOARDS tab (题材聚焦)
           Python Socket.IO ────────────────────────────────► stockWsService → (available for real-time)
+          Python Board Routes ────────────────────────────► BaoStock industry/concept boards (server-side)
 
 AI:       Google Gemini API ────────────────────────────► geminiService → App.tsx / StrategyEditor
 ```
