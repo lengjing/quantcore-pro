@@ -14,6 +14,10 @@ import {
   Legend,
 } from 'recharts';
 import type { BoardItem } from '../services/stock/sectorBoardService';
+import type { ColorScheme } from '../types';
+import type { LangKey, ResourceKey } from '../constants/resources';
+import { RESOURCES } from '../constants/resources';
+import { useColors } from '../hooks/useColors';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -30,14 +34,18 @@ interface BoardChartsProps {
   snapshots: BoardSnapshot[];
   selectedBoardCode: string | null;
   onSelectBoard: (code: string | null) => void;
+  colorScheme: ColorScheme;
+  lang: LangKey;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-const fmtCNY = (v: number): string => {
+const fmtCNY = (v: number, lang: LangKey): string => {
   const abs = Math.abs(v);
-  if (abs >= 1e8) return `${(v / 1e8).toFixed(1)}亿`;
-  if (abs >= 1e4) return `${(v / 1e4).toFixed(0)}万`;
+  const yi = RESOURCES[lang].FMT_YI;
+  const wan = RESOURCES[lang].FMT_WAN;
+  if (abs >= 1e8) return `${(v / 1e8).toFixed(1)}${yi}`;
+  if (abs >= 1e4) return `${(v / 1e4).toFixed(0)}${wan}`;
   return v.toFixed(0);
 };
 
@@ -46,17 +54,28 @@ const fmtTime = (ts: number): string => {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
-/** Map change% to a CSS background color interpolated between red and green. */
-const changeColor = (pct: number): string => {
+/** Map change% to a CSS background color interpolated between up/down colors. */
+const changeColor = (pct: number, scheme: ColorScheme): string => {
   const clamped = Math.max(-5, Math.min(5, pct));
+  const isUpGreen = scheme === 'greenUp';
   if (clamped >= 0) {
     const intensity = Math.min(1, clamped / 5);
-    const g = Math.round(80 + intensity * 120);
-    return `rgba(0,${g},50,${0.25 + intensity * 0.55})`;
+    if (isUpGreen) {
+      const g = Math.round(80 + intensity * 120);
+      return `rgba(0,${g},50,${0.25 + intensity * 0.55})`;
+    } else {
+      const r = Math.round(80 + intensity * 120);
+      return `rgba(${r},0,20,${0.25 + intensity * 0.55})`;
+    }
   } else {
     const intensity = Math.min(1, -clamped / 5);
-    const r = Math.round(80 + intensity * 120);
-    return `rgba(${r},0,20,${0.25 + intensity * 0.55})`;
+    if (isUpGreen) {
+      const r = Math.round(80 + intensity * 120);
+      return `rgba(${r},0,20,${0.25 + intensity * 0.55})`;
+    } else {
+      const g = Math.round(80 + intensity * 120);
+      return `rgba(0,${g},50,${0.25 + intensity * 0.55})`;
+    }
   }
 };
 
@@ -78,11 +97,17 @@ const BoardBarChart = ({
   boards,
   selectedBoardCode,
   onSelectBoard,
+  colorScheme,
+  lang,
 }: {
   boards: BoardItem[];
   selectedBoardCode: string | null;
   onSelectBoard: (code: string | null) => void;
+  colorScheme: ColorScheme;
+  lang: LangKey;
 }) => {
+  const colors = useColors(colorScheme);
+  const t = (key: ResourceKey): string => RESOURCES[lang][key];
   const data = useMemo(
     () =>
       [...boards]
@@ -104,7 +129,7 @@ const BoardBarChart = ({
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-gray-600 text-[10px] font-mono">
-        LOADING BOARD DATA…
+        {t('LOADING_BOARD_DATA')}
       </div>
     );
   }
@@ -149,14 +174,14 @@ const BoardBarChart = ({
             const p = props.payload ?? {};
             return [
               <span key="v">
-                <span style={{ color: v >= 0 ? '#00cc66' : '#ff3333', fontWeight: 700 }}>
+                <span style={{ color: colors.hex(v), fontWeight: 700 }}>
                   {v >= 0 ? '+' : ''}{v}%
                 </span>
                 <span style={{ color: '#555' }}>
-                  {' '}· {p.advancing ?? 0}↑{p.declining ?? 0}↓ · 主力 {fmtCNY(p.mainNetInflow ?? 0)}
+                  {' '}· {p.advancing ?? 0}↑{p.declining ?? 0}↓ · {t('MAIN_INFLOW')} {fmtCNY(p.mainNetInflow ?? 0, lang)}
                 </span>
                 {p.leaderName && (
-                  <span style={{ color: '#888' }}> · 领涨 {p.leaderName}</span>
+                  <span style={{ color: '#888' }}> · {t('LEADER')} {p.leaderName}</span>
                 )}
               </span>,
               '',
@@ -174,7 +199,7 @@ const BoardBarChart = ({
           {data.map((entry, i) => (
             <Cell
               key={entry.code}
-              fill={entry.change >= 0 ? '#00cc66' : '#ff3333'}
+              fill={colors.hex(entry.change)}
               fillOpacity={selectedBoardCode && selectedBoardCode !== entry.code ? 0.25 : 0.75}
               stroke={selectedBoardCode === entry.code ? '#fff' : 'transparent'}
               strokeWidth={1}
@@ -192,17 +217,23 @@ const BoardHeatmap = ({
   boards,
   selectedBoardCode,
   onSelectBoard,
+  colorScheme,
+  lang,
 }: {
   boards: BoardItem[];
   selectedBoardCode: string | null;
   onSelectBoard: (code: string | null) => void;
+  colorScheme: ColorScheme;
+  lang: LangKey;
 }) => {
+  const colors = useColors(colorScheme);
+  const t = (key: ResourceKey): string => RESOURCES[lang][key];
   const totalCap = useMemo(() => boards.reduce((s, b) => s + Math.abs(b.totalMarketCap), 0), [boards]);
 
   if (boards.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-gray-600 text-[10px] font-mono">
-        LOADING BOARD DATA…
+        {t('LOADING_BOARD_DATA')}
       </div>
     );
   }
@@ -228,7 +259,7 @@ const BoardHeatmap = ({
                   width: `calc(${widthPct}% - 2px)`,
                   minWidth: 60,
                   height: 72,
-                  background: changeColor(b.changePercent),
+                  background: changeColor(b.changePercent, colorScheme),
                   border: isSelected ? '1px solid #fff' : '1px solid rgba(255,255,255,0.05)',
                   boxShadow: isSelected ? '0 0 8px rgba(245,158,11,0.4)' : undefined,
                   opacity: selectedBoardCode && !isSelected ? 0.6 : 1,
@@ -237,7 +268,7 @@ const BoardHeatmap = ({
                 <div className="text-[8px] text-white/90 font-bold text-center px-0.5 leading-tight truncate w-full">
                   {b.name}
                 </div>
-                <div className={`text-[10px] font-bold mt-0.5 ${isUp ? 'text-green-400' : 'text-red-400'}`}>
+                <div className={`text-[10px] font-bold mt-0.5 ${colors.clsBold(b.changePercent)}`}>
                   {isUp ? '+' : ''}{b.changePercent.toFixed(2)}%
                 </div>
                 <div className="text-[7px] text-white/40 mt-0.5">
@@ -258,12 +289,18 @@ const BoardLineChart = ({
   snapshots,
   selectedBoardCode,
   onSelectBoard,
+  colorScheme,
+  lang,
 }: {
   boards: BoardItem[];
   snapshots: BoardSnapshot[];
   selectedBoardCode: string | null;
   onSelectBoard: (code: string | null) => void;
+  colorScheme: ColorScheme;
+  lang: LangKey;
 }) => {
+  const colors = useColors(colorScheme);
+  const t = (key: ResourceKey): string => RESOURCES[lang][key];
   const { lineData, boardDefs } = useMemo(() => {
     // Use top 12 boards by absolute change for line chart clarity
     const topBoards = [...boards]
@@ -303,7 +340,7 @@ const BoardLineChart = ({
   if (boardDefs.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-gray-600 text-[10px] font-mono">
-        LOADING BOARD DATA…
+        {t('LOADING_BOARD_DATA')}
       </div>
     );
   }
@@ -311,8 +348,8 @@ const BoardLineChart = ({
   if (lineData.length < 2) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-2 text-gray-600 text-[10px] font-mono">
-        <span>INSUFFICIENT HISTORY FOR TREND VIEW</span>
-        <span className="text-gray-700">Board data is sampled every 30s — check back shortly.</span>
+        <span>{t('INSUFFICIENT_HISTORY')}</span>
+        <span className="text-gray-700">{t('HISTORY_HINT_BOARD')}</span>
       </div>
     );
   }
@@ -347,7 +384,7 @@ const BoardLineChart = ({
             const v = Number(value ?? 0);
             const def = boardDefs.find((d) => d.code === String(name));
             return [
-              <span key={String(name)} style={{ color: v >= 0 ? '#00cc66' : '#ff3333', fontWeight: 700 }}>
+              <span key={String(name)} style={{ color: colors.hex(v), fontWeight: 700 }}>
                 {v >= 0 ? '+' : ''}{v}%
               </span>,
               def?.name ?? String(name),
@@ -391,6 +428,8 @@ export const BoardCharts = ({
   snapshots,
   selectedBoardCode,
   onSelectBoard,
+  colorScheme,
+  lang,
 }: BoardChartsProps) => {
   if (chartType === 'BAR') {
     return (
@@ -398,6 +437,8 @@ export const BoardCharts = ({
         boards={boards}
         selectedBoardCode={selectedBoardCode}
         onSelectBoard={onSelectBoard}
+        colorScheme={colorScheme}
+        lang={lang}
       />
     );
   }
@@ -408,6 +449,8 @@ export const BoardCharts = ({
         boards={boards}
         selectedBoardCode={selectedBoardCode}
         onSelectBoard={onSelectBoard}
+        colorScheme={colorScheme}
+        lang={lang}
       />
     );
   }
@@ -418,6 +461,8 @@ export const BoardCharts = ({
       snapshots={snapshots}
       selectedBoardCode={selectedBoardCode}
       onSelectBoard={onSelectBoard}
+      colorScheme={colorScheme}
+      lang={lang}
     />
   );
 };

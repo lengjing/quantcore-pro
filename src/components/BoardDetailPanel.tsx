@@ -8,6 +8,10 @@
 import React from 'react';
 import { ExternalLink, BookmarkPlus, Loader } from 'lucide-react';
 import type { BoardItem, BoardStock } from '../services/stock/sectorBoardService';
+import type { ColorScheme } from '../types';
+import type { LangKey, ResourceKey } from '../constants/resources';
+import { RESOURCES } from '../constants/resources';
+import { useColors } from '../hooks/useColors';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -18,10 +22,12 @@ const fmtVol = (v: number): string => {
   return v.toFixed(0);
 };
 
-const fmtCNY = (v: number): string => {
+const fmtCNY = (v: number, lang: LangKey): string => {
   const abs = Math.abs(v);
-  if (abs >= 1e8) return `${(v / 1e8).toFixed(2)}亿`;
-  if (abs >= 1e4) return `${(v / 1e4).toFixed(0)}万`;
+  const yi = RESOURCES[lang].FMT_YI;
+  const wan = RESOURCES[lang].FMT_WAN;
+  if (abs >= 1e8) return `${(v / 1e8).toFixed(2)}${yi}`;
+  if (abs >= 1e4) return `${(v / 1e4).toFixed(0)}${wan}`;
   return v.toFixed(0);
 };
 
@@ -34,6 +40,8 @@ interface BoardDetailPanelProps {
   onClose: () => void;
   onGoToSymbol: (symbol: string) => void;
   onAddToWatchlist?: (symbol: string) => void;
+  colorScheme: ColorScheme;
+  lang: LangKey;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -45,7 +53,11 @@ export const BoardDetailPanel: React.FC<BoardDetailPanelProps> = ({
   onClose,
   onGoToSymbol,
   onAddToWatchlist,
+  colorScheme,
+  lang,
 }) => {
+  const colors = useColors(colorScheme);
+  const t = (key: ResourceKey): string => RESOURCES[lang][key];
   const isUp = board.changePercent >= 0;
 
   return (
@@ -63,26 +75,26 @@ export const BoardDetailPanel: React.FC<BoardDetailPanelProps> = ({
 
       {/* ── Summary bar ────────────────────────────────────────────────────── */}
       <div className="px-2 py-1 border-b border-[#1a1a1a] shrink-0 font-mono text-[9px] flex gap-3 items-center flex-wrap">
-        <span className={isUp ? 'text-terminal-success font-bold' : 'text-terminal-error font-bold'}>
+        <span className={`${colors.clsBold(board.changePercent)}`}>
           {isUp ? '+' : ''}{board.changePercent.toFixed(2)}%
         </span>
         <span className="text-gray-600">|</span>
-        <span className="text-terminal-success">{board.advancing}↑</span>
-        <span className="text-terminal-error">{board.declining}↓</span>
+        <span className={colors.upClass}>{board.advancing}↑</span>
+        <span className={colors.downClass}>{board.declining}↓</span>
         <span className="text-gray-600">|</span>
-        <span className={`${board.mainNetInflow > 0 ? 'text-terminal-success' : board.mainNetInflow < 0 ? 'text-terminal-error' : 'text-gray-500'}`}>
-          主力 {board.mainNetInflow > 0 ? '+' : ''}{fmtCNY(board.mainNetInflow)}
+        <span className={`${board.mainNetInflow > 0 ? colors.upClass : board.mainNetInflow < 0 ? colors.downClass : 'text-gray-500'}`}>
+          {t('MAIN_INFLOW')} {board.mainNetInflow > 0 ? '+' : ''}{fmtCNY(board.mainNetInflow, lang)}
         </span>
         <span className="text-gray-600">|</span>
-        <span className="text-gray-500">换手 {board.turnoverRate.toFixed(2)}%</span>
+        <span className="text-gray-500">{t('TURNOVER')} {board.turnoverRate.toFixed(2)}%</span>
       </div>
 
       {/* ── Leader info ────────────────────────────────────────────────────── */}
       {board.leaderName && (
         <div className="px-2 py-1 border-b border-[#1a1a1a] shrink-0 font-mono text-[9px] flex items-center gap-2">
-          <span className="text-gray-600">领涨:</span>
+          <span className="text-gray-600">{t('LEADER')}</span>
           <span className="text-white font-bold">{board.leaderName}</span>
-          <span className={board.leaderChangePercent >= 0 ? 'text-terminal-success' : 'text-terminal-error'}>
+          <span className={colors.cls(board.leaderChangePercent)}>
             {board.leaderChangePercent >= 0 ? '+' : ''}{board.leaderChangePercent.toFixed(2)}%
           </span>
         </div>
@@ -93,20 +105,20 @@ export const BoardDetailPanel: React.FC<BoardDetailPanelProps> = ({
         {isLoading && stocks.length === 0 ? (
           <div className="flex items-center justify-center py-12 text-gray-600 text-[9px] font-mono">
             <Loader size={10} className="animate-spin mr-2" />
-            LOADING STOCKS…
+            {t('LOADING_STOCKS')}
           </div>
         ) : stocks.length === 0 ? (
           <div className="text-center py-6 text-[9px] font-mono text-gray-600">
-            NO COMPONENT STOCKS
+            {t('NO_COMPONENT_STOCKS')}
           </div>
         ) : (
           <table className="w-full font-mono text-[9px]">
             <thead className="sticky top-0 bg-[#111]">
               <tr className="text-gray-600 border-b border-[#1a1a1a]">
-                <th className="px-2 py-1 text-left">SYMBOL</th>
-                <th className="px-2 py-1 text-right">LAST</th>
-                <th className="px-2 py-1 text-right">CHG%</th>
-                <th className="px-2 py-1 text-right">VOL</th>
+                <th className="px-2 py-1 text-left">{t('TH_SYMBOL')}</th>
+                <th className="px-2 py-1 text-right">{t('TH_LAST')}</th>
+                <th className="px-2 py-1 text-right">{t('TH_CHG')}</th>
+                <th className="px-2 py-1 text-right">{t('TH_VOL')}</th>
                 <th className="px-2 py-1 w-8"></th>
               </tr>
             </thead>
@@ -132,7 +144,7 @@ export const BoardDetailPanel: React.FC<BoardDetailPanelProps> = ({
                       <td className="px-2 py-1 text-right text-white tabular-nums">
                         {stock.price.toFixed(2)}
                       </td>
-                      <td className={`px-2 py-1 text-right font-bold tabular-nums ${stockUp ? 'text-terminal-success' : 'text-terminal-error'}`}>
+                      <td className={`px-2 py-1 text-right font-bold tabular-nums ${colors.clsBold(stock.changePercent)}`}>
                         {stockUp ? '+' : ''}{stock.changePercent.toFixed(2)}%
                       </td>
                       <td className="px-2 py-1 text-right text-gray-400 tabular-nums">

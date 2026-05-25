@@ -11,8 +11,10 @@ import {
   Loader,
   RefreshCw,
 } from 'lucide-react';
-import type { MarketTicker, MarketMode, ViewState as ViewStateType } from '../types';
+import type { MarketTicker, MarketMode, ViewState as ViewStateType, ColorScheme } from '../types';
 import { ViewState } from '../types';
+import type { LangKey, ResourceKey } from '../constants/resources';
+import { RESOURCES } from '../constants/resources';
 import { Panel } from '../components/ui/Panel';
 import { Modal } from '../components/ui/Modal';
 import {
@@ -30,11 +32,13 @@ import { SectorDetailPanel } from '../components/SectorDetailPanel';
 import { BoardCharts, type BoardChartType } from '../components/BoardCharts';
 import { BoardDetailPanel } from '../components/BoardDetailPanel';
 import { useSectorBoards } from '../hooks/useSectorBoards';
+import { useColors } from '../hooks/useColors';
 import type { BoardCategory } from '../services/stock/sectorBoardService';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 type MainTab = 'SECTORS' | 'BOARDS';
+type BoardTimeline = '1D' | '3D' | '1W' | 'ALL';
 
 interface MarketViewProps {
   marketTickers: MarketTicker[];
@@ -45,6 +49,8 @@ interface MarketViewProps {
   onRefresh?: () => void;
   customSectors: CustomSectorDef[];
   setCustomSectors: (fn: (prev: CustomSectorDef[]) => CustomSectorDef[]) => void;
+  lang: LangKey;
+  colorScheme: ColorScheme;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -64,6 +70,24 @@ const fmtTime = (ts: number): string => {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
+// ── Timeline helpers ────────────────────────────────────────────────────────────
+
+const TIMELINE_OPTIONS: BoardTimeline[] = ['1D', '3D', '1W', 'ALL'];
+
+const TIMELINE_MS: Record<BoardTimeline, number> = {
+  '1D': 24 * 60 * 60 * 1000,
+  '3D': 3 * 24 * 60 * 60 * 1000,
+  '1W': 7 * 24 * 60 * 60 * 1000,
+  'ALL': Infinity,
+};
+
+const TIMELINE_RESOURCE_KEYS: Record<BoardTimeline, ResourceKey> = {
+  '1D': 'TIMELINE_1D',
+  '3D': 'TIMELINE_3D',
+  '1W': 'TIMELINE_1W',
+  'ALL': 'TIMELINE_ALL',
+};
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export const MarketView = ({
@@ -75,8 +99,12 @@ export const MarketView = ({
   onRefresh,
   customSectors,
   setCustomSectors,
+  lang,
+  colorScheme,
 }: MarketViewProps) => {
   const [mainTab, setMainTab] = useState<MainTab>('SECTORS');
+  const t = (key: ResourceKey): string => RESOURCES[lang][key];
+  const colors = useColors(colorScheme);
 
   // ── Sectors state ──────────────────────────────────────────────────────────
   const [snapshots, setSnapshots] = useState<SectorSnapshot[]>([]);
@@ -88,6 +116,7 @@ export const MarketView = ({
   // ── API-driven sector boards (题材聚焦 / 题材轮动) ────────────────────────
   const sectorBoards = useSectorBoards();
   const [boardChartType, setBoardChartType] = useState<BoardChartType>('BAR');
+  const [boardTimeline, setBoardTimeline] = useState<BoardTimeline>('ALL');
 
   // ── Custom (user-defined) sectors — state is owned by App.tsx ─────────────
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -200,33 +229,40 @@ export const MarketView = ({
     sectorBoards.selectBoard(code);
   }, [sectorBoards]);
 
+  // Filter board snapshots by timeline
+  const filteredBoardSnapshots = useMemo(() => {
+    if (boardTimeline === 'ALL') return sectorBoards.snapshots;
+    const cutoff = Date.now() - TIMELINE_MS[boardTimeline];
+    return sectorBoards.snapshots.filter((s) => s.ts >= cutoff);
+  }, [sectorBoards.snapshots, boardTimeline]);
+
   return (
     <div className="flex h-full gap-1 min-h-0">
 
       {/* ── Stats Sidebar ─────────────────────────────────────────────── */}
       <div className="w-52 shrink-0 flex flex-col gap-1 min-h-0">
-        <Panel title="MARKET OVERVIEW" className="flex-1 overflow-hidden">
+        <Panel title={t('MARKET_OVERVIEW')} className="flex-1 overflow-hidden">
           <div className="p-2 space-y-3 font-mono text-[10px] overflow-y-auto h-full custom-scrollbar">
 
             {/* Instrument count */}
             <div>
-              <div className="text-gray-500 mb-0.5">INSTRUMENTS</div>
+              <div className="text-gray-500 mb-0.5">{t('INSTRUMENTS')}</div>
               <div className="text-white text-lg font-bold leading-none">{marketTickers.length.toLocaleString()}</div>
             </div>
 
             {/* A/D/U cards */}
             <div className="grid grid-cols-3 gap-0.5">
               <div className="bg-green-950/40 border border-green-900/40 p-1.5 text-center">
-                <div className="text-terminal-success font-bold text-sm leading-none">{stats.advancing}</div>
-                <div className="text-gray-500 mt-0.5">↑ UP</div>
+                <div className={`${colors.upClass} font-bold text-sm leading-none`}>{stats.advancing}</div>
+                <div className="text-gray-500 mt-0.5">{t('UP')}</div>
               </div>
               <div className="bg-red-950/40 border border-red-900/40 p-1.5 text-center">
-                <div className="text-terminal-error font-bold text-sm leading-none">{stats.declining}</div>
-                <div className="text-gray-500 mt-0.5">↓ DN</div>
+                <div className={`${colors.downClass} font-bold text-sm leading-none`}>{stats.declining}</div>
+                <div className="text-gray-500 mt-0.5">{t('DOWN')}</div>
               </div>
               <div className="bg-[#111] border border-[#2a2a2a] p-1.5 text-center">
                 <div className="text-gray-400 font-bold text-sm leading-none">{stats.unchanged}</div>
-                <div className="text-gray-500 mt-0.5">→ FL</div>
+                <div className="text-gray-500 mt-0.5">{t('FLAT')}</div>
               </div>
             </div>
 
@@ -234,18 +270,18 @@ export const MarketView = ({
             {marketTickers.length > 0 && (
               <div>
                 <div className="flex justify-between text-gray-500 mb-1">
-                  <span>BREADTH</span>
-                  <span className={stats.advancing > stats.declining ? 'text-terminal-success' : 'text-terminal-error'}>
+                  <span>{t('BREADTH')}</span>
+                  <span className={stats.advancing > stats.declining ? colors.upClass : colors.downClass}>
                     {((stats.advancing / marketTickers.length) * 100).toFixed(0)}% ADV
                   </span>
                 </div>
                 <div className="h-1.5 bg-[#1a1a1a] rounded-full overflow-hidden flex">
                   <div
-                    className="h-full bg-terminal-success/70 transition-all"
+                    className={`h-full ${colors.upBg}/70 transition-all`}
                     style={{ width: `${(stats.advancing / marketTickers.length) * 100}%` }}
                   />
                   <div
-                    className="h-full bg-terminal-error/70 transition-all"
+                    className={`h-full ${colors.downBg}/70 transition-all`}
                     style={{ width: `${(stats.declining / marketTickers.length) * 100}%` }}
                   />
                 </div>
@@ -255,18 +291,18 @@ export const MarketView = ({
             {/* Key metrics */}
             <div className="border-t border-[#1e1e1e] pt-2 space-y-1.5">
               <div className="flex justify-between">
-                <span className="text-gray-500">AVG CHG</span>
-                <span className={stats.avgChange >= 0 ? 'text-terminal-success' : 'text-terminal-error'}>
+                <span className="text-gray-500">{t('AVG_CHG')}</span>
+                <span className={colors.cls(stats.avgChange)}>
                   {stats.avgChange >= 0 ? '+' : ''}{stats.avgChange.toFixed(2)}%
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">TOTAL VOL</span>
+                <span className="text-gray-500">{t('TOTAL_VOL')}</span>
                 <span className="text-gray-200">{fmtVol(stats.totalVolume)}</span>
               </div>
               {marketMode === 'CRYPTO' && stats.btcDominance > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-gray-500">BTC DOM</span>
+                  <span className="text-gray-500">{t('BTC_DOM')}</span>
                   <span className="text-blue-400">{stats.btcDominance.toFixed(1)}%</span>
                 </div>
               )}
@@ -275,19 +311,19 @@ export const MarketView = ({
             {/* Top 5 gainers mini-list */}
             <div className="border-t border-[#1e1e1e] pt-2">
               <div className="flex items-center gap-1 text-gray-500 mb-1">
-                <TrendingUp size={8} className="text-terminal-success" />
-                <span>TOP GAINERS</span>
+                <TrendingUp size={8} className={colors.upClass} />
+                <span>{t('TOP_GAINERS')}</span>
               </div>
-              {stats.topGainers.map((t) => (
+              {stats.topGainers.map((tk) => (
                 <div
-                  key={t.symbol}
+                  key={tk.symbol}
                   className="flex justify-between py-0.5 cursor-pointer hover:text-white group/mini"
-                  onClick={() => goToSymbol(t.symbol)}
+                  onClick={() => goToSymbol(tk.symbol)}
                 >
                   <span className="text-gray-400 group-hover/mini:text-terminal-accent truncate max-w-[90px]">
-                    {shortName(t.symbol)}
+                    {shortName(tk.symbol)}
                   </span>
-                  <span className="text-terminal-success font-bold">+{t.changePercent.toFixed(2)}%</span>
+                  <span className={colors.clsBold(1)}>+{tk.changePercent.toFixed(2)}%</span>
                 </div>
               ))}
             </div>
@@ -295,19 +331,19 @@ export const MarketView = ({
             {/* Top 5 losers mini-list */}
             <div className="border-t border-[#1e1e1e] pt-2">
               <div className="flex items-center gap-1 text-gray-500 mb-1">
-                <TrendingDown size={8} className="text-terminal-error" />
-                <span>TOP LOSERS</span>
+                <TrendingDown size={8} className={colors.downClass} />
+                <span>{t('TOP_LOSERS')}</span>
               </div>
-              {stats.topLosers.map((t) => (
+              {stats.topLosers.map((tk) => (
                 <div
-                  key={t.symbol}
+                  key={tk.symbol}
                   className="flex justify-between py-0.5 cursor-pointer hover:text-white group/mini"
-                  onClick={() => goToSymbol(t.symbol)}
+                  onClick={() => goToSymbol(tk.symbol)}
                 >
                   <span className="text-gray-400 group-hover/mini:text-terminal-accent truncate max-w-[90px]">
-                    {shortName(t.symbol)}
+                    {shortName(tk.symbol)}
                   </span>
-                  <span className="text-terminal-error font-bold">{t.changePercent.toFixed(2)}%</span>
+                  <span className={colors.clsBold(-1)}>{tk.changePercent.toFixed(2)}%</span>
                 </div>
               ))}
             </div>
@@ -316,18 +352,18 @@ export const MarketView = ({
             <div className="border-t border-[#1e1e1e] pt-2">
               <div className="flex items-center gap-1 text-gray-500 mb-1">
                 <span className="text-yellow-500">⚡</span>
-                <span>MOST ACTIVE</span>
+                <span>{t('MOST_ACTIVE')}</span>
               </div>
-              {stats.mostActive.map((t) => (
+              {stats.mostActive.map((tk) => (
                 <div
-                  key={t.symbol}
+                  key={tk.symbol}
                   className="flex justify-between py-0.5 cursor-pointer hover:text-white group/mini"
-                  onClick={() => goToSymbol(t.symbol)}
+                  onClick={() => goToSymbol(tk.symbol)}
                 >
                   <span className="text-gray-400 group-hover/mini:text-terminal-accent truncate max-w-[90px]">
-                    {shortName(t.symbol)}
+                    {shortName(tk.symbol)}
                   </span>
-                  <span className="text-gray-300">{fmtVol(t.volume)}</span>
+                  <span className="text-gray-300">{fmtVol(tk.volume)}</span>
                 </div>
               ))}
             </div>
@@ -338,11 +374,11 @@ export const MarketView = ({
 
       {/* ── Main Panel (SECTORS / BOARDS) ────────────────────────────── */}
       <Panel
-        title={`MARKET INTELLIGENCE — ${marketMode === 'CRYPTO' ? 'CRYPTO / BINANCE USDT' : 'A-SHARE MARKET'}`}
+        title={marketMode === 'CRYPTO' ? t('MARKET_INTEL_CRYPTO') : t('MARKET_INTEL_ASHARE')}
         className="flex-1 min-w-0"
         onRefresh={onRefresh}
         tools={
-          <div className="flex items-center gap-1 mr-1">
+          <div className="flex items-center gap-0.5 mr-1 flex-wrap">
             {/* Main tab toggle */}
             {(['SECTORS', 'BOARDS'] as MainTab[]).map((mt) => (
               <button
@@ -355,13 +391,15 @@ export const MarketView = ({
                     : 'text-gray-500 hover:text-gray-200 border border-transparent hover:border-[#333]',
                 ].join(' ')}
               >
-                {mt === 'BOARDS' ? '题材' : mt}
+                {mt === 'SECTORS' ? t('TAB_SECTORS') : t('TAB_BOARDS')}
               </button>
             ))}
 
+            <div className="h-3 w-px bg-[#333] mx-0.5" />
+
+            {/* ── SECTORS toolbar ──────────────────────────────────────── */}
             {mainTab === 'SECTORS' && (
               <>
-                <div className="h-3 w-px bg-[#333] mx-1" />
                 {/* Chart type toggle */}
                 <div className="flex items-center gap-0.5">
                   {([
@@ -385,48 +423,45 @@ export const MarketView = ({
                     </button>
                   ))}
                 </div>
-              </>
-            )}
 
-            {mainTab === 'SECTORS' && snapshots.length > 0 && (
-              <>
-                <div className="h-3 w-px bg-[#333] mx-1" />
-                <div className="flex items-center gap-0.5">
-                  <Clock size={8} className="text-gray-600" />
-                  <button
-                    onClick={() => setActiveSnapshot(null)}
-                    className={`text-[9px] font-mono px-1.5 py-0.5 ${!activeSnapshot ? 'text-terminal-success font-bold' : 'text-gray-600 hover:text-gray-300'}`}
-                  >
-                    LIVE
-                  </button>
-                  {snapshots.map((snap) => (
-                    <button
-                      key={snap.ts}
-                      onClick={() => setActiveSnapshot(snap)}
-                      className={`text-[9px] font-mono px-1.5 py-0.5 ${activeSnapshot?.ts === snap.ts ? 'text-terminal-accent font-bold' : 'text-gray-600 hover:text-gray-300'}`}
-                    >
-                      {fmtTime(snap.ts)}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-            {mainTab === 'SECTORS' && (
-              <>
-                <div className="h-3 w-px bg-[#333] mx-1" />
+                {snapshots.length > 0 && (
+                  <>
+                    <div className="h-3 w-px bg-[#333] mx-0.5" />
+                    <div className="flex items-center gap-0.5">
+                      <Clock size={8} className="text-gray-600" />
+                      <button
+                        onClick={() => setActiveSnapshot(null)}
+                        className={`text-[9px] font-mono px-1.5 py-0.5 ${!activeSnapshot ? 'text-terminal-success font-bold' : 'text-gray-600 hover:text-gray-300'}`}
+                      >
+                        LIVE
+                      </button>
+                      {snapshots.map((snap) => (
+                        <button
+                          key={snap.ts}
+                          onClick={() => setActiveSnapshot(snap)}
+                          className={`text-[9px] font-mono px-1.5 py-0.5 ${activeSnapshot?.ts === snap.ts ? 'text-terminal-accent font-bold' : 'text-gray-600 hover:text-gray-300'}`}
+                        >
+                          {fmtTime(snap.ts)}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                <div className="h-3 w-px bg-[#333] mx-0.5" />
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  title="Create custom concept sector"
+                  title={t('NEW_CONCEPT_SECTOR')}
                   className="flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 text-gray-500 hover:text-gray-200 border border-transparent hover:border-[#333] transition-colors"
                 >
-                  <Plus size={8} />CONCEPT
+                  <Plus size={8} />{t('BTN_CONCEPT')}
                 </button>
               </>
             )}
 
+            {/* ── BOARDS toolbar ───────────────────────────────────────── */}
             {mainTab === 'BOARDS' && (
               <>
-                <div className="h-3 w-px bg-[#333] mx-1" />
                 {/* Board category toggle */}
                 {(['concept', 'industry'] as BoardCategory[]).map((cat) => (
                   <button
@@ -439,10 +474,10 @@ export const MarketView = ({
                         : 'text-gray-500 hover:text-gray-200 border border-transparent hover:border-[#333]',
                     ].join(' ')}
                   >
-                    {cat === 'concept' ? '概念板块' : '行业板块'}
+                    {cat === 'concept' ? t('BOARD_CONCEPT') : t('BOARD_INDUSTRY')}
                   </button>
                 ))}
-                <div className="h-3 w-px bg-[#333] mx-1" />
+                <div className="h-3 w-px bg-[#333] mx-0.5" />
                 {/* Board chart type toggle */}
                 <div className="flex items-center gap-0.5">
                   {([
@@ -466,13 +501,32 @@ export const MarketView = ({
                     </button>
                   ))}
                 </div>
-                <div className="h-3 w-px bg-[#333] mx-1" />
+                <div className="h-3 w-px bg-[#333] mx-0.5" />
+                {/* Timeline selector */}
+                <div className="flex items-center gap-0.5">
+                  <Clock size={8} className="text-gray-600" />
+                  {TIMELINE_OPTIONS.map((tl) => (
+                    <button
+                      key={tl}
+                      onClick={() => setBoardTimeline(tl)}
+                      className={[
+                        'text-[9px] font-mono font-bold px-1.5 py-0.5 transition-colors',
+                        boardTimeline === tl
+                          ? 'text-terminal-accent font-bold'
+                          : 'text-gray-600 hover:text-gray-300',
+                      ].join(' ')}
+                    >
+                      {t(TIMELINE_RESOURCE_KEYS[tl])}
+                    </button>
+                  ))}
+                </div>
+                <div className="h-3 w-px bg-[#333] mx-0.5" />
                 <button
                   onClick={() => sectorBoards.refreshBoards()}
-                  title="Refresh board data"
+                  title={t('BTN_REFRESH')}
                   className="flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 text-gray-500 hover:text-gray-200 border border-transparent hover:border-[#333] transition-colors"
                 >
-                  <RefreshCw size={8} />REFRESH
+                  <RefreshCw size={8} />{t('BTN_REFRESH')}
                 </button>
               </>
             )}
@@ -487,7 +541,7 @@ export const MarketView = ({
               {activeSnapshot && (
                 <div className="flex items-center gap-1 mb-1 text-[9px] font-mono text-yellow-600 bg-yellow-900/10 border border-yellow-900/30 px-2 py-1 shrink-0">
                   <Clock size={8} />
-                  VIEWING SNAPSHOT @ {fmtTime(activeSnapshot.ts)} — CLICK LIVE TO RETURN TO REAL-TIME
+                  {t('VIEWING_SNAPSHOT')} @ {fmtTime(activeSnapshot.ts)} — {t('CLICK_LIVE_RETURN')}
                 </div>
               )}
               <div className="flex-1 min-h-0">
@@ -497,6 +551,8 @@ export const MarketView = ({
                   snapshots={snapshots}
                   selectedSectorId={selectedSectorId}
                   onSelectSector={setSelectedSectorId}
+                  colorScheme={colorScheme}
+                  lang={lang}
                 />
               </div>
             </div>
@@ -511,12 +567,14 @@ export const MarketView = ({
                 onGoToSymbol={goToSymbol}
                 onAddToWatchlist={addToWatchlist}
                 onDeleteCustom={handleDeleteCustomSector}
+                colorScheme={colorScheme}
+                lang={lang}
               />
             )}
           </div>
         )}
 
-        {/* ── BOARDS content (题材聚焦 / 题材轮动) ────────────────────── */}
+        {/* ── BOARDS content ──────────────────────────────────────────── */}
         {mainTab === 'BOARDS' && (
           <div className="flex h-full min-h-0 gap-1 p-1">
             {/* Chart area */}
@@ -524,20 +582,22 @@ export const MarketView = ({
               {sectorBoards.isLoading && sectorBoards.boards.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-gray-600 text-[10px] font-mono">
                   <Loader size={12} className="animate-spin mr-2" />
-                  LOADING BOARD DATA…
+                  {t('LOADING_BOARD_DATA')}
                 </div>
               ) : sectorBoards.boards.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-gray-600 text-[10px] font-mono">
-                  {marketMode === 'CRYPTO' ? 'BOARDS ONLY AVAILABLE FOR A-SHARE MARKET' : 'NO BOARD DATA AVAILABLE'}
+                  {marketMode === 'CRYPTO' ? t('BOARDS_CRYPTO_ONLY') : t('NO_BOARD_DATA')}
                 </div>
               ) : (
                 <div className="flex-1 min-h-0">
                   <BoardCharts
                     chartType={boardChartType}
                     boards={sectorBoards.boards}
-                    snapshots={sectorBoards.snapshots}
+                    snapshots={filteredBoardSnapshots}
                     selectedBoardCode={sectorBoards.selectedBoard?.code ?? null}
                     onSelectBoard={handleBoardChartSelect}
+                    colorScheme={colorScheme}
+                    lang={lang}
                   />
                 </div>
               )}
@@ -552,6 +612,8 @@ export const MarketView = ({
                 onClose={() => sectorBoards.selectBoard(null)}
                 onGoToSymbol={goToSymbol}
                 onAddToWatchlist={addToWatchlist}
+                colorScheme={colorScheme}
+                lang={lang}
               />
             )}
           </div>
@@ -562,23 +624,23 @@ export const MarketView = ({
       <Modal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        title="NEW CONCEPT SECTOR"
+        title={t('NEW_CONCEPT_SECTOR')}
         width="max-w-md"
       >
         <div className="space-y-3 font-mono text-[10px]">
           <div>
-            <label className="block text-gray-500 mb-1 uppercase tracking-wider text-[9px]">Sector Name *</label>
+            <label className="block text-gray-500 mb-1 uppercase tracking-wider text-[9px]">{t('SECTOR_NAME')} *</label>
             <input
               type="text"
               value={newSectorName}
               onChange={(e) => setNewSectorName(e.target.value)}
-              placeholder="e.g. MLCC 概念"
+              placeholder="e.g. MLCC"
               className="w-full bg-[#0d0d0d] border border-[#333] text-white text-[10px] font-mono px-2 py-1.5 focus:outline-none focus:border-terminal-accent placeholder-gray-700"
               autoFocus
             />
           </div>
           <div>
-            <label className="block text-gray-500 mb-1 uppercase tracking-wider text-[9px]">English Name</label>
+            <label className="block text-gray-500 mb-1 uppercase tracking-wider text-[9px]">{t('ENGLISH_NAME')}</label>
             <input
               type="text"
               value={newSectorNameEn}
@@ -589,7 +651,7 @@ export const MarketView = ({
           </div>
           <div>
             <label className="block text-gray-500 mb-1 uppercase tracking-wider text-[9px]">
-              Symbols (comma or newline separated)
+              {t('SYMBOLS_LABEL')}
             </label>
             <textarea
               value={newSectorSymbols}
@@ -601,9 +663,7 @@ export const MarketView = ({
               className="w-full bg-[#0d0d0d] border border-[#333] text-white text-[10px] font-mono px-2 py-1.5 focus:outline-none focus:border-terminal-accent placeholder-gray-700 resize-none"
             />
             <p className="text-[8px] text-gray-600 mt-0.5">
-              {marketMode === 'CRYPTO'
-                ? 'Use Binance pairs like BTC-USDT, ETH-USDT'
-                : 'Use A-share codes like sh600563, sz300510'}
+              {marketMode === 'CRYPTO' ? t('CRYPTO_SYMBOL_HINT') : t('STOCK_SYMBOL_HINT')}
             </p>
           </div>
           <div className="flex items-center justify-end gap-2 pt-1">
@@ -611,14 +671,14 @@ export const MarketView = ({
               onClick={() => setShowCreateModal(false)}
               className="flex items-center gap-1 text-[9px] font-mono font-bold px-3 py-1.5 text-gray-500 hover:text-gray-200 border border-[#333] hover:border-[#555] transition-colors"
             >
-              <X size={8} />CANCEL
+              <X size={8} />{t('BTN_CANCEL')}
             </button>
             <button
               onClick={handleCreateSector}
               disabled={!newSectorName.trim()}
               className="flex items-center gap-1 text-[9px] font-mono font-bold px-3 py-1.5 bg-terminal-accent text-black hover:bg-yellow-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
-              <Plus size={8} />CREATE
+              <Plus size={8} />{t('BTN_CREATE')}
             </button>
           </div>
         </div>

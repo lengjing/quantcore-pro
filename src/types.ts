@@ -7,6 +7,13 @@ export type MarketMode = 'CRYPTO' | 'CN_STOCK';
 export type ScannerSort = 'CHANGE_DESC' | 'CHANGE_ASC' | 'VOL_DESC';
 
 /**
+ * Color scheme for price change indicators.
+ * 'greenUp' — green for up, red for down (international default)
+ * 'redUp'   — red for up, green for down (China convention)
+ */
+export type ColorScheme = 'greenUp' | 'redUp';
+
+/**
  * PAPER — all orders are simulated; positions track P&L but no real funds are used.
  * LIVE  — orders are intended to be routed to a real exchange.
  *         A confirmation dialog is always shown before execution.

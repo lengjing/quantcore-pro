@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 import { ViewState } from './types';
-import type { MarketMode } from './types';
+import type { MarketMode, ColorScheme } from './types';
 import { RESOURCES } from './constants/resources';
 import type { ResourceKey, LangKey } from './constants/resources';
 
@@ -62,6 +62,7 @@ const App = () => {
   const [timeframe, setTimeframe] = usePersisted<Timeframe>('timeframe', '1H');
   const [lang, setLang] = usePersisted<LangKey>('lang', 'EN');
   const [stockAdapterId, setStockAdapterId] = usePersisted<string>('stockAdapterId', 'eastmoney');
+  const [colorScheme, setColorScheme] = usePersisted<ColorScheme>('colorScheme', 'greenUp');
 
   // Custom sectors — hoisted here so both MarketView and AIAssistantView share state
   const [customSectors, setCustomSectors] = usePersisted<CustomSectorDef[]>('customSectors', []);
@@ -243,6 +244,8 @@ const App = () => {
               onRefresh={updateMarketData}
               customSectors={customSectors}
               setCustomSectors={setCustomSectors}
+              lang={lang}
+              colorScheme={colorScheme}
             />
           )}
 
@@ -289,6 +292,8 @@ const App = () => {
               setMarketMode={setMarketMode}
               stockAdapterId={stockAdapterId}
               setStockAdapter={setStockAdapterId}
+              colorScheme={colorScheme}
+              setColorScheme={setColorScheme}
             />
           )}
 

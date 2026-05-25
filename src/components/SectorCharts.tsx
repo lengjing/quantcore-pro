@@ -14,6 +14,10 @@ import {
   Legend,
 } from 'recharts';
 import type { SectorStats, SectorSnapshot } from '../data/sectors';
+import type { ColorScheme } from '../types';
+import type { LangKey, ResourceKey } from '../constants/resources';
+import { RESOURCES } from '../constants/resources';
+import { useColors } from '../hooks/useColors';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -25,6 +29,8 @@ interface SectorChartsProps {
   snapshots: SectorSnapshot[];
   selectedSectorId: string | null;
   onSelectSector: (id: string | null) => void;
+  colorScheme: ColorScheme;
+  lang: LangKey;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -41,17 +47,28 @@ const fmtTime = (ts: number): string => {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
-/** Map change% to a CSS background color interpolated between red and green. */
-const changeColor = (pct: number): string => {
+/** Map change% to a CSS background color interpolated, respecting color scheme. */
+const changeColor = (pct: number, scheme: ColorScheme): string => {
   const clamped = Math.max(-5, Math.min(5, pct));
+  const isUpGreen = scheme === 'greenUp';
   if (clamped >= 0) {
     const intensity = Math.min(1, clamped / 5);
-    const g = Math.round(80 + intensity * 120);
-    return `rgba(0,${g},50,${0.25 + intensity * 0.55})`;
+    if (isUpGreen) {
+      const g = Math.round(80 + intensity * 120);
+      return `rgba(0,${g},50,${0.25 + intensity * 0.55})`;
+    } else {
+      const r = Math.round(80 + intensity * 120);
+      return `rgba(${r},0,20,${0.25 + intensity * 0.55})`;
+    }
   } else {
     const intensity = Math.min(1, -clamped / 5);
-    const r = Math.round(80 + intensity * 120);
-    return `rgba(${r},0,20,${0.25 + intensity * 0.55})`;
+    if (isUpGreen) {
+      const r = Math.round(80 + intensity * 120);
+      return `rgba(${r},0,20,${0.25 + intensity * 0.55})`;
+    } else {
+      const g = Math.round(80 + intensity * 120);
+      return `rgba(0,${g},50,${0.25 + intensity * 0.55})`;
+    }
   }
 };
 
@@ -65,11 +82,17 @@ const SectorBarChart = ({
   stats,
   selectedSectorId,
   onSelectSector,
+  colorScheme,
+  lang,
 }: {
   stats: SectorStats[];
   selectedSectorId: string | null;
   onSelectSector: (id: string | null) => void;
+  colorScheme: ColorScheme;
+  lang: LangKey;
 }) => {
+  const colors = useColors(colorScheme);
+  const t = (key: ResourceKey): string => RESOURCES[lang][key];
   const data = useMemo(
     () =>
       [...stats]
@@ -91,7 +114,7 @@ const SectorBarChart = ({
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-gray-600 text-[10px] font-mono">
-        LOADING SECTOR DATA…
+        {t('LOADING_SECTOR_DATA')}
       </div>
     );
   }
@@ -136,11 +159,11 @@ const SectorBarChart = ({
             const p = props.payload ?? {};
             return [
               <span key="v">
-                <span style={{ color: v >= 0 ? '#00cc66' : '#ff3333', fontWeight: 700 }}>
+                <span style={{ color: colors.hex(v), fontWeight: 700 }}>
                   {v >= 0 ? '+' : ''}{v}%
                 </span>
                 <span style={{ color: '#555' }}>
-                  {' '}· {p.advancing ?? 0}↑{p.declining ?? 0}↓ · Vol {fmtVol(p.volume ?? 0)}
+                  {' '}· {p.advancing ?? 0}↑{p.declining ?? 0}↓ · {t('TH_VOL')} {fmtVol(p.volume ?? 0)}
                 </span>
               </span>,
               '',
@@ -175,17 +198,23 @@ const SectorHeatmap = ({
   stats,
   selectedSectorId,
   onSelectSector,
+  colorScheme,
+  lang,
 }: {
   stats: SectorStats[];
   selectedSectorId: string | null;
   onSelectSector: (id: string | null) => void;
+  colorScheme: ColorScheme;
+  lang: LangKey;
 }) => {
+  const colors = useColors(colorScheme);
+  const t = (key: ResourceKey): string => RESOURCES[lang][key];
   const totalVol = useMemo(() => stats.reduce((s, x) => s + x.totalVolume, 0), [stats]);
 
   if (stats.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-gray-600 text-[10px] font-mono">
-        LOADING SECTOR DATA…
+        {t('LOADING_SECTOR_DATA')}
       </div>
     );
   }
@@ -211,7 +240,7 @@ const SectorHeatmap = ({
                   width: `calc(${widthPct}% - 2px)`,
                   minWidth: 52,
                   height: 72,
-                  background: changeColor(s.avgChange),
+                  background: changeColor(s.avgChange, colorScheme),
                   border: isSelected ? '1px solid #fff' : `1px solid ${s.def.color}30`,
                   boxShadow: isSelected ? `0 0 8px ${s.def.color}60` : undefined,
                   opacity: selectedSectorId && !isSelected ? 0.6 : 1,
@@ -225,7 +254,7 @@ const SectorHeatmap = ({
                   {s.def.name}
                 </div>
                 <div
-                  className={`text-[10px] font-bold mt-0.5 ${isUp ? 'text-green-400' : 'text-red-400'}`}
+                  className={`text-[10px] font-bold mt-0.5 ${colors.clsBold(s.avgChange)}`}
                 >
                   {isUp ? '+' : ''}{s.avgChange.toFixed(2)}%
                 </div>
@@ -251,12 +280,18 @@ const SectorLineChart = ({
   snapshots,
   selectedSectorId,
   onSelectSector,
+  colorScheme,
+  lang,
 }: {
   stats: SectorStats[];
   snapshots: SectorSnapshot[];
   selectedSectorId: string | null;
   onSelectSector: (id: string | null) => void;
+  colorScheme: ColorScheme;
+  lang: LangKey;
 }) => {
+  const colors = useColors(colorScheme);
+  const t = (key: ResourceKey): string => RESOURCES[lang][key];
   const { lineData, sectorDefs } = useMemo(() => {
     const defs = stats.map((s) => ({ id: s.def.id, name: s.def.name, color: s.def.color }));
 
@@ -284,7 +319,7 @@ const SectorLineChart = ({
   if (sectorDefs.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-gray-600 text-[10px] font-mono">
-        LOADING SECTOR DATA…
+        {t('LOADING_SECTOR_DATA')}
       </div>
     );
   }
@@ -292,8 +327,8 @@ const SectorLineChart = ({
   if (lineData.length < 2) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-2 text-gray-600 text-[10px] font-mono">
-        <span>INSUFFICIENT HISTORY FOR TREND VIEW</span>
-        <span className="text-gray-700">Data is sampled every 5 minutes — check back shortly.</span>
+        <span>{t('INSUFFICIENT_HISTORY')}</span>
+        <span className="text-gray-700">{t('HISTORY_HINT_SECTOR')}</span>
       </div>
     );
   }
@@ -328,7 +363,7 @@ const SectorLineChart = ({
             const v = Number(value ?? 0);
             const def = sectorDefs.find((d) => d.id === String(name));
             return [
-              <span key={String(name)} style={{ color: v >= 0 ? '#00cc66' : '#ff3333', fontWeight: 700 }}>
+              <span key={String(name)} style={{ color: colors.hex(v), fontWeight: 700 }}>
                 {v >= 0 ? '+' : ''}{v}%
               </span>,
               def?.name ?? String(name),
@@ -372,6 +407,8 @@ export const SectorCharts = ({
   snapshots,
   selectedSectorId,
   onSelectSector,
+  colorScheme,
+  lang,
 }: SectorChartsProps) => {
   if (chartType === 'BAR') {
     return (
@@ -379,6 +416,8 @@ export const SectorCharts = ({
         stats={liveSectorStats}
         selectedSectorId={selectedSectorId}
         onSelectSector={onSelectSector}
+        colorScheme={colorScheme}
+        lang={lang}
       />
     );
   }
@@ -389,6 +428,8 @@ export const SectorCharts = ({
         stats={liveSectorStats}
         selectedSectorId={selectedSectorId}
         onSelectSector={onSelectSector}
+        colorScheme={colorScheme}
+        lang={lang}
       />
     );
   }
@@ -399,6 +440,8 @@ export const SectorCharts = ({
       snapshots={snapshots}
       selectedSectorId={selectedSectorId}
       onSelectSector={onSelectSector}
+      colorScheme={colorScheme}
+      lang={lang}
     />
   );
 };
