@@ -75,7 +75,7 @@ export function useSectorBoards() {
       mountedRef.current = false;
       clearInterval(interval);
     };
-  }, [category]);
+  }, [category, fetchBoards]);
 
   // Refresh board stocks when selected board changes
   useEffect(() => {

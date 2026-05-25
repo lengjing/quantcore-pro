@@ -45,6 +45,16 @@ type SortKey = keyof Pick<
 > | 'spread';
 type SortDir = 'asc' | 'desc';
 
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+/** Format large CNY values with 亿/万 units */
+function formatCNY(value: number): string {
+  const abs = Math.abs(value);
+  if (abs >= 1e8) return `${(value / 1e8).toFixed(2)}亿`;
+  if (abs >= 1e4) return `${(value / 1e4).toFixed(0)}万`;
+  return value.toFixed(0);
+}
+
 interface MarketViewProps {
   marketTickers: MarketTicker[];
   marketMode: MarketMode;
@@ -822,12 +832,7 @@ export const MarketView = ({
                     sectorBoards.boards.map((board, idx) => {
                       const isPos = board.changePercent > 0;
                       const isNeg = board.changePercent < 0;
-                      const inflowAbs = Math.abs(board.mainNetInflow);
-                      const inflowStr = inflowAbs >= 1e8
-                        ? `${(board.mainNetInflow / 1e8).toFixed(2)}亿`
-                        : inflowAbs >= 1e4
-                          ? `${(board.mainNetInflow / 1e4).toFixed(0)}万`
-                          : board.mainNetInflow.toFixed(0);
+                      const inflowStr = formatCNY(board.mainNetInflow);
                       return (
                         <tr
                           key={board.code}
