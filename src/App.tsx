@@ -7,7 +7,6 @@ import {
   Settings,
   Globe,
   Search,
-  Terminal as TerminalIcon,
   AlertTriangle,
   BotMessageSquare,
 } from 'lucide-react';
@@ -22,6 +21,7 @@ import { Modal } from './components/ui/Modal';
 import { ConfirmDialog } from './components/ui/ConfirmDialog';
 import { Panel } from './components/ui/Panel';
 import { CommandBar } from './components/ui/CommandBar';
+import { TitleBar } from './components/ui/TitleBar';
 import { ToastContainer } from './components/ui/Toast';
 import { NavIcon } from './components/ui/NavIcon';
 
@@ -172,11 +172,13 @@ const App = () => {
 
   // --- Render ---
   return (
-    <div className="flex h-screen w-screen bg-terminal-bg text-gray-200 overflow-hidden font-sans text-xs">
+    <div className="flex flex-col h-screen w-screen bg-terminal-bg text-gray-200 overflow-hidden font-sans text-xs">
+      <TitleBar t={t} />
+      <div className="flex flex-1 min-h-0">
 
       {/* Sidebar Navigation */}
       <div className="w-10 flex flex-col items-center py-2 bg-[#0a0a0a] border-r border-terminal-border z-20 shrink-0">
-        <div className="mb-4 text-terminal-accent animate-pulse"><TerminalIcon size={20} /></div>
+        <div className="mb-4"><img src="/logo.png" alt="QuantCore Pro" className="w-6 h-6" /></div>
         <div className="flex flex-col space-y-1 w-full px-1">
           <NavIcon icon={LayoutDashboard} active={view === ViewState.DASHBOARD} onClick={() => setView(ViewState.DASHBOARD)} tooltip={t('NAV_DASHBOARD')} />
           <NavIcon icon={LineChart} active={view === ViewState.MARKET} onClick={() => setView(ViewState.MARKET)} tooltip={t('NAV_MARKET')} />
@@ -186,7 +188,7 @@ const App = () => {
           <NavIcon icon={Globe} active={view === ViewState.NEWS} onClick={() => setView(ViewState.NEWS)} tooltip={t('NAV_NEWS')} />
           <NavIcon icon={Search} active={view === ViewState.SCANNER} onClick={() => setView(ViewState.SCANNER)} tooltip={t('NAV_SCANNER')} />
           <div className="h-px bg-terminal-border my-2 mx-1"></div>
-          <NavIcon icon={BotMessageSquare} active={view === ViewState.AI} onClick={() => setView(ViewState.AI)} tooltip="AI ASSISTANT [F7]" />
+          <NavIcon icon={BotMessageSquare} active={view === ViewState.AI} onClick={() => setView(ViewState.AI)} tooltip={t('NAV_AI')} />
         </div>
         <div className="mt-auto flex flex-col space-y-4 mb-2">
           <NavIcon icon={Settings} active={view === ViewState.SETTINGS} onClick={() => setView(ViewState.SETTINGS)} tooltip={t('NAV_SETTINGS')} />
@@ -207,6 +209,7 @@ const App = () => {
           setStockAdapter={setStockAdapterId}
           tradingMode={tradingMode}
           setTradingMode={setTradingMode}
+          t={t}
         />
 
         <div className="flex-1 p-1 bg-black overflow-hidden relative">
@@ -304,6 +307,8 @@ const App = () => {
               stockWatchlist={stockWatchlist}
               addToWatchlist={addToWatchlist}
               showNotification={showNotification}
+              lang={lang}
+              t={t}
             />
           )}
 
@@ -318,7 +323,7 @@ const App = () => {
           </div>
           <div className="flex space-x-4">
             <span className={tradingMode === 'LIVE' ? 'text-red-400 font-bold animate-pulse' : 'text-gray-500'}>
-              {tradingMode === 'LIVE' ? '🔴 LIVE TRADING' : 'PAPER TRADING'}
+              {tradingMode === 'LIVE' ? t('LIVE_TRADING') : t('PAPER_TRADING')}
             </span>
             <span className="text-terminal-accent">
               {marketMode === 'CRYPTO' ? 'CRYPTO' : `A-SHARE / ${stockAdapterId.toUpperCase()}`}
@@ -327,30 +332,31 @@ const App = () => {
           </div>
         </div>
       </main>
+      </div>
 
       <ToastContainer notifications={notifications} removeNotification={removeNotification} />
 
       {/* Help Modal */}
-      <Modal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} title="HELP">
+      <Modal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} title={t('HELP')}>
         <div className="text-xs font-mono p-4 space-y-2">
-          <div><span className="text-terminal-accent">F1-F6</span> : NAVIGATE VIEWS</div>
-          <div><span className="text-terminal-accent">CMD</span> : ENTER COMMANDS</div>
+          <div><span className="text-terminal-accent">F1-F6</span> : {t('NAVIGATE_VIEWS')}</div>
+          <div><span className="text-terminal-accent">CMD</span> : {t('COMMANDS')}</div>
           <hr className="border-[#333]" />
-          <div>COMMANDS:</div>
-          <div><span className="text-white">BUY BTC</span> : Market Buy 1 BTC</div>
-          <div><span className="text-white">SELL ETH</span> : Market Sell 1 ETH</div>
-          <div><span className="text-white">ADD SOL</span> : Add to Watchlist</div>
-          <div><span className="text-white">REMOVE SOL</span> : Remove from Watchlist</div>
+          <div>{t('COMMANDS')}:</div>
+          <div><span className="text-white">BUY BTC</span> : {t('CMD_BUY_EXAMPLE')}</div>
+          <div><span className="text-white">SELL ETH</span> : {t('CMD_SELL_EXAMPLE')}</div>
+          <div><span className="text-white">ADD SOL</span> : {t('CMD_ADD_EXAMPLE')}</div>
+          <div><span className="text-white">REMOVE SOL</span> : {t('CMD_REMOVE_EXAMPLE')}</div>
         </div>
       </Modal>
 
       {/* Menu Modal */}
-      <Modal isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} title="MENU" width="max-w-xs">
-        <button className="w-full text-left p-2 hover:bg-[#333]" onClick={() => window.location.reload()}>RELOAD</button>
+      <Modal isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} title={t('MENU')} width="max-w-xs">
+        <button className="w-full text-left p-2 hover:bg-[#333]" onClick={() => window.location.reload()}>{t('RELOAD')}</button>
         <button className="w-full text-left p-2 hover:bg-[#333]" onClick={() => {
           setIsMenuOpen(false);
           setShowResetConfirm(true);
-        }}>RESET FACTORY</button>
+        }}>{t('RESET_FACTORY')}</button>
       </Modal>
 
       <ConfirmDialog
@@ -360,14 +366,14 @@ const App = () => {
           clearAllState();
           window.location.reload();
         }}
-        title="CONFIRM RESET"
-        message="Reset all settings and data to factory defaults? This action cannot be undone."
-        confirmLabel="RESET ALL"
+        title={t('CONFIRM_RESET')}
+        message={t('RESET_MSG')}
+        confirmLabel={t('RESET_ALL')}
         variant="danger"
       />
 
       {/* Add Symbol Modal */}
-      <Modal isOpen={showAddSymbolModal} onClose={() => setShowAddSymbolModal(false)} title="ADD SYMBOL" width="max-w-xs">
+      <Modal isOpen={showAddSymbolModal} onClose={() => setShowAddSymbolModal(false)} title={t('ADD_SYMBOL')} width="max-w-xs">
         <div className="p-4 space-y-4">
           <input
             className="w-full bg-[#111] border border-[#333] p-2 text-white outline-none focus:border-terminal-accent uppercase"
@@ -386,7 +392,7 @@ const App = () => {
               }
             }}
           >
-            ADD TO WATCHLIST
+            {t('ADD_TO_WATCHLIST')}
           </button>
         </div>
       </Modal>
@@ -398,36 +404,36 @@ const App = () => {
             <div className="flex items-center gap-2 px-4 py-3 bg-red-900/50 border-b border-red-700">
               <AlertTriangle size={14} className="text-red-400" />
               <span className="text-red-300 font-bold text-xs uppercase tracking-widest">
-                ⚠ LIVE ORDER — REAL FUNDS
+                {t('LIVE_ORDER_TITLE')}
               </span>
             </div>
             <div className="p-5 font-mono text-sm space-y-3">
               <div className="flex justify-between text-gray-400">
-                <span>ACTION</span>
+                <span>{t('ACTION')}</span>
                 <span className={pendingOrder.side === 'BUY' ? 'text-terminal-success font-bold' : 'text-terminal-error font-bold'}>
                   {pendingOrder.side}
                 </span>
               </div>
               <div className="flex justify-between text-gray-400">
-                <span>SYMBOL</span>
+                <span>{t('TH_SYMBOL')}</span>
                 <span className="text-white font-bold">{pendingOrder.symbol}</span>
               </div>
               <div className="flex justify-between text-gray-400">
-                <span>QUANTITY</span>
+                <span>{t('QUANTITY')}</span>
                 <span className="text-white">{pendingOrder.quantity}</span>
               </div>
               <div className="flex justify-between text-gray-400">
-                <span>PRICE</span>
+                <span>{t('PRICE')}</span>
                 <span className="text-white">{pendingOrder.price.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-gray-400 border-t border-[#333] pt-2">
-                <span>TOTAL</span>
+                <span>{t('TOTAL')}</span>
                 <span className="text-terminal-accent font-bold">
                   {(pendingOrder.quantity * pendingOrder.price).toFixed(2)}
                 </span>
               </div>
               <p className="text-red-400 text-[10px] pt-1">
-                This order will be executed against the live exchange and may result in real financial loss.
+                {t('LIVE_ORDER_WARNING')}
               </p>
             </div>
             <div className="grid grid-cols-2 border-t border-[#333]">
@@ -435,13 +441,13 @@ const App = () => {
                 onClick={cancelLiveOrder}
                 className="py-3 text-xs font-bold text-gray-300 hover:bg-[#222] border-r border-[#333] uppercase tracking-widest"
               >
-                CANCEL
+                {t('BTN_CANCEL')}
               </button>
               <button
                 onClick={confirmLiveOrder}
                 className="py-3 text-xs font-bold text-white bg-red-800 hover:bg-red-700 uppercase tracking-widest"
               >
-                CONFIRM &amp; SEND
+                {t('CONFIRM_SEND')}
               </button>
             </div>
           </div>

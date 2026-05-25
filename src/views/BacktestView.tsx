@@ -34,13 +34,13 @@ export const BacktestView = ({ backtestResult, t }: BacktestViewProps) => (
         <div className="flex h-full items-center justify-center text-gray-500">
           <div className="text-center">
             <Activity size={32} className="mx-auto mb-2 opacity-50" />
-            RUN STRATEGY FROM IDE TO GENERATE METRICS
+            {t('RUN_STRATEGY_HINT')}
           </div>
         </div>
       )}
     </Panel>
 
-    <Panel title="EQUITY CURVE" className="col-span-12 row-span-6">
+    <Panel title={t('EQUITY_CURVE')} className="col-span-12 row-span-6">
       {backtestResult ? (
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={backtestResult.equityCurve}>
@@ -62,19 +62,19 @@ export const BacktestView = ({ backtestResult, t }: BacktestViewProps) => (
           </AreaChart>
         </ResponsiveContainer>
       ) : (
-        <div className="flex h-full items-center justify-center text-gray-600">NO BACKTEST DATA</div>
+        <div className="flex h-full items-center justify-center text-gray-600">{t('NO_BACKTEST_DATA')}</div>
       )}
     </Panel>
 
-    <Panel title="TRADE LOG" className="col-span-12 row-span-3">
+    <Panel title={t('TRADE_LOG')} className="col-span-12 row-span-3">
       <div className="h-full overflow-auto font-mono text-xs">
         <table className="w-full text-right">
           <thead className="bg-[#111] text-gray-500 sticky top-0">
             <tr>
-              <th className="p-2 text-left">TIME</th>
-              <th className="p-2">SIDE</th>
-              <th className="p-2">PRICE</th>
-              <th className="p-2">P&L</th>
+              <th className="p-2 text-left">{t('TIME')}</th>
+              <th className="p-2">{t('SIDE')}</th>
+              <th className="p-2">{t('PRICE')}</th>
+              <th className="p-2">{t('TH_PNL')}</th>
             </tr>
           </thead>
           <tbody>

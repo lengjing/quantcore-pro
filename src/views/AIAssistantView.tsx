@@ -28,9 +28,9 @@ import {
   Zap,
 } from 'lucide-react';
 
-import type { ChatMessage, AIAction, ToolUseEvent } from '../types';
+import type { ChatMessage, AIAction, ToolUseEvent, Notification } from '../types';
 import type { CustomSectorDef } from '../data/sectors';
-import type { Notification } from '../types';
+import type { ResourceKey, LangKey } from '../constants/resources';
 import { nextCustomColor, newCustomSectorId } from '../data/sectors';
 import { sendAIMessage, fetchBackendStatus } from '../services/ai/aiChatService';
 
@@ -39,14 +39,14 @@ import { sendAIMessage, fetchBackendStatus } from '../services/ai/aiChatService'
 // ---------------------------------------------------------------------------
 
 /** Collapsible block that shows what a single tool call returned. */
-const ToolBlock = ({ event }: { event: ToolUseEvent }) => {
+const ToolBlock = ({ event, t }: { event: ToolUseEvent; t: (key: ResourceKey) => string }) => {
   const [open, setOpen] = useState(false);
 
   const toolLabel: Record<string, string> = {
-    search_stocks: '🔍 搜索股票',
-    add_sector: '📊 创建板块',
-    add_to_watchlist: '⭐ 加入自选',
-    get_sectors: '📋 查询板块',
+    search_stocks: t('AI_TOOL_SEARCH'),
+    add_sector: t('AI_TOOL_SECTOR'),
+    add_to_watchlist: t('AI_TOOL_WATCHLIST'),
+    get_sectors: t('AI_TOOL_GET_SECTORS'),
   };
 
   const summary =
@@ -84,13 +84,13 @@ const ToolBlock = ({ event }: { event: ToolUseEvent }) => {
 };
 
 /** Card shown inline in assistant messages when an action was applied. */
-const ActionCard = ({ action }: { action: AIAction }) => {
+const ActionCard = ({ action, t }: { action: AIAction; t: (key: ResourceKey) => string }) => {
   if (action.type === 'ADD_SECTOR') {
     return (
       <div className="mt-2 flex items-start gap-2 p-2 bg-terminal-accent/10 border border-terminal-accent/30 text-[10px] font-mono">
         <LayoutGrid size={12} className="text-terminal-accent mt-0.5 shrink-0" />
         <div>
-          <div className="text-terminal-accent font-bold">板块已创建</div>
+          <div className="text-terminal-accent font-bold">{t('AI_SECTOR_CREATED')}</div>
           <div className="text-gray-400 mt-0.5">
             {action.payload.name}
             {action.payload.nameEn && action.payload.nameEn !== action.payload.name
@@ -98,7 +98,7 @@ const ActionCard = ({ action }: { action: AIAction }) => {
               : ''}
           </div>
           <div className="text-gray-600 mt-0.5">
-            {action.payload.symbols.length} 只股票 ·{' '}
+            {action.payload.symbols.length} {t('AI_STOCKS_SUFFIX')} ·{' '}
             {action.payload.symbols.slice(0, 5).join(', ')}
             {action.payload.symbols.length > 5 ? ` ... +${action.payload.symbols.length - 5}` : ''}
           </div>
@@ -113,7 +113,7 @@ const ActionCard = ({ action }: { action: AIAction }) => {
       <div className="mt-2 flex items-start gap-2 p-2 bg-blue-900/20 border border-blue-700/30 text-[10px] font-mono">
         <BookmarkPlus size={12} className="text-blue-400 mt-0.5 shrink-0" />
         <div>
-          <div className="text-blue-400 font-bold">已加入自选股</div>
+          <div className="text-blue-400 font-bold">{t('AI_ADDED_TO_WATCHLIST')}</div>
           <div className="text-gray-500 mt-0.5">
             {action.payload.symbols.join(', ')}
           </div>
@@ -127,7 +127,7 @@ const ActionCard = ({ action }: { action: AIAction }) => {
 };
 
 /** Single chat message bubble. */
-const MessageBubble = ({ msg }: { msg: ChatMessage }) => {
+const MessageBubble = ({ msg, t }: { msg: ChatMessage; t: (key: ResourceKey) => string }) => {
   const isUser = msg.role === 'user';
 
   if (msg.isLoading) {
@@ -139,7 +139,7 @@ const MessageBubble = ({ msg }: { msg: ChatMessage }) => {
         <div className="flex-1 bg-[#0d0d0d] border border-[#1e1e1e] px-3 py-2 text-[11px] font-mono">
           <div className="flex items-center gap-2 text-gray-500">
             <Loader size={10} className="animate-spin" />
-            <span>思考中…</span>
+            <span>{t('AI_THINKING')}</span>
           </div>
         </div>
       </div>
@@ -171,14 +171,14 @@ const MessageBubble = ({ msg }: { msg: ChatMessage }) => {
         {msg.toolUse && msg.toolUse.length > 0 && (
           <div className="mt-1">
             {msg.toolUse.map((ev, i) => (
-              <ToolBlock key={i} event={ev} />
+              <ToolBlock key={i} event={ev} t={t} />
             ))}
           </div>
         )}
         {msg.actions && msg.actions.length > 0 && (
           <div>
             {msg.actions.map((action, i) => (
-              <ActionCard key={i} action={action} />
+              <ActionCard key={i} action={action} t={t} />
             ))}
           </div>
         )}
@@ -191,11 +191,11 @@ const MessageBubble = ({ msg }: { msg: ChatMessage }) => {
 // Suggested prompts
 // ---------------------------------------------------------------------------
 
-const SUGGESTIONS = [
-  '帮我创建一个 MLCC 概念板块',
-  '搜索 A 股中射频芯片相关的公司',
-  '帮我创建国产替代半导体板块',
-  '查找做被动元件的 A 股公司',
+const getSuggestions = (t: (key: ResourceKey) => string) => [
+  t('AI_SUGGESTION_1'),
+  t('AI_SUGGESTION_2'),
+  t('AI_SUGGESTION_3'),
+  t('AI_SUGGESTION_4'),
 ];
 
 // ---------------------------------------------------------------------------
@@ -208,6 +208,8 @@ interface AIAssistantViewProps {
   stockWatchlist: string[];
   addToWatchlist: (symbol: string) => void;
   showNotification: (type: Notification['type'], message: string) => void;
+  lang: LangKey;
+  t: (key: ResourceKey) => string;
 }
 
 export const AIAssistantView = ({
@@ -216,6 +218,8 @@ export const AIAssistantView = ({
   stockWatchlist,
   addToWatchlist,
   showNotification,
+  lang,
+  t,
 }: AIAssistantViewProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -262,7 +266,7 @@ export const AIAssistantView = ({
             };
             return [...prev, newSector];
           });
-          showNotification('SUCCESS', `AI 已创建板块：${name}`);
+          showNotification('SUCCESS', `${t('AI_NOTIFICATION_SECTOR')} ${name}`);
         } else if (action.type === 'ADD_TO_WATCHLIST') {
           for (const sym of action.payload.symbols) {
             addToWatchlist(sym);
@@ -270,7 +274,7 @@ export const AIAssistantView = ({
         }
       }
     },
-    [setCustomSectors, addToWatchlist, showNotification],
+    [setCustomSectors, addToWatchlist, showNotification, t],
   );
 
   // ── Send message ─────────────────────────────────────────────────────────
@@ -330,7 +334,7 @@ export const AIAssistantView = ({
       const errorMsg: ChatMessage = {
         id: `e_${Date.now()}`,
         role: 'assistant',
-        content: `⚠ 错误：${err instanceof Error ? err.message : '未知错误'}\n\n请确认 Python 后端正在运行（cd python && python main.py）。`,
+        content: `⚠ ${t('AI_ERROR')}：${err instanceof Error ? err.message : '未知错误'}\n\n${t('AI_ERROR_HINT')}`,
         timestamp: Date.now(),
       };
       setMessages((prev) => [...prev.filter((m) => m.id !== 'loading'), errorMsg]);
@@ -339,7 +343,7 @@ export const AIAssistantView = ({
       abortRef.current = null;
       setTimeout(() => inputRef.current?.focus(), 50);
     }
-  }, [input, isLoading, messages, customSectors, stockWatchlist, applyActions]);
+  }, [input, isLoading, messages, customSectors, stockWatchlist, applyActions, t]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -369,9 +373,9 @@ export const AIAssistantView = ({
         <div className="flex items-center gap-2">
           <Bot size={14} className="text-terminal-accent" />
           <span className="text-terminal-accent font-bold text-xs tracking-widest uppercase">
-            AI ASSISTANT
+            {t('AI_ASSISTANT')}
           </span>
-          <span className="text-[9px] text-gray-600 ml-1">powered by Claude</span>
+          <span className="text-[9px] text-gray-600 ml-1">{t('AI_POWERED_BY')}</span>
         </div>
         <div className="flex items-center gap-3">
           {/* Status indicators */}
@@ -385,7 +389,7 @@ export const AIAssistantView = ({
                     : 'text-terminal-error'
               }
             >
-              ● BACKEND
+              ● {t('AI_BACKEND')}
             </span>
             <span
               className={
@@ -396,17 +400,17 @@ export const AIAssistantView = ({
                     : 'text-yellow-500'
               }
             >
-              ● CLAUDE
+              ● {t('AI_CLAUDE')}
             </span>
           </div>
           {messages.length > 0 && (
             <button
               onClick={handleClear}
               className="flex items-center gap-1 text-[9px] text-gray-600 hover:text-gray-300 px-1.5 py-0.5 border border-[#222] hover:border-[#444]"
-              title="清空对话"
+              title={t('AI_CLEAR_TITLE')}
             >
               <Trash2 size={9} />
-              清空
+              {t('AI_CLEAR')}
             </button>
           )}
         </div>
@@ -417,7 +421,7 @@ export const AIAssistantView = ({
         <div className="shrink-0 flex items-center gap-2 px-3 py-2 bg-red-900/20 border-b border-red-800/40 text-[10px] text-red-400">
           <AlertCircle size={12} />
           <span>
-            Python 后端未运行。请执行：
+            {t('AI_BACKEND_NOT_RUNNING')}
             <code className="ml-1 px-1 bg-red-900/30 text-red-300">cd python &amp;&amp; python main.py</code>
           </span>
         </div>
@@ -426,7 +430,7 @@ export const AIAssistantView = ({
         <div className="shrink-0 flex items-center gap-2 px-3 py-2 bg-yellow-900/20 border-b border-yellow-800/40 text-[10px] text-yellow-400">
           <AlertCircle size={12} />
           <span>
-            Claude API 未配置。请设置：
+            {t('AI_CLAUDE_NOT_CONFIGURED')}
             <code className="ml-1 px-1 bg-yellow-900/30 text-yellow-300">
               export ANTHROPIC_API_KEY=your_key
             </code>
@@ -443,14 +447,14 @@ export const AIAssistantView = ({
             </div>
             <div>
               <div className="text-terminal-accent text-sm font-bold tracking-widest mb-1">
-                AI MARKET ASSISTANT
+                {t('AI_MARKET_ASSISTANT')}
               </div>
               <div className="text-gray-600 text-[11px] max-w-xs">
-                通过自然语言对话，让 AI 帮你搜索 A 股股票、创建概念板块、管理自选股
+                {t('AI_DESCRIPTION')}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-1.5 mt-2">
-              {SUGGESTIONS.map((s) => (
+              {getSuggestions(t).map((s) => (
                 <button
                   key={s}
                   onClick={() => handleSuggestion(s)}
@@ -466,7 +470,7 @@ export const AIAssistantView = ({
 
         {!isEmpty &&
           messages.map((msg) => (
-            <MessageBubble key={msg.id} msg={msg} />
+            <MessageBubble key={msg.id} msg={msg} t={t} />
           ))}
 
         <div ref={bottomRef} />
@@ -481,7 +485,7 @@ export const AIAssistantView = ({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={isLoading}
-            placeholder="输入消息… (Enter 发送 / Shift+Enter 换行)"
+            placeholder={t('AI_INPUT_PLACEHOLDER')}
             className="flex-1 bg-[#111] border border-[#333] focus:border-terminal-accent/60 outline-none resize-none text-[11px] font-mono text-gray-200 placeholder-gray-700 px-2 py-1.5 min-h-[36px] max-h-[120px] custom-scrollbar"
             rows={1}
             style={{ fieldSizing: 'content' } as React.CSSProperties}
@@ -492,11 +496,11 @@ export const AIAssistantView = ({
             className="px-3 py-1.5 bg-terminal-accent text-black font-bold text-[10px] hover:bg-yellow-500 disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 shrink-0"
           >
             {isLoading ? <Loader size={11} className="animate-spin" /> : <Send size={11} />}
-            {isLoading ? '处理中' : '发送'}
+            {isLoading ? t('AI_PROCESSING') : t('AI_SEND')}
           </button>
         </div>
         <div className="mt-1 text-[9px] text-gray-700">
-          AI 创建的板块会直接保存到系统 · F2 切换到行情页查看板块效果
+          {t('AI_HINT')}
         </div>
       </div>
 

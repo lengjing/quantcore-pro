@@ -32,21 +32,21 @@ export const OrderTicket = ({ symbol, price, onTrade, t }: OrderTicketProps) => 
       </div>
 
       <div className="space-y-1">
-        <label className="text-gray-500 text-[9px]">ORDER TYPE</label>
+        <label className="text-gray-500 text-[9px]">{t('ORDER_TYPE')}</label>
         <div className="flex space-x-2">
           <button
             className={`flex-1 border py-1 ${type === 'LIMIT' ? 'border-terminal-accent text-terminal-accent' : 'border-[#333] text-gray-500'}`}
             onClick={() => setType('LIMIT')}
-          >LIMIT</button>
+          >{t('ORDER_LIMIT')}</button>
           <button
             className={`flex-1 border py-1 ${type === 'MARKET' ? 'border-terminal-accent text-terminal-accent' : 'border-[#333] text-gray-500'}`}
             onClick={() => setType('MARKET')}
-          >MARKET</button>
+          >{t('ORDER_MARKET')}</button>
         </div>
       </div>
 
       <div className="space-y-1">
-        <label className="text-gray-500 text-[9px]">QUANTITY</label>
+        <label className="text-gray-500 text-[9px]">{t('QUANTITY')}</label>
         <input
           type="number"
           value={qty}
@@ -57,7 +57,7 @@ export const OrderTicket = ({ symbol, price, onTrade, t }: OrderTicketProps) => 
 
       {type === 'LIMIT' && (
         <div className="space-y-1">
-          <label className="text-gray-500 text-[9px]">LIMIT PRICE</label>
+          <label className="text-gray-500 text-[9px]">{t('LIMIT_PRICE')}</label>
           <input
             type="number"
             value={limitPrice}
