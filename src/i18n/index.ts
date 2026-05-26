@@ -3,6 +3,12 @@ import { initReactI18next } from 'react-i18next';
 import en from './en';
 import cn from './cn';
 
+/** Union of every i18n translation key. */
+export type ResourceKey = keyof typeof en;
+
+/** Supported UI languages. */
+export type LangKey = 'EN' | 'CN';
+
 const savedLang = (() => {
   try {
     const raw = localStorage.getItem('qcp:lang');

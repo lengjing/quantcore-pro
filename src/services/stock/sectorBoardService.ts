@@ -12,7 +12,29 @@
  * sector feature.
  */
 
+import { fetchJson } from '../../utils/fetchJson';
+
 // ── Types ──────────────────────────────────────────────────────────────────────
+
+/** Raw shape of a diff item from the EastMoney board/stock list API. */
+interface EastMoneyBoardDiffItem {
+  f2?: number | string;
+  f3?: number | string;
+  f4?: number | string;
+  f5?: number | string;
+  f8?: number | string;
+  f12?: string;
+  f13?: number | string;
+  f14?: string;
+  f20?: number | string;
+  f62?: number | string;
+  f104?: number | string;
+  f105?: number | string;
+  f128?: string;
+  f136?: number | string;
+  f140?: string;
+  f141?: number | string;
+}
 
 /** A single board item returned by the EastMoney board list API. */
 export interface BoardItem {
@@ -116,12 +138,12 @@ class SectorBoardService {
         `${PUSH2_BASE}/api/qt/clist/get` +
         `?pn=${page}&pz=${pageSize}&po=${sortOrder}&np=1&fltt=2&invt=2` +
         `&fs=${encodeURIComponent(fs)}&fields=${fields}`;
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-      const json = await response.json();
+      const json = await fetchJson<{ data?: { total?: number; diff?: EastMoneyBoardDiffItem[] } }>(
+        url,
+        `fetchBoards(${category})`,
+      );
       const total = json?.data?.total ?? 0;
-      const diffList: any[] = json?.data?.diff ?? [];
+      const diffList = json?.data?.diff ?? [];
 
       const boards: BoardItem[] = diffList.map((item) => ({
         code: String(item.f12 ?? ''),
@@ -164,12 +186,12 @@ class SectorBoardService {
         `${PUSH2_BASE}/api/qt/clist/get` +
         `?pn=${page}&pz=${pageSize}&po=1&np=1&fltt=2&invt=2` +
         `&fs=b:${encodeURIComponent(boardCode)}&fields=${fields}`;
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-      const json = await response.json();
+      const json = await fetchJson<{ data?: { total?: number; diff?: EastMoneyBoardDiffItem[] } }>(
+        url,
+        `fetchBoardStocks(${boardCode})`,
+      );
       const total = json?.data?.total ?? 0;
-      const diffList: any[] = json?.data?.diff ?? [];
+      const diffList = json?.data?.diff ?? [];
 
       const stocks: BoardStock[] = diffList.map((item) => ({
         symbol: toSymbol(String(item.f12 ?? ''), fmtNum(item.f13)),

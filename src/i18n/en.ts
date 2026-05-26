@@ -1,4 +1,4 @@
-const en: Record<string, string> = {
+const en = {
   NAV_DASHBOARD: "MONITOR [F1]",
   NAV_MARKET: "CHARTS [F2]",
   NAV_STRATEGY: "DEV IDE [F3]",

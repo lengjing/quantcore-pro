@@ -1,4 +1,6 @@
-const cn: Record<string, string> = {
+import type en from './en';
+
+const cn: Record<keyof typeof en, string> = {
   NAV_DASHBOARD: "实盘监控 [F1]",
   NAV_MARKET: "市场图表 [F2]",
   NAV_STRATEGY: "策略开发 [F3]",

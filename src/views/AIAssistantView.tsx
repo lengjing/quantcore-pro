@@ -30,7 +30,7 @@ import {
 
 import type { ChatMessage, AIAction, ToolUseEvent, Notification } from '../types';
 import type { CustomSectorDef } from '../data/sectors';
-import type { ResourceKey, LangKey } from '../constants/resources';
+import type { ResourceKey, LangKey } from '../i18n';
 import { nextCustomColor, newCustomSectorId } from '../data/sectors';
 import { sendAIMessage, fetchBackendStatus } from '../services/ai/aiChatService';
 
