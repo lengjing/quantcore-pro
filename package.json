@@ -27,7 +27,6 @@
     "directories": {
       "output": "release"
     },
-
     "publish": {
       "provider": "generic",
       "url": "https://pub-8a0bf3b6674f429abf20220dbbd6acc7.r2.dev"
