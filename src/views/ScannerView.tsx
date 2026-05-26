@@ -25,12 +25,12 @@ interface Preset {
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const FIELD_LABELS: Record<ConditionField, string> = {
-  changePercent: 'CHG%',
+const FIELD_LABEL_KEYS: Record<ConditionField, string> = {
+  changePercent: 'TH_CHG',
   change: 'CHG',
   price: 'PRICE',
   volume: 'VOLUME',
-  spread: 'SPREAD%',
+  spread: 'SPREAD_PCT',
 };
 
 const OP_LABELS: Record<ConditionOp, string> = {
@@ -42,32 +42,32 @@ const OP_LABELS: Record<ConditionOp, string> = {
 
 const PRESETS: Preset[] = [
   {
-    name: 'BREAKOUT',
+    name: 'LABEL_BREAKOUT',
     color: 'text-terminal-success border-terminal-success/40',
     conditions: [{ field: 'changePercent', op: 'gte', value: '3' }],
   },
   {
-    name: 'MOMENTUM',
+    name: 'LABEL_MOMENTUM',
     color: 'text-green-400 border-green-400/40',
     conditions: [{ field: 'changePercent', op: 'gte', value: '1.5' }],
   },
   {
-    name: 'DIP',
+    name: 'LABEL_DIP',
     color: 'text-orange-400 border-orange-400/40',
     conditions: [{ field: 'changePercent', op: 'lte', value: '-2' }],
   },
   {
-    name: 'DEEP DIP',
+    name: 'LABEL_DEEP_DIP',
     color: 'text-terminal-error border-terminal-error/40',
     conditions: [{ field: 'changePercent', op: 'lte', value: '-5' }],
   },
   {
-    name: 'HIGH VOL',
+    name: 'LABEL_HIGH_VOL',
     color: 'text-blue-400 border-blue-400/40',
     conditions: [{ field: 'volume', op: 'gte', value: '1000000' }],
   },
   {
-    name: 'TIGHT SPREAD',
+    name: 'LABEL_TIGHT_SPREAD',
     color: 'text-cyan-400 border-cyan-400/40',
     conditions: [{ field: 'spread', op: 'lte', value: '0.1' }],
   },
@@ -191,7 +191,7 @@ export const ScannerView = ({
                 onClick={() => applyPreset(p)}
                 className={`text-[9px] font-mono font-bold px-2 py-1.5 border uppercase tracking-wider hover:bg-white/5 transition-colors ${p.color}`}
               >
-                {p.name}
+                {t(p.name)}
               </button>
             ))}
           </div>
@@ -229,7 +229,7 @@ export const ScannerView = ({
                   >
                     {FIELDS.map((f) => (
                       <option key={f} value={f} className="bg-[#1a1a1a]">
-                        {FIELD_LABELS[f]}
+                        {t(FIELD_LABEL_KEYS[f])}
                       </option>
                     ))}
                   </select>

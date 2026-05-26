@@ -68,7 +68,7 @@ const App = () => {
   const [timeframe, setTimeframe] = usePersisted<Timeframe>('timeframe', '1H');
   const [stockAdapterId, setStockAdapterId] = usePersisted<string>('stockAdapterId', 'eastmoney');
   const [colorScheme, setColorScheme] = usePersisted<ColorScheme>('colorScheme', 'greenUp');
-  const [multiAdapter, setMultiAdapter] = usePersisted<boolean>('multiAdapter', false);
+  const [multiAdapter, setMultiAdapter] = usePersisted<boolean>('multiAdapter', true);
   const defaultCapMap = { realtime: 'eastmoney', dailyKlines: 'eastmoney', minuteKlines: 'eastmoney' };
   const [capMap, setCapMap] = usePersisted<Record<string, string>>('capMap', defaultCapMap);
 
@@ -231,8 +231,6 @@ const App = () => {
           onMenu={() => setIsMenuOpen(true)}
           marketMode={marketMode}
           setMarketMode={setMarketMode}
-          stockAdapterId={stockAdapterId}
-          setStockAdapter={setStockAdapterId}
           tradingMode={tradingMode}
           setTradingMode={setTradingMode}
           connectionStatus={connectionStatus}
@@ -342,9 +340,9 @@ const App = () => {
         {/* Status Bar */}
         <div className="h-5 bg-[#0a0a0a] border-t border-terminal-border flex items-center justify-between px-2 text-[10px] text-gray-500 select-none shrink-0">
           <div className="flex space-x-4">
-            <span>MEM: {systemMetrics.memMB}MB</span>
-            <span>CPU: {systemMetrics.cpuPercent}%</span>
-            <span>LATENCY: {latencyMs != null ? `${latencyMs}ms` : '—'} ({marketMode === 'CRYPTO' ? 'WS' : 'HTTP'})</span>
+            <span>{t('LABEL_MEM')}: {systemMetrics.memMB}MB</span>
+            <span>{t('LABEL_CPU')}: {systemMetrics.cpuPercent}%</span>
+            <span>{t('LABEL_LATENCY')}: {latencyMs != null ? `${latencyMs}ms` : '—'} ({marketMode === 'CRYPTO' ? 'WS' : 'HTTP'})</span>
           </div>
           <div className="flex space-x-4">
             <span className={tradingMode === 'LIVE' ? 'text-red-400 font-bold animate-pulse' : 'text-gray-500'}>

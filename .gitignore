@@ -31,3 +31,5 @@ python_dist/
 .env.local
 
 package-lock.json
+node_modules/
+dist/

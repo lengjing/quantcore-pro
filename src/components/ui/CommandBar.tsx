@@ -1,24 +1,15 @@
-import React, { useState, useEffect, useCallback, forwardRef } from 'react';
+import React, { useState, useEffect, forwardRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Wifi, WifiOff, AlertTriangle, ChevronDown, Loader2 } from 'lucide-react';
 import type { MarketMode, TradingMode } from '../../types';
 import type { ConnectionStatus } from '../../hooks/useMarketData';
 
 /**
- * Combined data-source value that encodes both market mode and adapter
- * so a single <select> controls everything.
+ * Market mode options for the market selector.
  */
-type DataSource =
-  | 'crypto-binance'
-  | 'stock-eastmoney'
-  | 'stock-tencent'
-  | 'stock-sina';
-
-const DATA_SOURCE_OPTIONS: { value: DataSource; label: string; group: string }[] = [
-  { value: 'crypto-binance',   label: 'CRYPTO  ·  BINANCE WSS',    group: 'CRYPTO' },
-  { value: 'stock-eastmoney',  label: 'A-SHARE ·  EASTMONEY (东财)', group: 'A-SHARE' },
-  { value: 'stock-tencent',    label: 'A-SHARE ·  TENCENT  (腾讯)',  group: 'A-SHARE' },
-  { value: 'stock-sina',       label: 'A-SHARE ·  SINA     (新浪)',  group: 'A-SHARE' },
+const MARKET_OPTIONS: { value: MarketMode; labelKey: string }[] = [
+  { value: 'CRYPTO', labelKey: 'MARKET_CRYPTO' },
+  { value: 'CN_STOCK', labelKey: 'MARKET_ASTOCK' },
 ];
 
 interface CommandBarProps {
@@ -29,8 +20,6 @@ interface CommandBarProps {
   onMenu: () => void;
   marketMode: MarketMode;
   setMarketMode: (mode: MarketMode) => void;
-  stockAdapterId: string;
-  setStockAdapter: (id: string) => void;
   tradingMode: TradingMode;
   setTradingMode: (mode: TradingMode) => void;
   connectionStatus: ConnectionStatus;
@@ -55,8 +44,6 @@ export const CommandBar = forwardRef<HTMLInputElement, CommandBarProps>(
       onMenu,
       marketMode,
       setMarketMode,
-      stockAdapterId,
-      setStockAdapter,
       tradingMode,
       setTradingMode,
       connectionStatus,
@@ -64,24 +51,6 @@ export const CommandBar = forwardRef<HTMLInputElement, CommandBarProps>(
     ref,
   ) => {
     const { t } = useTranslation();
-
-    // Derive the combined dropdown value from the two separate state pieces.
-    const dataSource: DataSource =
-      marketMode === 'CRYPTO' ? 'crypto-binance' : (`stock-${stockAdapterId}` as DataSource);
-
-    const handleDataSourceChange = useCallback(
-      (ds: DataSource) => {
-        if (ds === 'crypto-binance') {
-          setMarketMode('CRYPTO');
-        } else {
-          setMarketMode('CN_STOCK');
-          setStockAdapter(ds.replace('stock-', ''));
-        }
-      },
-      [setMarketMode, setStockAdapter],
-    );
-
-    const current = DATA_SOURCE_OPTIONS.find((o) => o.value === dataSource);
 
     return (
       <div className="h-8 bg-terminal-bg border-b border-terminal-border flex items-center px-2 gap-1 shrink-0 min-w-0">
@@ -103,39 +72,36 @@ export const CommandBar = forwardRef<HTMLInputElement, CommandBarProps>(
 
         <div className="h-4 w-px bg-terminal-border mx-1 shrink-0" />
 
-        {/* ── Data source dropdown ─────────────────────────────────────── */}
+        {/* ── Market selector ──────────────────────────────────────────── */}
         <div className="relative shrink-0">
-          <div className="flex items-center">
-            <span className="text-[9px] font-mono text-gray-500 mr-1 select-none">SRC:</span>
-            <div className="relative">
-              <select
-                value={dataSource}
-                onChange={(e) => handleDataSourceChange(e.target.value as DataSource)}
-                className={[
-                  'appearance-none bg-[#141414] border text-[10px] font-mono font-bold',
-                  'pl-2 pr-6 py-0.5 cursor-pointer focus:outline-none',
-                  'transition-colors hover:border-terminal-accent',
-                  marketMode === 'CRYPTO'
-                    ? 'text-blue-400 border-blue-900/60'
-                    : 'text-red-400 border-red-900/60',
-                ].join(' ')}
-                title="Select data source"
-              >
-                {DATA_SOURCE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              {/* Custom chevron overlay */}
-              <ChevronDown
-                size={9}
-                className={[
-                  'pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2',
-                  marketMode === 'CRYPTO' ? 'text-blue-500' : 'text-red-500',
-                ].join(' ')}
-              />
-            </div>
+          <div className="relative">
+            <select
+              value={marketMode}
+              onChange={(e) => setMarketMode(e.target.value as MarketMode)}
+              className={[
+                'appearance-none bg-[#141414] border text-[10px] font-mono font-bold',
+                'pl-2 pr-6 py-0.5 cursor-pointer focus:outline-none',
+                'transition-colors hover:border-terminal-accent',
+                marketMode === 'CRYPTO'
+                  ? 'text-blue-400 border-blue-900/60'
+                  : 'text-red-400 border-red-900/60',
+              ].join(' ')}
+              title="Select market"
+            >
+              {MARKET_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {t(opt.labelKey)}
+                </option>
+              ))}
+            </select>
+            {/* Custom chevron overlay */}
+            <ChevronDown
+              size={9}
+              className={[
+                'pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2',
+                marketMode === 'CRYPTO' ? 'text-blue-500' : 'text-red-500',
+              ].join(' ')}
+            />
           </div>
         </div>
 

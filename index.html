@@ -75,6 +75,26 @@
     .terminal-text {
       text-shadow: 0 0 1px rgba(0, 0, 0, 0.5);
     }
+
+    /* Global select component styling */
+    select {
+      background-color: #141414;
+      color: #e5e7eb;
+    }
+    select option {
+      background-color: #1a1a1a;
+      color: #e5e7eb;
+      padding: 4px 8px;
+    }
+    select option:checked,
+    select option:hover {
+      background-color: #094771;
+      color: #ffffff;
+    }
+    select:focus {
+      outline: none;
+      border-color: #ff9900;
+    }
   </style>
 
   <link rel="stylesheet" href="/index.css">
