@@ -87,7 +87,8 @@ export function useMarketData(
           }
         }
       }
-    } catch {
+    } catch (err) {
+      console.warn('Market data fetch failed:', err);
       setConnectionStatus('disconnected');
     }
     setIsScannerLoading(false);

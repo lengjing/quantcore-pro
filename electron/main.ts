@@ -201,7 +201,18 @@ ipcMain.on('menu-show-about', () => {
 });
 
 // ── System metrics IPC ──────────────────────────────────────────────────────
-let prevCpuTimes: { idle: number; total: number } | null = null;
+function getInitialCpuTimes() {
+    const cpus = os.cpus();
+    let idle = 0;
+    let total = 0;
+    for (const cpu of cpus) {
+        idle += cpu.times.idle;
+        total += cpu.times.user + cpu.times.nice + cpu.times.sys + cpu.times.irq + cpu.times.idle;
+    }
+    return { idle, total };
+}
+
+let prevCpuTimes = getInitialCpuTimes();
 
 function getCpuUsage(): number {
     const cpus = os.cpus();
@@ -211,14 +222,10 @@ function getCpuUsage(): number {
         idle += cpu.times.idle;
         total += cpu.times.user + cpu.times.nice + cpu.times.sys + cpu.times.irq + cpu.times.idle;
     }
-    if (prevCpuTimes) {
-        const idleDiff = idle - prevCpuTimes.idle;
-        const totalDiff = total - prevCpuTimes.total;
-        prevCpuTimes = { idle, total };
-        return totalDiff === 0 ? 0 : Math.round((1 - idleDiff / totalDiff) * 100);
-    }
+    const idleDiff = idle - prevCpuTimes.idle;
+    const totalDiff = total - prevCpuTimes.total;
     prevCpuTimes = { idle, total };
-    return 0;
+    return totalDiff === 0 ? 0 : Math.round((1 - idleDiff / totalDiff) * 100);
 }
 
 ipcMain.handle('get-system-metrics', () => {

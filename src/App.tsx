@@ -122,7 +122,7 @@ const App = () => {
   useEffect(() => {
     if (!window.electron?.getSystemMetrics) return;
     const poll = () => {
-      window.electron!.getSystemMetrics().then(setSystemMetrics).catch(() => {});
+      window.electron!.getSystemMetrics().then(setSystemMetrics).catch(console.warn);
     };
     poll();
     const interval = setInterval(poll, 3000);
