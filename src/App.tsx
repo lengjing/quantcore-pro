@@ -15,6 +15,8 @@ import { ViewState } from './types';
 import type { MarketMode, ColorScheme } from './types';
 import { RESOURCES } from './constants/resources';
 import type { ResourceKey, LangKey } from './constants/resources';
+import type { AdapterCapability } from './services/stock/IStockDataAdapter';
+import stockDataService from './services/stock/stockDataService';
 
 // UI Components
 import { Modal } from './components/ui/Modal';
@@ -49,9 +51,6 @@ import StrategyEditor from './components/StrategyEditor';
 // Utilities
 import { clearAllState } from './utils/storage';
 
-// Assets
-import logoImg from '../public/logo.png';
-
 // Sectors
 import type { CustomSectorDef } from './data/sectors';
 
@@ -66,6 +65,9 @@ const App = () => {
   const [lang, setLang] = usePersisted<LangKey>('lang', 'EN');
   const [stockAdapterId, setStockAdapterId] = usePersisted<string>('stockAdapterId', 'eastmoney');
   const [colorScheme, setColorScheme] = usePersisted<ColorScheme>('colorScheme', 'greenUp');
+  const [multiAdapter, setMultiAdapter] = usePersisted<boolean>('multiAdapter', false);
+  const defaultCapMap = { realtime: 'eastmoney', dailyKlines: 'eastmoney', minuteKlines: 'eastmoney' };
+  const [capMap, setCapMap] = usePersisted<Record<string, string>>('capMap', defaultCapMap);
 
   // Custom sectors — hoisted here so both MarketView and AIAssistantView share state
   const [customSectors, setCustomSectors] = usePersisted<CustomSectorDef[]>('customSectors', []);
@@ -84,7 +86,7 @@ const App = () => {
   const { notifications, showNotification, removeNotification } = useNotifications();
   const { cryptoWatchlist, stockWatchlist, currentWatchlist, addToWatchlist, removeFromWatchlist } =
     useWatchlist(marketMode, showNotification);
-  const { marketTickers, candles, liveCandle, depth, trades, isScannerLoading, updateMarketData } =
+  const { marketTickers, candles, liveCandle, depth, trades, isScannerLoading, updateMarketData, connectionStatus, latencyMs } =
     useMarketData(activeSymbol, marketMode, timeframe, stockAdapterId);
   const {
     tradingMode,
@@ -114,7 +116,28 @@ const App = () => {
   const t = (key: ResourceKey): string => RESOURCES[lang][key];
   const currencySign = marketMode === 'CRYPTO' ? '$' : '¥';
 
+  // --- System metrics (Electron only) ---
+  const [systemMetrics, setSystemMetrics] = React.useState({ memMB: 0, cpuPercent: 0 });
+
+  useEffect(() => {
+    if (!window.electron?.getSystemMetrics) return;
+    const poll = () => {
+      window.electron!.getSystemMetrics().then(setSystemMetrics).catch(() => {});
+    };
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
   // --- Effects ---
+
+  // Sync multi-adapter settings with stockDataService on mount and when changed
+  useEffect(() => {
+    stockDataService.setMultiAdapterMode(multiAdapter);
+    for (const [cap, id] of Object.entries(capMap)) {
+      stockDataService.setCapabilityAdapter(cap as AdapterCapability, id);
+    }
+  }, [multiAdapter, capMap]);
 
   // Sync active symbol when market mode changes
   useEffect(() => {
@@ -181,8 +204,7 @@ const App = () => {
 
       {/* Sidebar Navigation */}
       <div className="w-10 flex flex-col items-center py-2 bg-[#0a0a0a] border-r border-terminal-border z-20 shrink-0">
-        <div className="mb-4"><img src={logoImg} alt="QuantCore Pro" className="w-6 h-6" /></div>
-        <div className="flex flex-col space-y-1 w-full px-1">
+        <div className="flex flex-col space-y-1 w-full px-1 mt-1">
           <NavIcon icon={LayoutDashboard} active={view === ViewState.DASHBOARD} onClick={() => setView(ViewState.DASHBOARD)} tooltip={t('NAV_DASHBOARD')} />
           <NavIcon icon={LineChart} active={view === ViewState.MARKET} onClick={() => setView(ViewState.MARKET)} tooltip={t('NAV_MARKET')} />
           <NavIcon icon={Code} active={view === ViewState.STRATEGY} onClick={() => setView(ViewState.STRATEGY)} tooltip={t('NAV_STRATEGY')} />
@@ -212,6 +234,7 @@ const App = () => {
           setStockAdapter={setStockAdapterId}
           tradingMode={tradingMode}
           setTradingMode={setTradingMode}
+          connectionStatus={connectionStatus}
           t={t}
         />
 
@@ -300,6 +323,10 @@ const App = () => {
               setStockAdapter={setStockAdapterId}
               colorScheme={colorScheme}
               setColorScheme={setColorScheme}
+              multiAdapter={multiAdapter}
+              setMultiAdapter={setMultiAdapter}
+              capMap={capMap}
+              setCapMap={setCapMap}
             />
           )}
 
@@ -320,9 +347,9 @@ const App = () => {
         {/* Status Bar */}
         <div className="h-5 bg-[#0a0a0a] border-t border-terminal-border flex items-center justify-between px-2 text-[10px] text-gray-500 select-none shrink-0">
           <div className="flex space-x-4">
-            <span>MEM: 32MB</span>
-            <span>CPU: 6%</span>
-            <span>LATENCY: {marketMode === 'CRYPTO' ? '42ms (WS)' : '210ms (HTTP)'}</span>
+            <span>MEM: {systemMetrics.memMB}MB</span>
+            <span>CPU: {systemMetrics.cpuPercent}%</span>
+            <span>LATENCY: {latencyMs != null ? `${latencyMs}ms` : '—'} ({marketMode === 'CRYPTO' ? 'WS' : 'HTTP'})</span>
           </div>
           <div className="flex space-x-4">
             <span className={tradingMode === 'LIVE' ? 'text-red-400 font-bold animate-pulse' : 'text-gray-500'}>
@@ -331,7 +358,7 @@ const App = () => {
             <span className="text-terminal-accent">
               {marketMode === 'CRYPTO' ? 'CRYPTO' : `A-SHARE / ${stockAdapterId.toUpperCase()}`}
             </span>
-            <span>BUILD: v1.0.0-PRO</span>
+            <span>BUILD: v{__APP_VERSION__}</span>
           </div>
         </div>
       </main>

@@ -2,8 +2,10 @@ import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import { spawn, ChildProcess } from 'child_process';
+import * as os from 'os';
 
 const isDev = !app.isPackaged;
+const DEV_PORT = process.env.DEV_PORT || '5173';
 
 let mainWindow: BrowserWindow | null = null;
 let pythonProcess: ChildProcess | null = null;
@@ -62,7 +64,7 @@ function createWindow() {
     });
 
     if (isDev) {
-        mainWindow.loadURL('http://localhost:5173');
+        mainWindow.loadURL(`http://localhost:${DEV_PORT}`);
         mainWindow.webContents.openDevTools();
     } else {
         mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
@@ -196,6 +198,36 @@ ipcMain.on('menu-show-about', () => {
         detail: `Version: ${app.getVersion()}\n\nProfessional Quantitative Trading Terminal\n\n© ${new Date().getFullYear()} QuantCore`,
         icon: path.join(__dirname, isDev ? '../public/logo.png' : '../dist/logo.png'),
     });
+});
+
+// ── System metrics IPC ──────────────────────────────────────────────────────
+let prevCpuTimes: { idle: number; total: number } | null = null;
+
+function getCpuUsage(): number {
+    const cpus = os.cpus();
+    let idle = 0;
+    let total = 0;
+    for (const cpu of cpus) {
+        idle += cpu.times.idle;
+        total += cpu.times.user + cpu.times.nice + cpu.times.sys + cpu.times.irq + cpu.times.idle;
+    }
+    if (prevCpuTimes) {
+        const idleDiff = idle - prevCpuTimes.idle;
+        const totalDiff = total - prevCpuTimes.total;
+        prevCpuTimes = { idle, total };
+        return totalDiff === 0 ? 0 : Math.round((1 - idleDiff / totalDiff) * 100);
+    }
+    prevCpuTimes = { idle, total };
+    return 0;
+}
+
+ipcMain.handle('get-system-metrics', () => {
+    const memUsed = process.memoryUsage().rss;
+    const cpuPercent = getCpuUsage();
+    return {
+        memMB: Math.round(memUsed / 1024 / 1024),
+        cpuPercent,
+    };
 });
 
 app.on('ready', () => {

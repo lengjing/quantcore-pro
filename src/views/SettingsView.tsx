@@ -6,7 +6,6 @@ import type { AdapterCapability } from '../services/stock/IStockDataAdapter';
 import { ButtonGroup } from '../components/ui/ButtonGroup';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { clearAllState } from '../utils/storage';
-import stockDataService from '../services/stock/stockDataService';
 
 interface SettingsViewProps {
   lang: LangKey;
@@ -17,6 +16,10 @@ interface SettingsViewProps {
   setStockAdapter: (id: string) => void;
   colorScheme: ColorScheme;
   setColorScheme: (cs: ColorScheme) => void;
+  multiAdapter: boolean;
+  setMultiAdapter: (v: boolean) => void;
+  capMap: Record<string, string>;
+  setCapMap: (v: Record<string, string>) => void;
 }
 
 const STOCK_ADAPTERS_BASE = [
@@ -26,10 +29,8 @@ const STOCK_ADAPTERS_BASE = [
   { value: 'baostock',  labelEN: 'BaoStock',   labelCN: 'BaoStock', activeColor: 'text-green-400' },
 ];
 
-export const SettingsView = ({ lang, setLang, marketMode, setMarketMode, stockAdapterId, setStockAdapter, colorScheme, setColorScheme }: SettingsViewProps) => {
+export const SettingsView = ({ lang, setLang, marketMode, setMarketMode, stockAdapterId, setStockAdapter, colorScheme, setColorScheme, multiAdapter, setMultiAdapter, capMap, setCapMap }: SettingsViewProps) => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [multiAdapter, setMultiAdapter] = useState(stockDataService.isMultiAdapterMode());
-  const [capMap, setCapMap] = useState(stockDataService.getCapabilityMap());
 
   const t = (key: ResourceKey): string => RESOURCES[lang][key];
 
@@ -46,21 +47,24 @@ export const SettingsView = ({ lang, setLang, marketMode, setMarketMode, stockAd
   };
 
   const handleToggleMultiAdapter = useCallback(() => {
-    const next = !multiAdapter;
-    setMultiAdapter(next);
-    stockDataService.setMultiAdapterMode(next);
-  }, [multiAdapter]);
+    setMultiAdapter(!multiAdapter);
+  }, [multiAdapter, setMultiAdapter]);
 
   const handleCapChange = useCallback((cap: AdapterCapability, adapterId: string) => {
-    stockDataService.setCapabilityAdapter(cap, adapterId);
-    setCapMap(stockDataService.getCapabilityMap());
-  }, []);
+    setCapMap({ ...capMap, [cap]: adapterId });
+  }, [capMap, setCapMap]);
 
   return (
-    <div className="flex h-full items-center justify-center">
+  <div className="flex h-full items-center justify-center overflow-auto">
       <div className="w-[480px] p-6 border border-[#333] bg-[#111]">
         <h2 className="text-terminal-accent font-bold mb-4 uppercase tracking-widest border-b border-[#333] pb-2">{t('CONFIGURATION')}</h2>
         <div className="space-y-4">
+
+        {/* Version info */}
+        <div className="flex justify-between items-center">
+          <span className="text-gray-400 text-xs">{t('SETUP_VERSION')}</span>
+          <span className="text-gray-300 text-xs font-mono">v{__APP_VERSION__}</span>
+        </div>
           <div className="flex justify-between items-center">
             <span className="text-gray-400 text-xs">{t('INTERFACE_LANGUAGE')}</span>
             <ButtonGroup

@@ -103,6 +103,7 @@ export const RESOURCES = {
     RESET_MSG: 'Reset all settings and data to factory defaults? This action cannot be undone.',
     RESET_ALL: 'RESET ALL',
     CONFIGURATION: 'Configuration',
+    SETUP_VERSION: 'Version',
     // Board timeline
     TIMELINE_1D: '1D',
     TIMELINE_3D: '3D',
@@ -202,6 +203,8 @@ export const RESOURCES = {
     HELP: 'HELP',
     MENU: 'MENU',
     CONNECTED: 'CNNCTD',
+    CONNECTING: 'CNNCTNG',
+    DISCONNECTED: 'DISCNCTD',
     LIVE_SWITCH_HINT: 'Click to switch to Paper mode',
     PAPER_SWITCH_HINT: 'Switch to Live trading (real funds)',
     // App
@@ -357,6 +360,7 @@ export const RESOURCES = {
     RESET_MSG: '将重置所有设置和数据为出厂默认值，此操作不可撤销。',
     RESET_ALL: '全部重置',
     CONFIGURATION: '系统配置',
+    SETUP_VERSION: '版本',
     // Board timeline
     TIMELINE_1D: '1天',
     TIMELINE_3D: '3天',
@@ -456,6 +460,8 @@ export const RESOURCES = {
     HELP: '帮助',
     MENU: '菜单',
     CONNECTED: '已连接',
+    CONNECTING: '连接中',
+    DISCONNECTED: '已断开',
     LIVE_SWITCH_HINT: '点击切换到模拟交易',
     PAPER_SWITCH_HINT: '切换到实盘交易（真实资金）',
     // App

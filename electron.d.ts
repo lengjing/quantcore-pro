@@ -23,6 +23,8 @@ declare global {
             getVersion: () => Promise<string>;
             showAbout: () => void;
             restartToUpdate: () => void;
+            // System metrics
+            getSystemMetrics: () => Promise<{ memMB: number; cpuPercent: number }>;
             // Update events
             onUpdateStatus: (callback: (data: { status: string; info?: any }) => void) => void;
         };

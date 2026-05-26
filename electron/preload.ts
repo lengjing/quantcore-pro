@@ -28,6 +28,8 @@ contextBridge.exposeInMainWorld('electron', {
     getVersion: () => ipcRenderer.invoke('app-get-version'),
     showAbout: () => ipcRenderer.send('menu-show-about'),
     restartToUpdate: () => ipcRenderer.send('menu-restart-to-update'),
+    // System metrics
+    getSystemMetrics: () => ipcRenderer.invoke('get-system-metrics'),
     // Update events
     onUpdateStatus: (callback: (data: { status: string; info?: any }) => void) => {
         ipcRenderer.on('update-status', (_event, data) => callback(data));
