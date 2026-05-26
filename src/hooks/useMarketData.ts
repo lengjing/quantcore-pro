@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { MarketTicker, CandleData, Trade, Timeframe } from '../types';
+import type { MarketTicker, CandleData, Trade, Timeframe, OrderBookDepth } from '../types';
 import type { MarketMode } from '../types';
 import { fetchTopTickers, fetchKlines, fetchDepth, fetchRecentTrades } from '../services/crypto/binanceRestService';
 import { fetchStockTickers, fetchStockKlines } from '../services/stock/stockDataService';
@@ -23,7 +23,7 @@ export function useMarketData(
   const [marketTickers, setMarketTickers] = useState<MarketTicker[]>([]);
   const [candles, setCandles] = useState<CandleData[]>([]);
   const [liveCandle, setLiveCandle] = useState<CandleData | null>(null);
-  const [depth, setDepth] = useState<{ bids: any[]; asks: any[] }>({ bids: [], asks: [] });
+  const [depth, setDepth] = useState<OrderBookDepth>({ bids: [], asks: [] });
   const [trades, setTrades] = useState<Trade[]>([]);
   const [isScannerLoading, setIsScannerLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');

@@ -38,7 +38,10 @@ QuantCore Pro is a **professional quantitative trading terminal** packaged as an
 ├── src/                    ← React frontend (TypeScript + JSX)
 │   ├── index.tsx           ← ReactDOM.createRoot entry; suppresses ResizeObserver errors
 │   ├── App.tsx             ← Giant root component: all views, state management, data orchestration
-│   ├── types.ts            ← All shared types: ViewState, MarketTicker, CandleData, Order, etc.
+│   ├── types.ts            ← All shared types: ViewState, MarketTicker, CandleData, Order, OrderBookDepth, etc.
+│   │
+│   ├── constants/
+│   │   └── resources.ts        ← Type-safe i18n key types: ResourceKey, LangKey
 │   │
 │   ├── components/
 │   │   ├── MarketChart.tsx      ← lightweight-charts candlestick; native zoom/pan/scroll; MA7/25/99 + volume
@@ -53,7 +56,8 @@ QuantCore Pro is a **professional quantitative trading terminal** packaged as an
 │   ├── services/                ← Domain-organised service layer
 │   │   │
 │   │   ├── ai/
-│   │   │   └── geminiService.ts     ← Gemini AI: generateStrategyCode, fetchMarketNews, explainMetrics
+│   │   │   ├── geminiService.ts     ← Gemini AI: generateStrategyCode, fetchMarketNews, explainMetrics
+│   │   │   └── aiChatService.ts     ← Claude AI chat: sendAIMessage, fetchBackendStatus
 │   │   │
 │   │   ├── crypto/
 │   │   │   ├── binanceRestService.ts ← Binance REST (fetchTopTickers, fetchKlines, fetchDepth)
@@ -72,7 +76,9 @@ QuantCore Pro is a **professional quantitative trading terminal** packaged as an
 │   │       └── stockWsService.ts    ← Socket.IO client for Python backend real-time quotes
 │   │
 │   └── utils/
-│       └── technicalIndicators.ts   ← calculateSMA, enhanceCandlesWithIndicators (MA7/25/99)
+│       ├── technicalIndicators.ts   ← calculateSMA, enhanceCandlesWithIndicators (MA7/25/99)
+│       ├── fetchJson.ts            ← Shared HTTP fetch helper with error handling
+│       └── storage.ts             ← localStorage persistence utilities
 │
 └── python/                 ← Python backend (Flask + Socket.IO, health-check + WS infra + BaoStock + boards)
     ├── main.py             ← Flask app; /health endpoint + Socket.IO events; runs on port 5000
@@ -180,6 +186,7 @@ AI:       Google Gemini API ─────────────────�
 | BACKTEST   | F4   | Backtest runner + equity curve                 |
 | NEWS       | F5   | AI news wire + sentiment                       |
 | SCANNER    | F6   | Full market scanner / screener                 |
+| AI         | F7   | Claude-powered AI market assistant             |
 | SETTINGS   | —    | Configuration panel                            |
 
 ---

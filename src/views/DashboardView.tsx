@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { MarketMode, MarketTicker, CandleData, Trade, Position, Timeframe } from '../types';
+import type { MarketMode, MarketTicker, CandleData, Trade, Position, Timeframe, OrderBookDepth } from '../types';
 import { Panel } from '../components/ui/Panel';
 import { ButtonGroup } from '../components/ui/ButtonGroup';
 import { OrderTicket } from '../components/ui/OrderTicket';
@@ -16,7 +16,7 @@ interface DashboardViewProps {
   setTimeframe: (tf: Timeframe) => void;
   candles: CandleData[];
   liveCandle: CandleData | null;
-  depth: { bids: any[]; asks: any[] };
+  depth: OrderBookDepth;
   trades: Trade[];
   positions: Position[];
   marketTickers: MarketTicker[];

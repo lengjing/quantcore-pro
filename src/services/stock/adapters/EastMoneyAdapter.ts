@@ -13,6 +13,7 @@
 
 import type { IStockDataAdapter } from '../IStockDataAdapter';
 import type { StockSnapshot, StockKline, MinutePeriod, DailyPeriod } from '../types';
+import { fetchJson } from '../../../utils/fetchJson';
 
 const PUSH2_BASE = 'https://push2.eastmoney.com';
 const PUSH2HIS_BASE = 'https://push2his.eastmoney.com';
@@ -30,6 +31,21 @@ function toSecId(symbol: string): string {
   return `${market}.${code}`;
 }
 
+/** Shape of a single "diff" item from the East Money real-time quote API. */
+interface EastMoneyDiffItem {
+  f2: number | string;   // current price
+  f3: number | string;   // changePct (%)
+  f4: number | string;   // change amount
+  f5: number | string;   // volume (lots)
+  f6: number | string;   // amount (CNY)
+  f12: string;           // stock code
+  f14: string;           // stock name
+  f15: number | string;  // high
+  f16: number | string;  // low
+  f17: number | string;  // open
+  f18: number | string;  // prevClose
+}
+
 /**
  * Parse a single East Money "diff" item into a StockSnapshot.
  *
@@ -40,22 +56,22 @@ function toSecId(symbol: string): string {
  *   f15 high             f16 low
  *   f17 open             f18 prevClose
  */
-function parseDiffItem(item: any, originalSymbol: string): StockSnapshot | null {
-  const price = parseFloat(item.f2);
+function parseDiffItem(item: EastMoneyDiffItem, originalSymbol: string): StockSnapshot | null {
+  const price = Number(item.f2);
   if (isNaN(price) || price <= 0) return null;
 
   return {
     symbol: originalSymbol,
     name: item.f14 ?? '',
     price,
-    open: parseFloat(item.f17) || price,
-    prevClose: parseFloat(item.f18) || price,
-    high: parseFloat(item.f15) || price,
-    low: parseFloat(item.f16) || price,
-    volume: parseFloat(item.f5) || 0,
-    amount: parseFloat(item.f6) || 0,
-    change: parseFloat(item.f4) || 0,
-    changePercent: parseFloat(item.f3) || 0,
+    open: Number(item.f17) || price,
+    prevClose: Number(item.f18) || price,
+    high: Number(item.f15) || price,
+    low: Number(item.f16) || price,
+    volume: Number(item.f5) || 0,
+    amount: Number(item.f6) || 0,
+    change: Number(item.f4) || 0,
+    changePercent: Number(item.f3) || 0,
     timestamp: Date.now(),
   };
 }
@@ -111,11 +127,8 @@ export class EastMoneyAdapter implements IStockDataAdapter {
       const url =
         `${PUSH2_BASE}/api/qt/ulist.np/get` +
         `?fltt=2&invt=2&secids=${encodeURIComponent(secids)}&fields=${fields}`;
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-      const json = await response.json();
-      const diffList: any[] = json?.data?.diff ?? [];
+      const json = await fetchJson<{ data?: { diff?: EastMoneyDiffItem[] } }>(url, 'EastMoney fetchSnapshots');
+      const diffList = json?.data?.diff ?? [];
 
       // Build a lookup from code → original symbol so we can attach the correct prefix.
       const codeToSymbol = new Map<string, string>(
@@ -162,11 +175,8 @@ export class EastMoneyAdapter implements IStockDataAdapter {
         `&fields1=f1,f2,f3,f4,f5,f6` +
         `&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61` +
         `&klt=${klt}&fqt=${fqt}&beg=${beg}&end=${end}&lmt=500`;
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-      const json = await response.json();
-      const klines: string[] = json?.data?.klines ?? [];
+      const json = await fetchJson<{ data?: { klines?: string[] } }>(url, `EastMoney fetchDailyKlines(${symbol})`);
+      const klines = json?.data?.klines ?? [];
 
       return klines.flatMap((entry) => {
         const kline = parseKlineEntry(entry);
@@ -203,11 +213,8 @@ export class EastMoneyAdapter implements IStockDataAdapter {
         `&fields1=f1,f2,f3,f4,f5,f6` +
         `&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61` +
         `&klt=${klt}&fqt=0&beg=${begStr}&end=${endStr}&lmt=480`;
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-      const json = await response.json();
-      const klines: string[] = json?.data?.klines ?? [];
+      const json = await fetchJson<{ data?: { klines?: string[] } }>(url, `EastMoney fetchMinuteKlines(${symbol})`);
+      const klines = json?.data?.klines ?? [];
 
       // Keep only today's bars to match the expected intraday view.
       const today = new Date().toISOString().slice(0, 10);

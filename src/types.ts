@@ -109,6 +109,18 @@ export interface Trade {
   isBuyerMaker: boolean; // true = Sell side taker (Red), false = Buy side taker (Green)
 }
 
+/** A single level in an order book (bid or ask). */
+export interface DepthLevel {
+  price: number;
+  size: number;
+}
+
+/** L2 order-book depth snapshot (top N levels each side). */
+export interface OrderBookDepth {
+  bids: DepthLevel[];
+  asks: DepthLevel[];
+}
+
 export interface LogEntry {
   id: string;
   timestamp: string;

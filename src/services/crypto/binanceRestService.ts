@@ -1,4 +1,5 @@
 import { CandleData, MarketTicker } from '../../types';
+import { fetchJson } from '../../utils/fetchJson';
 
 /** Public Binance data API — no auth required. */
 const BASE_URL = 'https://data-api.binance.vision/api/v3';
@@ -24,16 +25,25 @@ const INTERVAL_MAP: Record<string, string> = {
   '1D': '1d',
 };
 
+/** Raw shape of a single entry from Binance GET /ticker/24hr. */
+interface BinanceTicker24hr {
+  symbol: string;
+  lastPrice: string;
+  priceChange: string;
+  priceChangePercent: string;
+  quoteVolume: string;
+  highPrice: string;
+  lowPrice: string;
+  closeTime: number;
+}
+
 /**
  * Fetch the top USDT trading pairs sorted by 24h quote volume.
  * Returns an empty array on any error so the UI degrades gracefully.
  */
 export const fetchTopTickers = async (): Promise<MarketTicker[]> => {
   try {
-    const response = await fetch(`${BASE_URL}/ticker/24hr`);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    const data: any[] = await response.json();
+    const data = await fetchJson<BinanceTicker24hr[]>(`${BASE_URL}/ticker/24hr`, 'fetchTopTickers');
 
     return data
       .filter((d) => d.symbol.endsWith('USDT') && parseFloat(d.quoteVolume) > 1_000_000)
@@ -66,24 +76,31 @@ export const fetchKlines = async (symbol: string, timeframe: string): Promise<Ca
     const interval = INTERVAL_MAP[timeframe] ?? '1h';
     const url = `${BASE_URL}/klines?symbol=${unformatSymbol(symbol)}&interval=${interval}&limit=100`;
 
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    const data: any[][] = await response.json();
+    // Binance klines are arrays of mixed primitives: [openTime, open, high, low, close, volume, ...]
+    const data = await fetchJson<(string | number)[][]>(url, `fetchKlines(${symbol})`);
 
     return data.map((d) => ({
-      time: new Date(d[0]).toISOString(),
-      open: parseFloat(d[1]),
-      high: parseFloat(d[2]),
-      low: parseFloat(d[3]),
-      close: parseFloat(d[4]),
-      volume: parseFloat(d[5]),
+      time: new Date(d[0] as number).toISOString(),
+      open: parseFloat(d[1] as string),
+      high: parseFloat(d[2] as string),
+      low: parseFloat(d[3] as string),
+      close: parseFloat(d[4] as string),
+      volume: parseFloat(d[5] as string),
     }));
   } catch (error) {
     console.error(`Binance fetchKlines error (${symbol}):`, error);
     return [];
   }
 };
+
+/** Raw shape of a single entry from Binance GET /trades. */
+interface BinanceRawTrade {
+  id: number;
+  price: string;
+  qty: string;
+  time: number;
+  isBuyerMaker: boolean;
+}
 
 /**
  * Fetch recent public trades for Time & Sales.
@@ -95,10 +112,7 @@ export const fetchRecentTrades = async (symbol: string, limit = 30): Promise<imp
 
   try {
     const url = `${BASE_URL}/trades?symbol=${unformatSymbol(symbol)}&limit=${limit}`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    const data: any[] = await response.json();
+    const data = await fetchJson<BinanceRawTrade[]>(url, `fetchRecentTrades(${symbol})`);
     return data.map((t) => ({
       id: t.id,
       price: parseFloat(t.price),
@@ -112,6 +126,12 @@ export const fetchRecentTrades = async (symbol: string, limit = 30): Promise<imp
   }
 };
 
+/** Raw shape of the Binance GET /depth response. */
+interface BinanceDepthResponse {
+  bids: [string, string][];
+  asks: [string, string][];
+}
+
 /**
  * Fetch L2 order-book depth (top 20 levels each side).
  * @param symbol Display-format symbol, e.g. "BTC-USDT".
@@ -123,14 +143,11 @@ export const fetchDepth = async (
 
   try {
     const url = `${BASE_URL}/depth?symbol=${unformatSymbol(symbol)}&limit=20`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    const data = await response.json();
+    const data = await fetchJson<BinanceDepthResponse>(url, `fetchDepth(${symbol})`);
 
     return {
-      bids: data.bids.map((b: string[]) => ({ price: parseFloat(b[0]), size: parseFloat(b[1]) })),
-      asks: data.asks.map((a: string[]) => ({ price: parseFloat(a[0]), size: parseFloat(a[1]) })),
+      bids: data.bids.map((b) => ({ price: parseFloat(b[0]), size: parseFloat(b[1]) })),
+      asks: data.asks.map((a) => ({ price: parseFloat(a[0]), size: parseFloat(a[1]) })),
     };
   } catch (error) {
     console.error(`Binance fetchDepth error (${symbol}):`, error);
