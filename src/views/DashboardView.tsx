@@ -1,6 +1,6 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { MarketMode, MarketTicker, CandleData, Trade, Position, Timeframe } from '../types';
-import type { ResourceKey } from '../constants/resources';
 import { Panel } from '../components/ui/Panel';
 import { ButtonGroup } from '../components/ui/ButtonGroup';
 import { OrderTicket } from '../components/ui/OrderTicket';
@@ -23,7 +23,6 @@ interface DashboardViewProps {
   filteredTickers: MarketTicker[];
   currencySign: string;
   portfolioStats: { totalValue: number; totalPnL: number };
-  t: (key: ResourceKey) => string;
   removeFromWatchlist: (symbol: string) => void;
   setShowAddSymbolModal: (show: boolean) => void;
   executeTrade: (side: 'BUY' | 'SELL', qty: string, limitPrice: string | null) => void;
@@ -46,11 +45,11 @@ export const DashboardView = ({
   filteredTickers,
   currencySign,
   portfolioStats,
-  t,
   removeFromWatchlist,
   setShowAddSymbolModal,
   executeTrade,
 }: DashboardViewProps) => {
+  const { t } = useTranslation();
   const { bids, asks } = depth;
 
   return (
@@ -205,7 +204,6 @@ export const DashboardView = ({
           symbol={activeSymbol}
           price={marketTickers.find((ticker) => ticker.symbol === activeSymbol)?.price}
           onTrade={executeTrade}
-          t={t}
         />
       </Panel>
     </div>

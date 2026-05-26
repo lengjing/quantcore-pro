@@ -1,11 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Minus, Square, X, RefreshCw } from 'lucide-react';
-import type { ResourceKey } from '../../constants/resources';
+import { useTranslation } from 'react-i18next';
+import { Minus, Square, X } from 'lucide-react';
 import logoImg from '../../../public/logo.png';
-
-interface TitleBarProps {
-  t: (key: ResourceKey) => string;
-}
 
 /* ── Menu Data Structure ────────────────────────────────────────────────── */
 
@@ -24,7 +20,7 @@ interface MenuDef {
 
 const isElectronEnv = typeof window !== 'undefined' && !!window.electron;
 
-const buildMenus = (t: (key: ResourceKey) => string): MenuDef[] => {
+const buildMenus = (t: (key: string) => string): MenuDef[] => {
   const e = window.electron;
   return [
     {
@@ -58,7 +54,7 @@ const buildMenus = (t: (key: ResourceKey) => string): MenuDef[] => {
         { label: '', separator: true },
         { label: t('MENU_ABOUT'), action: () => {
           e?.showAbout();
-        }},
+        } },
       ],
     },
   ];
@@ -124,45 +120,11 @@ const MenuDropdown = ({
   );
 };
 
-/* ── Update Status Banner ───────────────────────────────────────────────── */
-
-type UpdateStatus = 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
-
-/**
- * Custom titlebar component for Electron (replaces the default frame).
- *
- * Includes a professional menu bar (File, View, Help) with dropdown menus,
- * auto-update integration, and window controls.
- *
- * When running in a regular browser (no `window.electron`), the
- * component renders nothing.
- */
-export const TitleBar = ({ t }: TitleBarProps) => {
+export const TitleBar = () => {
+  const { t } = useTranslation();
   const [openMenuIdx, setOpenMenuIdx] = useState<number | null>(null);
   const [anyMenuOpened, setAnyMenuOpened] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
-  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>('idle');
-  const [dismissedUpdate, setDismissedUpdate] = useState(false);
-  const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Listen for update status events from Electron main process
-  useEffect(() => {
-    if (!isElectronEnv) return;
-    window.electron?.onUpdateStatus((data) => {
-      const status = data.status as UpdateStatus;
-      setUpdateStatus(status);
-
-      // Auto-dismiss transient statuses after a delay
-      if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
-      if (status === 'not-available' || status === 'error') {
-        statusTimerRef.current = setTimeout(() => setUpdateStatus('idle'), 5000);
-      }
-      // When a new update is downloaded, make sure the banner is visible
-      if (status === 'downloaded') {
-        setDismissedUpdate(false);
-      }
-    });
-  }, []);
 
   if (!isElectronEnv) return null;
 
@@ -177,34 +139,18 @@ export const TitleBar = ({ t }: TitleBarProps) => {
     setAnyMenuOpened(false);
   }, []);
 
-  // Close menus on outside click
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (barRef.current && !barRef.current.contains(e.target as Node)) {
         closeMenus();
       }
     };
+
     if (openMenuIdx !== null) {
       document.addEventListener('mousedown', handleClick);
       return () => document.removeEventListener('mousedown', handleClick);
     }
   }, [openMenuIdx, closeMenus]);
-
-  // Build update status message
-  const getUpdateBanner = (): { text: string; showRestart: boolean } | null => {
-    if (dismissedUpdate && updateStatus === 'downloaded') return null;
-    switch (updateStatus) {
-      case 'checking': return { text: t('UPDATE_CHECKING'), showRestart: false };
-      case 'available': return { text: t('UPDATE_AVAILABLE'), showRestart: false };
-      case 'not-available': return { text: t('UPDATE_NOT_AVAILABLE'), showRestart: false };
-      case 'downloading': return { text: t('UPDATE_DOWNLOADING'), showRestart: false };
-      case 'downloaded': return { text: t('UPDATE_READY'), showRestart: true };
-      case 'error': return { text: t('UPDATE_ERROR'), showRestart: false };
-      default: return null;
-    }
-  };
-
-  const banner = getUpdateBanner();
 
   return (
     <div className="shrink-0">
@@ -212,7 +158,6 @@ export const TitleBar = ({ t }: TitleBarProps) => {
         className="h-[30px] flex items-center justify-between bg-[#3c3c3c] select-none"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
-        {/* Left — logo + menus */}
         <div
           ref={barRef}
           className="flex items-center h-full"
@@ -222,7 +167,6 @@ export const TitleBar = ({ t }: TitleBarProps) => {
             <img src={logoImg} alt="logo" className="w-4 h-4" />
           </div>
 
-          {/* Menu bar */}
           <div className="flex items-center h-full">
             {menus.map((menu, i) => (
               <MenuDropdown
@@ -244,14 +188,12 @@ export const TitleBar = ({ t }: TitleBarProps) => {
           </div>
         </div>
 
-        {/* Center — title */}
         <div className="absolute left-1/2 -translate-x-1/2 pointer-events-none">
           <span className="text-[11px] font-sans text-[#cccccc]">
             {t('TITLEBAR_TITLE')}
           </span>
         </div>
 
-        {/* Right — window controls */}
         <div
           className="flex items-center h-full"
           style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
@@ -279,40 +221,6 @@ export const TitleBar = ({ t }: TitleBarProps) => {
           </button>
         </div>
       </div>
-
-      {/* Update status banner (VSCode-style) */}
-      {banner && (
-        <div className="h-6 bg-[#007acc] flex items-center justify-center gap-3 text-white text-[11px] select-none shrink-0">
-          {updateStatus === 'checking' || updateStatus === 'downloading' ? (
-            <RefreshCw size={12} className="animate-spin" />
-          ) : null}
-          <span>{banner.text}</span>
-          {banner.showRestart && (
-            <button
-              onClick={() => {
-                window.electron?.restartToUpdate();
-              }}
-              className="px-2 py-0.5 bg-white text-[#007acc] text-[10px] font-bold rounded hover:bg-gray-100 transition-colors"
-            >
-              {t('UPDATE_RESTART')}
-            </button>
-          )}
-          {(updateStatus === 'not-available' || updateStatus === 'error' || updateStatus === 'downloaded') && (
-            <button
-              onClick={() => {
-                if (updateStatus === 'downloaded') {
-                  setDismissedUpdate(true);
-                } else {
-                  setUpdateStatus('idle');
-                }
-              }}
-              className="text-white/80 hover:text-white ml-1"
-            >
-              <X size={12} />
-            </button>
-          )}
-        </div>
-      )}
     </div>
   );
 };

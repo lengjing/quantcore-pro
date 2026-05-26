@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, forwardRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Wifi, WifiOff, AlertTriangle, ChevronDown, Loader2 } from 'lucide-react';
 import type { MarketMode, TradingMode } from '../../types';
-import type { ResourceKey } from '../../constants/resources';
 import type { ConnectionStatus } from '../../hooks/useMarketData';
 
 /**
@@ -34,7 +34,6 @@ interface CommandBarProps {
   tradingMode: TradingMode;
   setTradingMode: (mode: TradingMode) => void;
   connectionStatus: ConnectionStatus;
-  t: (key: ResourceKey) => string;
 }
 
 const Clock = () => {
@@ -61,10 +60,11 @@ export const CommandBar = forwardRef<HTMLInputElement, CommandBarProps>(
       tradingMode,
       setTradingMode,
       connectionStatus,
-      t,
     },
     ref,
   ) => {
+    const { t } = useTranslation();
+
     // Derive the combined dropdown value from the two separate state pieces.
     const dataSource: DataSource =
       marketMode === 'CRYPTO' ? 'crypto-binance' : (`stock-${stockAdapterId}` as DataSource);

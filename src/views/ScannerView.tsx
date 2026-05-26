@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, X, Play, BookmarkPlus, ExternalLink } from 'lucide-react';
 import type { MarketMode, MarketTicker } from '../types';
 import { ViewState } from '../types';
-import type { ResourceKey } from '../constants/resources';
 import { Panel } from '../components/ui/Panel';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -109,7 +109,6 @@ interface ScannerViewProps {
   addToWatchlist: (symbol: string) => void;
   setActiveSymbol: (symbol: string) => void;
   setView: (view: ViewState) => void;
-  t: (key: ResourceKey) => string;
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
@@ -122,8 +121,8 @@ export const ScannerView = ({
   addToWatchlist,
   setActiveSymbol,
   setView,
-  t,
 }: ScannerViewProps) => {
+  const { t } = useTranslation();
   const [conditions, setConditions] = useState<Condition[]>([]);
   const idRef = useRef(0);
   const nextId = () => String(++idRef.current);

@@ -7,7 +7,7 @@ const DEFAULT_PORT = 5173;
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
-  const devPort = parseInt(env.DEV_PORT || String(DEFAULT_PORT), 10);
+  const devPort = parseInt(env.VITE_DEV_PORT || String(DEFAULT_PORT), 10);
   return {
     base: './', // Important for Electron
     server: {
@@ -16,8 +16,8 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [react()],
     define: {
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      'process.env.API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY),
+      'process.env.GEMINI_API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY),
       '__APP_VERSION__': JSON.stringify(pkg.version),
     },
     resolve: {

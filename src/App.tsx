@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
   LineChart,
@@ -8,13 +9,10 @@ import {
   Globe,
   Search,
   AlertTriangle,
-  BotMessageSquare,
 } from 'lucide-react';
 
 import { ViewState } from './types';
 import type { MarketMode, ColorScheme } from './types';
-import { RESOURCES } from './constants/resources';
-import type { ResourceKey, LangKey } from './constants/resources';
 import type { AdapterCapability } from './services/stock/IStockDataAdapter';
 import stockDataService from './services/stock/stockDataService';
 
@@ -43,7 +41,6 @@ import { BacktestView } from './views/BacktestView';
 import { NewsView } from './views/NewsView';
 import { ScannerView } from './views/ScannerView';
 import { SettingsView } from './views/SettingsView';
-import { AIAssistantView } from './views/AIAssistantView';
 
 // Existing Components
 import StrategyEditor from './components/StrategyEditor';
@@ -57,12 +54,13 @@ import type { CustomSectorDef } from './data/sectors';
 import type { Timeframe } from './types';
 
 const App = () => {
+  const { t, i18n } = useTranslation();
+
   // --- Persisted Core State ---
   const [view, setView] = usePersisted<ViewState>('view', ViewState.DASHBOARD);
   const [marketMode, setMarketMode] = usePersisted<MarketMode>('marketMode', 'CRYPTO');
   const [activeSymbol, setActiveSymbol] = usePersisted<string>('activeSymbol', 'BTC-USDT');
   const [timeframe, setTimeframe] = usePersisted<Timeframe>('timeframe', '1H');
-  const [lang, setLang] = usePersisted<LangKey>('lang', 'EN');
   const [stockAdapterId, setStockAdapterId] = usePersisted<string>('stockAdapterId', 'eastmoney');
   const [colorScheme, setColorScheme] = usePersisted<ColorScheme>('colorScheme', 'greenUp');
   const [multiAdapter, setMultiAdapter] = usePersisted<boolean>('multiAdapter', false);
@@ -113,7 +111,6 @@ const App = () => {
   );
 
   // --- Helpers ---
-  const t = (key: ResourceKey): string => RESOURCES[lang][key];
   const currencySign = marketMode === 'CRYPTO' ? '$' : '¥';
 
   // --- System metrics (Electron only) ---
@@ -161,7 +158,6 @@ const App = () => {
       if (e.key === 'F4') { e.preventDefault(); setView(ViewState.BACKTEST); }
       if (e.key === 'F5') { e.preventDefault(); setView(ViewState.NEWS); }
       if (e.key === 'F6') { e.preventDefault(); setView(ViewState.SCANNER); }
-      if (e.key === 'F7') { e.preventDefault(); setView(ViewState.AI); }
       if (e.key === 'Escape') {
         setIsHelpOpen(false);
         setIsMenuOpen(false);
@@ -199,25 +195,23 @@ const App = () => {
   // --- Render ---
   return (
     <div className="flex flex-col h-screen w-screen bg-terminal-bg text-gray-200 overflow-hidden font-sans text-xs">
-      <TitleBar t={t} />
+      <TitleBar />
       <div className="flex flex-1 min-h-0">
 
       {/* Sidebar Navigation */}
       <div className="w-10 flex flex-col items-center py-2 bg-[#0a0a0a] border-r border-terminal-border z-20 shrink-0">
-        <div className="flex flex-col space-y-1 w-full px-1 mt-1">
-          <NavIcon icon={LayoutDashboard} active={view === ViewState.DASHBOARD} onClick={() => setView(ViewState.DASHBOARD)} tooltip={t('NAV_DASHBOARD')} />
-          <NavIcon icon={LineChart} active={view === ViewState.MARKET} onClick={() => setView(ViewState.MARKET)} tooltip={t('NAV_MARKET')} />
-          <NavIcon icon={Code} active={view === ViewState.STRATEGY} onClick={() => setView(ViewState.STRATEGY)} tooltip={t('NAV_STRATEGY')} />
-          <NavIcon icon={History} active={view === ViewState.BACKTEST} onClick={() => setView(ViewState.BACKTEST)} tooltip={t('NAV_BACKTEST')} />
-          <div className="h-px bg-terminal-border my-2 mx-1"></div>
-          <NavIcon icon={Globe} active={view === ViewState.NEWS} onClick={() => setView(ViewState.NEWS)} tooltip={t('NAV_NEWS')} />
-          <NavIcon icon={Search} active={view === ViewState.SCANNER} onClick={() => setView(ViewState.SCANNER)} tooltip={t('NAV_SCANNER')} />
-          <div className="h-px bg-terminal-border my-2 mx-1"></div>
-          <NavIcon icon={BotMessageSquare} active={view === ViewState.AI} onClick={() => setView(ViewState.AI)} tooltip={t('NAV_AI')} />
-        </div>
-        <div className="mt-auto flex flex-col space-y-4 mb-2">
-          <NavIcon icon={Settings} active={view === ViewState.SETTINGS} onClick={() => setView(ViewState.SETTINGS)} tooltip={t('NAV_SETTINGS')} />
-        </div>
+       <div className="flex flex-col space-y-1 w-full px-1 mt-1">
+         <NavIcon icon={LayoutDashboard} active={view === ViewState.DASHBOARD} onClick={() => setView(ViewState.DASHBOARD)} tooltip={t('NAV_DASHBOARD')} />
+         <NavIcon icon={LineChart} active={view === ViewState.MARKET} onClick={() => setView(ViewState.MARKET)} tooltip={t('NAV_MARKET')} />
+         <NavIcon icon={Code} active={view === ViewState.STRATEGY} onClick={() => setView(ViewState.STRATEGY)} tooltip={t('NAV_STRATEGY')} />
+         <NavIcon icon={History} active={view === ViewState.BACKTEST} onClick={() => setView(ViewState.BACKTEST)} tooltip={t('NAV_BACKTEST')} />
+         <div className="h-px bg-terminal-border my-2 mx-1"></div>
+         <NavIcon icon={Globe} active={view === ViewState.NEWS} onClick={() => setView(ViewState.NEWS)} tooltip={t('NAV_NEWS')} />
+         <NavIcon icon={Search} active={view === ViewState.SCANNER} onClick={() => setView(ViewState.SCANNER)} tooltip={t('NAV_SCANNER')} />
+       </div>
+       <div className="mt-auto flex flex-col space-y-4 mb-2">
+         <NavIcon icon={Settings} active={view === ViewState.SETTINGS} onClick={() => setView(ViewState.SETTINGS)} tooltip={t('NAV_SETTINGS')} />
+       </div>
       </div>
 
       <main className="flex-1 flex flex-col min-w-0">
@@ -235,7 +229,6 @@ const App = () => {
           tradingMode={tradingMode}
           setTradingMode={setTradingMode}
           connectionStatus={connectionStatus}
-          t={t}
         />
 
         <div className="flex-1 p-1 bg-black overflow-hidden relative">
@@ -256,7 +249,6 @@ const App = () => {
               filteredTickers={filteredTickers}
               currencySign={currencySign}
               portfolioStats={portfolioStats}
-              t={t}
               removeFromWatchlist={removeFromWatchlist}
               setShowAddSymbolModal={setShowAddSymbolModal}
               executeTrade={executeTrade}
@@ -273,7 +265,6 @@ const App = () => {
               onRefresh={updateMarketData}
               customSectors={customSectors}
               setCustomSectors={setCustomSectors}
-              lang={lang}
               colorScheme={colorScheme}
             />
           )}
@@ -293,11 +284,11 @@ const App = () => {
           )}
 
           {view === ViewState.BACKTEST && (
-            <BacktestView backtestResult={backtestResult} t={t} />
+            <BacktestView backtestResult={backtestResult} />
           )}
 
           {view === ViewState.NEWS && (
-            <NewsView t={t} />
+            <NewsView />
           )}
 
           {view === ViewState.SCANNER && (
@@ -309,14 +300,11 @@ const App = () => {
               addToWatchlist={addToWatchlist}
               setActiveSymbol={setActiveSymbol}
               setView={setView}
-              t={t}
             />
           )}
 
           {view === ViewState.SETTINGS && (
             <SettingsView
-              lang={lang}
-              setLang={setLang}
               marketMode={marketMode}
               setMarketMode={setMarketMode}
               stockAdapterId={stockAdapterId}
@@ -327,18 +315,6 @@ const App = () => {
               setMultiAdapter={setMultiAdapter}
               capMap={capMap}
               setCapMap={setCapMap}
-            />
-          )}
-
-          {view === ViewState.AI && (
-            <AIAssistantView
-              customSectors={customSectors}
-              setCustomSectors={setCustomSectors}
-              stockWatchlist={stockWatchlist}
-              addToWatchlist={addToWatchlist}
-              showNotification={showNotification}
-              lang={lang}
-              t={t}
             />
           )}
 

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   BarChart,
   Bar,
@@ -15,8 +16,6 @@ import {
 } from 'recharts';
 import type { BoardItem } from '../services/stock/sectorBoardService';
 import type { ColorScheme } from '../types';
-import type { LangKey, ResourceKey } from '../constants/resources';
-import { RESOURCES } from '../constants/resources';
 import { useColors } from '../hooks/useColors';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -35,15 +34,14 @@ interface BoardChartsProps {
   selectedBoardCode: string | null;
   onSelectBoard: (code: string | null) => void;
   colorScheme: ColorScheme;
-  lang: LangKey;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-const fmtCNY = (v: number, lang: LangKey): string => {
+const fmtCNY = (v: number, t: (key: string) => string): string => {
   const abs = Math.abs(v);
-  const yi = RESOURCES[lang].FMT_YI;
-  const wan = RESOURCES[lang].FMT_WAN;
+  const yi = t('FMT_YI');
+  const wan = t('FMT_WAN');
   if (abs >= 1e8) return `${(v / 1e8).toFixed(1)}${yi}`;
   if (abs >= 1e4) return `${(v / 1e4).toFixed(0)}${wan}`;
   return v.toFixed(0);
@@ -98,16 +96,14 @@ const BoardBarChart = ({
   selectedBoardCode,
   onSelectBoard,
   colorScheme,
-  lang,
 }: {
   boards: BoardItem[];
   selectedBoardCode: string | null;
   onSelectBoard: (code: string | null) => void;
   colorScheme: ColorScheme;
-  lang: LangKey;
 }) => {
+  const { t, i18n } = useTranslation();
   const colors = useColors(colorScheme);
-  const t = (key: ResourceKey): string => RESOURCES[lang][key];
   const data = useMemo(
     () =>
       [...boards]
@@ -178,7 +174,7 @@ const BoardBarChart = ({
                   {v >= 0 ? '+' : ''}{v}%
                 </span>
                 <span style={{ color: '#555' }}>
-                  {' '}· {p.advancing ?? 0}↑{p.declining ?? 0}↓ · {t('MAIN_INFLOW')} {fmtCNY(p.mainNetInflow ?? 0, lang)}
+                  {' '}· {p.advancing ?? 0}↑{p.declining ?? 0}↓ · {t('MAIN_INFLOW')} {fmtCNY(p.mainNetInflow ?? 0, t)}
                 </span>
                 {p.leaderName && (
                   <span style={{ color: '#888' }}> · {t('LEADER')} {p.leaderName}</span>
@@ -218,16 +214,14 @@ const BoardHeatmap = ({
   selectedBoardCode,
   onSelectBoard,
   colorScheme,
-  lang,
 }: {
   boards: BoardItem[];
   selectedBoardCode: string | null;
   onSelectBoard: (code: string | null) => void;
   colorScheme: ColorScheme;
-  lang: LangKey;
 }) => {
+  const { t, i18n } = useTranslation();
   const colors = useColors(colorScheme);
-  const t = (key: ResourceKey): string => RESOURCES[lang][key];
   const totalCap = useMemo(() => boards.reduce((s, b) => s + Math.abs(b.totalMarketCap), 0), [boards]);
 
   if (boards.length === 0) {
@@ -290,17 +284,15 @@ const BoardLineChart = ({
   selectedBoardCode,
   onSelectBoard,
   colorScheme,
-  lang,
 }: {
   boards: BoardItem[];
   snapshots: BoardSnapshot[];
   selectedBoardCode: string | null;
   onSelectBoard: (code: string | null) => void;
   colorScheme: ColorScheme;
-  lang: LangKey;
 }) => {
+  const { t, i18n } = useTranslation();
   const colors = useColors(colorScheme);
-  const t = (key: ResourceKey): string => RESOURCES[lang][key];
   const { lineData, boardDefs } = useMemo(() => {
     // Use top 12 boards by absolute change for line chart clarity
     const topBoards = [...boards]
@@ -429,7 +421,6 @@ export const BoardCharts = ({
   selectedBoardCode,
   onSelectBoard,
   colorScheme,
-  lang,
 }: BoardChartsProps) => {
   if (chartType === 'BAR') {
     return (
@@ -438,7 +429,6 @@ export const BoardCharts = ({
         selectedBoardCode={selectedBoardCode}
         onSelectBoard={onSelectBoard}
         colorScheme={colorScheme}
-        lang={lang}
       />
     );
   }
@@ -450,7 +440,6 @@ export const BoardCharts = ({
         selectedBoardCode={selectedBoardCode}
         onSelectBoard={onSelectBoard}
         colorScheme={colorScheme}
-        lang={lang}
       />
     );
   }
@@ -462,7 +451,6 @@ export const BoardCharts = ({
       selectedBoardCode={selectedBoardCode}
       onSelectBoard={onSelectBoard}
       colorScheme={colorScheme}
-      lang={lang}
     />
   );
 };

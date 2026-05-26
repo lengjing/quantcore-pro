@@ -1,15 +1,12 @@
 import React, { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { MarketMode, ColorScheme } from '../types';
-import type { LangKey, ResourceKey } from '../constants/resources';
-import { RESOURCES } from '../constants/resources';
 import type { AdapterCapability } from '../services/stock/IStockDataAdapter';
 import { ButtonGroup } from '../components/ui/ButtonGroup';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { clearAllState } from '../utils/storage';
 
 interface SettingsViewProps {
-  lang: LangKey;
-  setLang: (lang: LangKey) => void;
   marketMode: MarketMode;
   setMarketMode: (mode: MarketMode) => void;
   stockAdapterId: string;
@@ -29,16 +26,26 @@ const STOCK_ADAPTERS_BASE = [
   { value: 'baostock',  labelEN: 'BaoStock',   labelCN: 'BaoStock', activeColor: 'text-green-400' },
 ];
 
-export const SettingsView = ({ lang, setLang, marketMode, setMarketMode, stockAdapterId, setStockAdapter, colorScheme, setColorScheme, multiAdapter, setMultiAdapter, capMap, setCapMap }: SettingsViewProps) => {
+export const SettingsView = ({ marketMode, setMarketMode, stockAdapterId, setStockAdapter, colorScheme, setColorScheme, multiAdapter, setMultiAdapter, capMap, setCapMap }: SettingsViewProps) => {
+  const { t, i18n } = useTranslation();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-
-  const t = (key: ResourceKey): string => RESOURCES[lang][key];
 
   const STOCK_ADAPTERS = STOCK_ADAPTERS_BASE.map((a) => ({
     value: a.value,
-    label: lang === 'CN' ? a.labelCN : a.labelEN,
+    label: i18n.language === 'cn' ? a.labelCN : a.labelEN,
     activeColor: a.activeColor,
   }));
+
+  const currentLang = i18n.language === 'cn' ? 'CN' : 'EN';
+
+  const handleLanguageChange = useCallback((nextLang: 'EN' | 'CN') => {
+    void i18n.changeLanguage(nextLang === 'CN' ? 'cn' : 'en');
+    try {
+      localStorage.setItem('qcp:lang', JSON.stringify(nextLang));
+    } catch {
+      // Ignore persistence failures.
+    }
+  }, [i18n]);
 
   const CAPABILITY_LABELS: Record<AdapterCapability, string> = {
     realtime: t('CAP_REALTIME'),
@@ -72,8 +79,8 @@ export const SettingsView = ({ lang, setLang, marketMode, setMarketMode, stockAd
                 { value: 'EN', label: 'EN' },
                 { value: 'CN', label: '中文' },
               ]}
-              value={lang}
-              onChange={setLang}
+              value={currentLang}
+              onChange={handleLanguageChange}
               size="sm"
             />
           </div>

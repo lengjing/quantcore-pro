@@ -13,6 +13,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ResponsiveContainer,
   LineChart,
@@ -30,8 +31,6 @@ import { ExternalLink, BookmarkPlus, BarChart2, TrendingUp, Loader, Trash2 } fro
 import type { CandleData, MarketMode, ColorScheme } from '../types';
 import type { Timeframe } from '../types';
 import type { SectorStats } from '../data/sectors';
-import type { LangKey, ResourceKey } from '../constants/resources';
-import { RESOURCES } from '../constants/resources';
 import { useColors } from '../hooks/useColors';
 import { fetchKlines } from '../services/crypto/binanceRestService';
 import { fetchStockKlines } from '../services/stock/stockDataService';
@@ -49,7 +48,6 @@ interface SectorDetailPanelProps {
   onAddToWatchlist?: (symbol: string) => void;
   onDeleteCustom?: (id: string) => void;
   colorScheme: ColorScheme;
-  lang: LangKey;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -112,10 +110,9 @@ export const SectorDetailPanel: React.FC<SectorDetailPanelProps> = ({
   onAddToWatchlist,
   onDeleteCustom,
   colorScheme,
-  lang,
 }) => {
+  const { t, i18n } = useTranslation();
   const colors = useColors(colorScheme);
-  const t = (key: ResourceKey): string => RESOURCES[lang][key];
   const [timeframe, setTimeframe] = useState<Timeframe>('1D');
   const [chartType, setChartType] = useState<DetailChartType>('RELATIVE');
   const [candleMap, setCandleMap] = useState<Record<string, { time: string; pct: number }[]>>({});

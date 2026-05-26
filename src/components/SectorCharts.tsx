@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   BarChart,
   Bar,
@@ -15,8 +16,6 @@ import {
 } from 'recharts';
 import type { SectorStats, SectorSnapshot } from '../data/sectors';
 import type { ColorScheme } from '../types';
-import type { LangKey, ResourceKey } from '../constants/resources';
-import { RESOURCES } from '../constants/resources';
 import { useColors } from '../hooks/useColors';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -30,7 +29,6 @@ interface SectorChartsProps {
   selectedSectorId: string | null;
   onSelectSector: (id: string | null) => void;
   colorScheme: ColorScheme;
-  lang: LangKey;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -83,16 +81,14 @@ const SectorBarChart = ({
   selectedSectorId,
   onSelectSector,
   colorScheme,
-  lang,
 }: {
   stats: SectorStats[];
   selectedSectorId: string | null;
   onSelectSector: (id: string | null) => void;
   colorScheme: ColorScheme;
-  lang: LangKey;
 }) => {
+  const { t, i18n } = useTranslation();
   const colors = useColors(colorScheme);
-  const t = (key: ResourceKey): string => RESOURCES[lang][key];
   const data = useMemo(
     () =>
       [...stats]
@@ -199,16 +195,14 @@ const SectorHeatmap = ({
   selectedSectorId,
   onSelectSector,
   colorScheme,
-  lang,
 }: {
   stats: SectorStats[];
   selectedSectorId: string | null;
   onSelectSector: (id: string | null) => void;
   colorScheme: ColorScheme;
-  lang: LangKey;
 }) => {
+  const { t, i18n } = useTranslation();
   const colors = useColors(colorScheme);
-  const t = (key: ResourceKey): string => RESOURCES[lang][key];
   const totalVol = useMemo(() => stats.reduce((s, x) => s + x.totalVolume, 0), [stats]);
 
   if (stats.length === 0) {
@@ -281,17 +275,15 @@ const SectorLineChart = ({
   selectedSectorId,
   onSelectSector,
   colorScheme,
-  lang,
 }: {
   stats: SectorStats[];
   snapshots: SectorSnapshot[];
   selectedSectorId: string | null;
   onSelectSector: (id: string | null) => void;
   colorScheme: ColorScheme;
-  lang: LangKey;
 }) => {
+  const { t, i18n } = useTranslation();
   const colors = useColors(colorScheme);
-  const t = (key: ResourceKey): string => RESOURCES[lang][key];
   const { lineData, sectorDefs } = useMemo(() => {
     const defs = stats.map((s) => ({ id: s.def.id, name: s.def.name, color: s.def.color }));
 
@@ -408,7 +400,6 @@ export const SectorCharts = ({
   selectedSectorId,
   onSelectSector,
   colorScheme,
-  lang,
 }: SectorChartsProps) => {
   if (chartType === 'BAR') {
     return (
@@ -417,7 +408,6 @@ export const SectorCharts = ({
         selectedSectorId={selectedSectorId}
         onSelectSector={onSelectSector}
         colorScheme={colorScheme}
-        lang={lang}
       />
     );
   }
@@ -429,7 +419,6 @@ export const SectorCharts = ({
         selectedSectorId={selectedSectorId}
         onSelectSector={onSelectSector}
         colorScheme={colorScheme}
-        lang={lang}
       />
     );
   }
@@ -441,7 +430,6 @@ export const SectorCharts = ({
       selectedSectorId={selectedSectorId}
       onSelectSector={onSelectSector}
       colorScheme={colorScheme}
-      lang={lang}
     />
   );
 };

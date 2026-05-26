@@ -6,11 +6,10 @@
  */
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ExternalLink, BookmarkPlus, Loader } from 'lucide-react';
 import type { BoardItem, BoardStock } from '../services/stock/sectorBoardService';
 import type { ColorScheme } from '../types';
-import type { LangKey, ResourceKey } from '../constants/resources';
-import { RESOURCES } from '../constants/resources';
 import { useColors } from '../hooks/useColors';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -22,10 +21,10 @@ const fmtVol = (v: number): string => {
   return v.toFixed(0);
 };
 
-const fmtCNY = (v: number, lang: LangKey): string => {
+const fmtCNY = (v: number, t: (key: string) => string): string => {
   const abs = Math.abs(v);
-  const yi = RESOURCES[lang].FMT_YI;
-  const wan = RESOURCES[lang].FMT_WAN;
+  const yi = t('FMT_YI');
+  const wan = t('FMT_WAN');
   if (abs >= 1e8) return `${(v / 1e8).toFixed(2)}${yi}`;
   if (abs >= 1e4) return `${(v / 1e4).toFixed(0)}${wan}`;
   return v.toFixed(0);
@@ -41,7 +40,6 @@ interface BoardDetailPanelProps {
   onGoToSymbol: (symbol: string) => void;
   onAddToWatchlist?: (symbol: string) => void;
   colorScheme: ColorScheme;
-  lang: LangKey;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -54,10 +52,9 @@ export const BoardDetailPanel: React.FC<BoardDetailPanelProps> = ({
   onGoToSymbol,
   onAddToWatchlist,
   colorScheme,
-  lang,
 }) => {
+  const { t, i18n } = useTranslation();
   const colors = useColors(colorScheme);
-  const t = (key: ResourceKey): string => RESOURCES[lang][key];
   const isUp = board.changePercent >= 0;
 
   return (
@@ -83,7 +80,7 @@ export const BoardDetailPanel: React.FC<BoardDetailPanelProps> = ({
         <span className={colors.downClass}>{board.declining}↓</span>
         <span className="text-gray-600">|</span>
         <span className={`${board.mainNetInflow > 0 ? colors.upClass : board.mainNetInflow < 0 ? colors.downClass : 'text-gray-500'}`}>
-          {t('MAIN_INFLOW')} {board.mainNetInflow > 0 ? '+' : ''}{fmtCNY(board.mainNetInflow, lang)}
+          {t('MAIN_INFLOW')} {board.mainNetInflow > 0 ? '+' : ''}{fmtCNY(board.mainNetInflow, t)}
         </span>
         <span className="text-gray-600">|</span>
         <span className="text-gray-500">{t('TURNOVER')} {board.turnoverRate.toFixed(2)}%</span>

@@ -27,3 +27,6 @@ release/
 dist-electron/
 package-lock.json
 python_dist/
+
+# Local env overrides
+.env.local

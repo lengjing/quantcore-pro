@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Loader2, ExternalLink } from 'lucide-react';
 import type { NewsItem } from '../types';
-import type { ResourceKey } from '../constants/resources';
 import { Panel } from '../components/ui/Panel';
 import { fetchMarketNews } from '../services/ai/geminiService';
 
-interface NewsViewProps {
-  t: (key: ResourceKey) => string;
-}
+interface NewsViewProps {}
 
-export const NewsView = ({ t }: NewsViewProps) => {
+export const NewsView = (_props: NewsViewProps) => {
+  const { t } = useTranslation();
   const [news, setNews] = useState<NewsItem[]>([]);
   const [isNewsLoading, setIsNewsLoading] = useState(false);
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
