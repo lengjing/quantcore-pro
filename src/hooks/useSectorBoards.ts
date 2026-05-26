@@ -31,7 +31,7 @@ export function useSectorBoards() {
   const fetchBoards = useCallback(async (cat: BoardCategory = category) => {
     setIsLoading(true);
     try {
-      const result = await sectorBoardService.fetchBoards(cat, 1, 80);
+      const result = await sectorBoardService.fetchBoards(cat, 1, 200);
       if (mountedRef.current) {
         setBoards(result.boards);
         boardsRef.current = result.boards;

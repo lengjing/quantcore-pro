@@ -16,6 +16,7 @@ import type { MarketTicker, MarketMode, ViewState as ViewStateType, ColorScheme 
 import { ViewState } from '../types';
 import { Panel } from '../components/ui/Panel';
 import { Modal } from '../components/ui/Modal';
+import { ButtonGroup } from '../components/ui/ButtonGroup';
 import {
   CRYPTO_SECTORS,
   CN_SECTORS,
@@ -377,20 +378,15 @@ export const MarketView = ({
         tools={
           <div className="flex items-center gap-0.5 mr-1 flex-wrap">
             {/* Main tab toggle */}
-            {(['SECTORS', 'BOARDS'] as MainTab[]).map((mt) => (
-              <button
-                key={mt}
-                onClick={() => setMainTab(mt)}
-                className={[
-                  'text-[9px] font-mono font-bold px-2 py-0.5 uppercase tracking-wider transition-colors',
-                  mainTab === mt
-                    ? 'bg-terminal-accent text-black'
-                    : 'text-gray-500 hover:text-gray-200 border border-transparent hover:border-[#333]',
-                ].join(' ')}
-              >
-                {mt === 'SECTORS' ? t('TAB_SECTORS') : t('TAB_BOARDS')}
-              </button>
-            ))}
+            <ButtonGroup
+              options={[
+                { value: 'SECTORS' as MainTab, label: t('TAB_SECTORS') },
+                { value: 'BOARDS' as MainTab, label: t('TAB_BOARDS') },
+              ]}
+              value={mainTab}
+              onChange={setMainTab}
+              size="xs"
+            />
 
             <div className="h-3 w-px bg-[#333] mx-0.5" />
 
@@ -398,28 +394,16 @@ export const MarketView = ({
             {mainTab === 'SECTORS' && (
               <>
                 {/* Chart type toggle */}
-                <div className="flex items-center gap-0.5">
-                  {([
-                    { type: 'BAR' as SectorChartType, icon: BarChart2, label: 'BAR' },
-                    { type: 'HEATMAP' as SectorChartType, icon: Grid, label: 'HEAT' },
-                    { type: 'LINE' as SectorChartType, icon: LineIcon, label: 'LINE' },
-                  ] as { type: SectorChartType; icon: React.ElementType; label: string }[]).map(({ type, icon: Icon, label }) => (
-                    <button
-                      key={type}
-                      onClick={() => setSectorChartType(type)}
-                      title={label}
-                      className={[
-                        'flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 uppercase tracking-wider transition-colors',
-                        sectorChartType === type
-                          ? 'bg-terminal-accent text-black'
-                          : 'text-gray-500 hover:text-gray-200 border border-transparent hover:border-[#333]',
-                      ].join(' ')}
-                    >
-                      <Icon size={8} />
-                      {label}
-                    </button>
-                  ))}
-                </div>
+                <ButtonGroup
+                  options={[
+                    { value: 'BAR' as SectorChartType, label: 'BAR', icon: <BarChart2 size={8} /> },
+                    { value: 'HEATMAP' as SectorChartType, label: 'HEAT', icon: <Grid size={8} /> },
+                    { value: 'LINE' as SectorChartType, label: 'LINE', icon: <LineIcon size={8} /> },
+                  ]}
+                  value={sectorChartType}
+                  onChange={setSectorChartType}
+                  size="xs"
+                />
 
                 {snapshots.length > 0 && (
                   <>
@@ -460,63 +444,39 @@ export const MarketView = ({
             {mainTab === 'BOARDS' && (
               <>
                 {/* Board category toggle */}
-                {(['concept', 'industry'] as BoardCategory[]).map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => sectorBoards.switchCategory(cat)}
-                    className={[
-                      'text-[9px] font-mono font-bold px-2 py-0.5 uppercase tracking-wider transition-colors',
-                      sectorBoards.category === cat
-                        ? 'bg-terminal-accent text-black'
-                        : 'text-gray-500 hover:text-gray-200 border border-transparent hover:border-[#333]',
-                    ].join(' ')}
-                  >
-                    {cat === 'concept' ? t('BOARD_CONCEPT') : t('BOARD_INDUSTRY')}
-                  </button>
-                ))}
+                <ButtonGroup
+                  options={[
+                    { value: 'concept' as BoardCategory, label: t('BOARD_CONCEPT') },
+                    { value: 'industry' as BoardCategory, label: t('BOARD_INDUSTRY') },
+                  ]}
+                  value={sectorBoards.category}
+                  onChange={(cat: BoardCategory) => sectorBoards.switchCategory(cat)}
+                  size="xs"
+                />
                 <div className="h-3 w-px bg-[#333] mx-0.5" />
                 {/* Board chart type toggle */}
-                <div className="flex items-center gap-0.5">
-                  {([
-                    { type: 'BAR' as BoardChartType, icon: BarChart2, label: 'BAR' },
-                    { type: 'HEATMAP' as BoardChartType, icon: Grid, label: 'HEAT' },
-                    { type: 'LINE' as BoardChartType, icon: LineIcon, label: 'LINE' },
-                  ] as { type: BoardChartType; icon: React.ElementType; label: string }[]).map(({ type, icon: Icon, label }) => (
-                    <button
-                      key={type}
-                      onClick={() => setBoardChartType(type)}
-                      title={label}
-                      className={[
-                        'flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 uppercase tracking-wider transition-colors',
-                        boardChartType === type
-                          ? 'bg-terminal-accent text-black'
-                          : 'text-gray-500 hover:text-gray-200 border border-transparent hover:border-[#333]',
-                      ].join(' ')}
-                    >
-                      <Icon size={8} />
-                      {label}
-                    </button>
-                  ))}
-                </div>
+                <ButtonGroup
+                  options={[
+                    { value: 'BAR' as BoardChartType, label: 'BAR', icon: <BarChart2 size={8} /> },
+                    { value: 'HEATMAP' as BoardChartType, label: 'HEAT', icon: <Grid size={8} /> },
+                    { value: 'LINE' as BoardChartType, label: 'LINE', icon: <LineIcon size={8} /> },
+                  ]}
+                  value={boardChartType}
+                  onChange={setBoardChartType}
+                  size="xs"
+                />
                 <div className="h-3 w-px bg-[#333] mx-0.5" />
                 {/* Timeline selector */}
-                <div className="flex items-center gap-0.5">
-                  <Clock size={8} className="text-gray-600" />
-                  {TIMELINE_OPTIONS.map((tl) => (
-                    <button
-                      key={tl}
-                      onClick={() => setBoardTimeline(tl)}
-                      className={[
-                        'text-[9px] font-mono font-bold px-1.5 py-0.5 transition-colors',
-                        boardTimeline === tl
-                          ? 'text-terminal-accent font-bold'
-                          : 'text-gray-600 hover:text-gray-300',
-                      ].join(' ')}
-                    >
-                      {t(TIMELINE_RESOURCE_KEYS[tl])}
-                    </button>
-                  ))}
-                </div>
+                <ButtonGroup
+                  options={TIMELINE_OPTIONS.map((tl) => ({
+                    value: tl,
+                    label: t(TIMELINE_RESOURCE_KEYS[tl]),
+                  }))}
+                  value={boardTimeline}
+                  onChange={setBoardTimeline}
+                  variant="ghost"
+                  size="xs"
+                />
                 <div className="h-3 w-px bg-[#333] mx-0.5" />
                 <button
                   onClick={() => { if (!sectorBoards.isLoading) sectorBoards.refreshBoards(); }}

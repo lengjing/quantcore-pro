@@ -54,7 +54,7 @@ import { clearAllState } from './utils/storage';
 import type { CustomSectorDef } from './data/sectors';
 
 // i18n types
-import type { LangKey } from './constants/resources';
+import type { LangKey } from './i18n';
 
 import type { Timeframe } from './types';
 
