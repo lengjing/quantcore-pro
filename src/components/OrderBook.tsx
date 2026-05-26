@@ -1,14 +1,13 @@
 import React, { useMemo } from 'react';
-import type { ResourceKey } from '../constants/resources';
+import { useTranslation } from 'react-i18next';
 
 interface OrderBookProps {
   bids: { price: number; size: number }[];
   asks: { price: number; size: number }[];
-  t?: (key: ResourceKey) => string;
 }
 
-const OrderBook: React.FC<OrderBookProps> = ({ bids, asks, t: tProp }) => {
-  const t = tProp ?? ((key: string) => key);
+const OrderBook: React.FC<OrderBookProps> = ({ bids, asks }) => {
+  const { t } = useTranslation();
   const maxVolume = useMemo(() => {
     const allSizes = [...bids.map((b) => b.size), ...asks.map((a) => a.size)];
     return allSizes.length > 0 ? Math.max(...allSizes) : 1;

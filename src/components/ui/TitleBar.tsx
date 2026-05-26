@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Minus, Square, X, ChevronDown } from 'lucide-react';
-import type { ResourceKey } from '../../constants/resources';
-
-interface TitleBarProps {
-  t: (key: ResourceKey) => string;
-}
+import { useTranslation } from 'react-i18next';
+import { Minus, Square, X } from 'lucide-react';
+import logoImg from '../../../public/logo.png';
 
 /* ── Menu Data Structure ────────────────────────────────────────────────── */
 
@@ -23,41 +20,41 @@ interface MenuDef {
 
 const isElectronEnv = typeof window !== 'undefined' && !!window.electron;
 
-const buildMenus = (): MenuDef[] => {
+const buildMenus = (t: (key: string) => string): MenuDef[] => {
   const e = window.electron;
   return [
     {
-      label: 'File',
+      label: t('MENU_FILE'),
       items: [
-        { label: 'Reload', shortcut: 'Ctrl+R', action: () => e?.reload() },
-        { label: 'Force Reload', shortcut: 'Ctrl+Shift+R', action: () => e?.forceReload() },
+        { label: t('MENU_RELOAD'), shortcut: 'Ctrl+R', action: () => e?.reload() },
+        { label: t('MENU_FORCE_RELOAD'), shortcut: 'Ctrl+Shift+R', action: () => e?.forceReload() },
         { label: '', separator: true },
-        { label: 'Exit', shortcut: 'Alt+F4', action: () => e?.windowClose() },
+        { label: t('MENU_EXIT'), shortcut: 'Alt+F4', action: () => e?.windowClose() },
       ],
     },
     {
-      label: 'View',
+      label: t('MENU_VIEW'),
       items: [
-        { label: 'Toggle Full Screen', shortcut: 'F11', action: () => e?.toggleFullscreen() },
+        { label: t('MENU_TOGGLE_FULLSCREEN'), shortcut: 'F11', action: () => e?.toggleFullscreen() },
         { label: '', separator: true },
-        { label: 'Zoom In', shortcut: 'Ctrl++', action: () => e?.zoomIn() },
-        { label: 'Zoom Out', shortcut: 'Ctrl+-', action: () => e?.zoomOut() },
-        { label: 'Reset Zoom', shortcut: 'Ctrl+0', action: () => e?.zoomReset() },
+        { label: t('MENU_ZOOM_IN'), shortcut: 'Ctrl++', action: () => e?.zoomIn() },
+        { label: t('MENU_ZOOM_OUT'), shortcut: 'Ctrl+-', action: () => e?.zoomOut() },
+        { label: t('MENU_RESET_ZOOM'), shortcut: 'Ctrl+0', action: () => e?.zoomReset() },
         { label: '', separator: true },
-        { label: 'Toggle Developer Tools', shortcut: 'Ctrl+Shift+I', action: () => e?.openDevTools() },
+        { label: t('MENU_TOGGLE_DEVTOOLS'), shortcut: 'Ctrl+Shift+I', action: () => e?.openDevTools() },
       ],
     },
     {
-      label: 'Help',
+      label: t('MENU_HELP'),
       items: [
-        { label: 'Check for Updates…', action: () => e?.checkForUpdates() },
+        { label: t('MENU_CHECK_UPDATES'), action: () => e?.checkForUpdates() },
         { label: '', separator: true },
-        { label: 'Documentation', action: () => e?.openExternal('https://github.com/lengjing/quantcore-pro') },
-        { label: 'Report Issue', action: () => e?.openExternal('https://github.com/lengjing/quantcore-pro/issues') },
+        { label: t('MENU_DOCUMENTATION'), action: () => e?.openExternal('https://github.com/lengjing/quantcore-pro') },
+        { label: t('MENU_REPORT_ISSUE'), action: () => e?.openExternal('https://github.com/lengjing/quantcore-pro/issues') },
         { label: '', separator: true },
-        { label: 'About QuantCore Pro', action: () => {
+        { label: t('MENU_ABOUT'), action: () => {
           e?.showAbout();
-        }},
+        } },
       ],
     },
   ];
@@ -86,20 +83,20 @@ const MenuDropdown = ({
         onClick={() => (isOpen ? onClose() : onOpen())}
         onMouseEnter={onHover}
         className={[
-          'px-2.5 py-1 text-[11px] font-sans transition-colors',
+          'px-2 h-full text-[12px] font-sans transition-colors leading-[30px]',
           isOpen
-            ? 'bg-[#333] text-white'
-            : 'text-gray-400 hover:text-white hover:bg-[#222]',
+            ? 'bg-[#2d2d2d] text-white'
+            : 'text-[#cccccc] hover:bg-[#2d2d2d] hover:text-white',
         ].join(' ')}
       >
         {menu.label}
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-px min-w-[220px] bg-[#1e1e1e] border border-[#444] shadow-xl z-[9999] py-1">
+        <div className="absolute top-full left-0 min-w-0 w-max bg-[#252526] border border-[#454545] shadow-[0_2px_8px_rgba(0,0,0,0.5)] z-[9999] py-1 rounded-[3px]">
           {menu.items.map((item, i) =>
             item.separator ? (
-              <div key={i} className="h-px bg-[#444] my-1 mx-2" />
+              <div key={i} className="h-px bg-[#454545] my-1" />
             ) : (
               <button
                 key={i}
@@ -108,11 +105,11 @@ const MenuDropdown = ({
                   onClose();
                 }}
                 disabled={item.disabled}
-                className="w-full text-left px-3 py-1.5 text-[11px] text-gray-300 hover:bg-[#094771] hover:text-white flex justify-between items-center disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full text-left px-3 py-[3px] text-[12px] text-[#cccccc] hover:bg-[#094771] hover:text-white flex items-center justify-between gap-8 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
               >
                 <span>{item.label}</span>
                 {item.shortcut && (
-                  <span className="text-[10px] text-gray-500 ml-6">{item.shortcut}</span>
+                  <span className="text-[11px] text-[#888] ml-4">{item.shortcut}</span>
                 )}
               </button>
             ),
@@ -123,23 +120,15 @@ const MenuDropdown = ({
   );
 };
 
-/**
- * Custom titlebar component for Electron (replaces the default frame).
- *
- * Includes a professional menu bar (File, View, Help) with dropdown menus,
- * auto-update integration, and window controls.
- *
- * When running in a regular browser (no `window.electron`), the
- * component renders nothing.
- */
-export const TitleBar = ({ t }: TitleBarProps) => {
+export const TitleBar = () => {
+  const { t } = useTranslation();
   const [openMenuIdx, setOpenMenuIdx] = useState<number | null>(null);
   const [anyMenuOpened, setAnyMenuOpened] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
 
   if (!isElectronEnv) return null;
 
-  const menus = buildMenus();
+  const menus = buildMenus(t);
 
   const handleMinimize = () => window.electron?.windowMinimize();
   const handleMaximize = () => window.electron?.windowMaximize();
@@ -150,13 +139,13 @@ export const TitleBar = ({ t }: TitleBarProps) => {
     setAnyMenuOpened(false);
   }, []);
 
-  // Close menus on outside click
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (barRef.current && !barRef.current.contains(e.target as Node)) {
         closeMenus();
       }
     };
+
     if (openMenuIdx !== null) {
       document.addEventListener('mousedown', handleClick);
       return () => document.removeEventListener('mousedown', handleClick);
@@ -164,75 +153,73 @@ export const TitleBar = ({ t }: TitleBarProps) => {
   }, [openMenuIdx, closeMenus]);
 
   return (
-    <div
-      className="h-8 flex items-center justify-between bg-[#0a0a0a] border-b border-terminal-border select-none shrink-0"
-      style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
-    >
-      {/* Left — logo + menus */}
+    <div className="shrink-0">
       <div
-        ref={barRef}
-        className="flex items-center h-full"
-        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+        className="h-[30px] flex items-center justify-between bg-[#3c3c3c] select-none"
+        style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
-        <div className="flex items-center gap-2 pl-3 pr-2">
-          <img src="/logo.png" alt="logo" className="w-4 h-4" />
-        </div>
+        <div
+          ref={barRef}
+          className="flex items-center h-full"
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+        >
+          <div className="flex items-center justify-center w-[35px] h-full">
+            <img src={logoImg} alt="logo" className="w-4 h-4" />
+          </div>
 
-        {/* Menu bar */}
-        <div className="flex items-center h-full">
-          {menus.map((menu, i) => (
-            <MenuDropdown
-              key={menu.label}
-              menu={menu}
-              isOpen={openMenuIdx === i}
-              onOpen={() => {
-                setOpenMenuIdx(i);
-                setAnyMenuOpened(true);
-              }}
-              onClose={closeMenus}
-              onHover={() => {
-                if (anyMenuOpened && openMenuIdx !== null) {
+          <div className="flex items-center h-full">
+            {menus.map((menu, i) => (
+              <MenuDropdown
+                key={menu.label}
+                menu={menu}
+                isOpen={openMenuIdx === i}
+                onOpen={() => {
                   setOpenMenuIdx(i);
-                }
-              }}
-            />
-          ))}
+                  setAnyMenuOpened(true);
+                }}
+                onClose={closeMenus}
+                onHover={() => {
+                  if (anyMenuOpened && openMenuIdx !== null) {
+                    setOpenMenuIdx(i);
+                  }
+                }}
+              />
+            ))}
+          </div>
         </div>
-      </div>
 
-      {/* Center — title */}
-      <div className="absolute left-1/2 -translate-x-1/2 pointer-events-none">
-        <span className="text-[10px] font-mono font-bold text-gray-500 tracking-widest uppercase">
-          {t('TITLEBAR_TITLE')}
-        </span>
-      </div>
+        <div className="absolute left-1/2 -translate-x-1/2 pointer-events-none">
+          <span className="text-[11px] font-sans text-[#cccccc]">
+            {t('TITLEBAR_TITLE')}
+          </span>
+        </div>
 
-      {/* Right — window controls */}
-      <div
-        className="flex items-center h-full"
-        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-      >
-        <button
-          onClick={handleMinimize}
-          className="h-full px-3 text-gray-500 hover:text-white hover:bg-[#333] transition-colors"
-          aria-label="Minimize"
+        <div
+          className="flex items-center h-full"
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
         >
-          <Minus size={12} />
-        </button>
-        <button
-          onClick={handleMaximize}
-          className="h-full px-3 text-gray-500 hover:text-white hover:bg-[#333] transition-colors"
-          aria-label="Maximize"
-        >
-          <Square size={10} />
-        </button>
-        <button
-          onClick={handleClose}
-          className="h-full px-3 text-gray-500 hover:text-white hover:bg-red-700 transition-colors"
-          aria-label="Close"
-        >
-          <X size={12} />
-        </button>
+          <button
+            onClick={handleMinimize}
+            className="w-[46px] h-full flex items-center justify-center text-[#cccccc] hover:bg-[#505050] transition-colors"
+            aria-label="Minimize"
+          >
+            <Minus size={14} />
+          </button>
+          <button
+            onClick={handleMaximize}
+            className="w-[46px] h-full flex items-center justify-center text-[#cccccc] hover:bg-[#505050] transition-colors"
+            aria-label="Maximize"
+          >
+            <Square size={10} />
+          </button>
+          <button
+            onClick={handleClose}
+            className="w-[46px] h-full flex items-center justify-center text-[#cccccc] hover:bg-[#e81123] transition-colors"
+            aria-label="Close"
+          >
+            <X size={14} />
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   TrendingUp,
   TrendingDown,
@@ -13,8 +14,6 @@ import {
 } from 'lucide-react';
 import type { MarketTicker, MarketMode, ViewState as ViewStateType, ColorScheme } from '../types';
 import { ViewState } from '../types';
-import type { LangKey, ResourceKey } from '../constants/resources';
-import { RESOURCES } from '../constants/resources';
 import { Panel } from '../components/ui/Panel';
 import { Modal } from '../components/ui/Modal';
 import {
@@ -49,7 +48,6 @@ interface MarketViewProps {
   onRefresh?: () => void;
   customSectors: CustomSectorDef[];
   setCustomSectors: (fn: (prev: CustomSectorDef[]) => CustomSectorDef[]) => void;
-  lang: LangKey;
   colorScheme: ColorScheme;
 }
 
@@ -81,7 +79,7 @@ const TIMELINE_MS: Record<BoardTimeline, number> = {
   'ALL': Infinity,
 };
 
-const TIMELINE_RESOURCE_KEYS: Record<BoardTimeline, ResourceKey> = {
+const TIMELINE_RESOURCE_KEYS: Record<BoardTimeline, string> = {
   '1D': 'TIMELINE_1D',
   '3D': 'TIMELINE_3D',
   '1W': 'TIMELINE_1W',
@@ -99,11 +97,10 @@ export const MarketView = ({
   onRefresh,
   customSectors,
   setCustomSectors,
-  lang,
   colorScheme,
 }: MarketViewProps) => {
+  const { t, i18n } = useTranslation();
   const [mainTab, setMainTab] = useState<MainTab>('SECTORS');
-  const t = (key: ResourceKey): string => RESOURCES[lang][key];
   const colors = useColors(colorScheme);
 
   // ── Sectors state ──────────────────────────────────────────────────────────
@@ -553,7 +550,6 @@ export const MarketView = ({
                   selectedSectorId={selectedSectorId}
                   onSelectSector={setSelectedSectorId}
                   colorScheme={colorScheme}
-                  lang={lang}
                 />
               </div>
             </div>
@@ -569,7 +565,6 @@ export const MarketView = ({
                 onAddToWatchlist={addToWatchlist}
                 onDeleteCustom={handleDeleteCustomSector}
                 colorScheme={colorScheme}
-                lang={lang}
               />
             )}
           </div>
@@ -598,7 +593,6 @@ export const MarketView = ({
                     selectedBoardCode={sectorBoards.selectedBoard?.code ?? null}
                     onSelectBoard={handleBoardChartSelect}
                     colorScheme={colorScheme}
-                    lang={lang}
                   />
                 </div>
               )}
@@ -614,7 +608,6 @@ export const MarketView = ({
                 onGoToSymbol={goToSymbol}
                 onAddToWatchlist={addToWatchlist}
                 colorScheme={colorScheme}
-                lang={lang}
               />
             )}
           </div>

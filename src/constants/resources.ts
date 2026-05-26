@@ -103,6 +103,7 @@ export const RESOURCES = {
     RESET_MSG: 'Reset all settings and data to factory defaults? This action cannot be undone.',
     RESET_ALL: 'RESET ALL',
     CONFIGURATION: 'Configuration',
+    SETUP_VERSION: 'Version',
     // Board timeline
     TIMELINE_1D: '1D',
     TIMELINE_3D: '3D',
@@ -202,6 +203,8 @@ export const RESOURCES = {
     HELP: 'HELP',
     MENU: 'MENU',
     CONNECTED: 'CNNCTD',
+    CONNECTING: 'CNNCTNG',
+    DISCONNECTED: 'DISCNCTD',
     LIVE_SWITCH_HINT: 'Click to switch to Paper mode',
     PAPER_SWITCH_HINT: 'Switch to Live trading (real funds)',
     // App
@@ -228,6 +231,30 @@ export const RESOURCES = {
     REFRESHING: 'REFRESHING…',
     // Titlebar
     TITLEBAR_TITLE: 'QuantCore Pro',
+    // Titlebar menus
+    MENU_FILE: 'File',
+    MENU_VIEW: 'View',
+    MENU_HELP: 'Help',
+    MENU_RELOAD: 'Reload',
+    MENU_FORCE_RELOAD: 'Force Reload',
+    MENU_EXIT: 'Exit',
+    MENU_TOGGLE_FULLSCREEN: 'Toggle Full Screen',
+    MENU_ZOOM_IN: 'Zoom In',
+    MENU_ZOOM_OUT: 'Zoom Out',
+    MENU_RESET_ZOOM: 'Reset Zoom',
+    MENU_TOGGLE_DEVTOOLS: 'Toggle Developer Tools',
+    MENU_CHECK_UPDATES: 'Check for Updates…',
+    MENU_DOCUMENTATION: 'Documentation',
+    MENU_REPORT_ISSUE: 'Report Issue',
+    MENU_ABOUT: 'About QuantCore Pro',
+    // Update notifications
+    UPDATE_CHECKING: 'Checking for updates…',
+    UPDATE_AVAILABLE: 'A new version is available. Downloading…',
+    UPDATE_NOT_AVAILABLE: 'You are using the latest version.',
+    UPDATE_DOWNLOADING: 'Downloading update…',
+    UPDATE_READY: 'Update downloaded — restart to install',
+    UPDATE_RESTART: 'Restart to Update',
+    UPDATE_ERROR: 'Update check failed',
   },
   CN: {
     NAV_DASHBOARD: '实盘监控 [F1]',
@@ -333,6 +360,7 @@ export const RESOURCES = {
     RESET_MSG: '将重置所有设置和数据为出厂默认值，此操作不可撤销。',
     RESET_ALL: '全部重置',
     CONFIGURATION: '系统配置',
+    SETUP_VERSION: '版本',
     // Board timeline
     TIMELINE_1D: '1天',
     TIMELINE_3D: '3天',
@@ -432,6 +460,8 @@ export const RESOURCES = {
     HELP: '帮助',
     MENU: '菜单',
     CONNECTED: '已连接',
+    CONNECTING: '连接中',
+    DISCONNECTED: '已断开',
     LIVE_SWITCH_HINT: '点击切换到模拟交易',
     PAPER_SWITCH_HINT: '切换到实盘交易（真实资金）',
     // App
@@ -458,6 +488,30 @@ export const RESOURCES = {
     REFRESHING: '刷新中…',
     // Titlebar
     TITLEBAR_TITLE: 'QuantCore Pro',
+    // Titlebar menus
+    MENU_FILE: '文件',
+    MENU_VIEW: '视图',
+    MENU_HELP: '帮助',
+    MENU_RELOAD: '重新加载',
+    MENU_FORCE_RELOAD: '强制重新加载',
+    MENU_EXIT: '退出',
+    MENU_TOGGLE_FULLSCREEN: '切换全屏',
+    MENU_ZOOM_IN: '放大',
+    MENU_ZOOM_OUT: '缩小',
+    MENU_RESET_ZOOM: '重置缩放',
+    MENU_TOGGLE_DEVTOOLS: '切换开发者工具',
+    MENU_CHECK_UPDATES: '检查更新…',
+    MENU_DOCUMENTATION: '文档',
+    MENU_REPORT_ISSUE: '报告问题',
+    MENU_ABOUT: '关于 QuantCore Pro',
+    // Update notifications
+    UPDATE_CHECKING: '正在检查更新…',
+    UPDATE_AVAILABLE: '发现新版本，正在下载…',
+    UPDATE_NOT_AVAILABLE: '当前已是最新版本。',
+    UPDATE_DOWNLOADING: '正在下载更新…',
+    UPDATE_READY: '更新已下载 — 重启以安装',
+    UPDATE_RESTART: '重启以更新',
+    UPDATE_ERROR: '检查更新失败',
   },
 } as const;
 

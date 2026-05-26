@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { MoreVertical, Maximize2, Minimize2, RefreshCcw, Loader } from 'lucide-react';
-import type { ResourceKey } from '../../constants/resources';
 
 interface PanelProps {
   title: string;
@@ -9,10 +9,10 @@ interface PanelProps {
   tools?: React.ReactNode;
   onRefresh?: () => void;
   onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
-  t?: (key: ResourceKey) => string;
 }
 
-export const Panel = ({ title, children, className = '', tools, onRefresh, onScroll, t }: PanelProps) => {
+export const Panel = ({ title, children, className = '', tools, onRefresh, onScroll }: PanelProps) => {
+  const { t } = useTranslation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -32,7 +32,7 @@ export const Panel = ({ title, children, className = '', tools, onRefresh, onScr
     }
   }, [onRefresh]);
 
-  const label = (en: string, key?: ResourceKey) => (t && key ? t(key) : en);
+  const label = (en: string, key?: string) => (key ? t(key) : en);
 
   const containerClass = isMaximized
     ? 'fixed inset-2 z-40 bg-terminal-bg border border-terminal-accent'

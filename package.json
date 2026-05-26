@@ -14,9 +14,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "electron:dev": "concurrently \"cross-env BROWSER=none pnpm run dev\" \"wait-on http://localhost:5173 && pnpm exec tsc -p electron/tsconfig.json && electron .\"",
-    "electron:build": "pnpm exec tsc -p electron/tsconfig.json && vite build && electron-builder",
-    "compile:python": "pyinstaller --onefile --distpath python_dist python/main.py"
+    "electron:dev": "concurrently \"cross-env BROWSER=none pnpm run dev\" \"pnpm exec tsc -p electron/tsconfig.json && electron .\"",
+    "electron:build": "pnpm exec tsc -p electron/tsconfig.json && vite build && electron-builder"
   },
   "build": {
     "appId": "com.quantcore.pro",
@@ -28,15 +27,6 @@
     "directories": {
       "output": "release"
     },
-    "extraResources": [
-      {
-        "from": "python_dist",
-        "to": "python_dist",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ],
     "publish": {
       "provider": "generic",
       "url": "https://pub-8a0bf3b6674f429abf20220dbbd6acc7.r2.dev"
@@ -64,11 +54,14 @@
   "dependencies": {
     "@google/genai": "^2.5.0",
     "@monaco-editor/react": "^4.7.0",
+    "dotenv": "^17.4.2",
     "electron-updater": "^6.8.3",
+    "i18next": "^26.2.0",
     "lightweight-charts": "5.2.0",
     "lucide-react": "^1.16.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-i18next": "^17.0.8",
     "react-is": "^19.2.0",
     "recharts": "^3.8.1",
     "socket.io-client": "^4.8.3"
@@ -83,7 +76,6 @@
     "electron": "^42.2.0",
     "electron-builder": "^26.8.1",
     "typescript": "~6.0.3",
-    "vite": "^8.0.13",
-    "wait-on": "^9.0.10"
+    "vite": "^8.0.13"
   }
 }

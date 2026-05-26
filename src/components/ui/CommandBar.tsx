@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, forwardRef } from 'react';
-import { Wifi, AlertTriangle, ChevronDown } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Wifi, WifiOff, AlertTriangle, ChevronDown, Loader2 } from 'lucide-react';
 import type { MarketMode, TradingMode } from '../../types';
-import type { ResourceKey } from '../../constants/resources';
+import type { ConnectionStatus } from '../../hooks/useMarketData';
 
 /**
  * Combined data-source value that encodes both market mode and adapter
@@ -32,7 +33,7 @@ interface CommandBarProps {
   setStockAdapter: (id: string) => void;
   tradingMode: TradingMode;
   setTradingMode: (mode: TradingMode) => void;
-  t: (key: ResourceKey) => string;
+  connectionStatus: ConnectionStatus;
 }
 
 const Clock = () => {
@@ -58,10 +59,12 @@ export const CommandBar = forwardRef<HTMLInputElement, CommandBarProps>(
       setStockAdapter,
       tradingMode,
       setTradingMode,
-      t,
+      connectionStatus,
     },
     ref,
   ) => {
+    const { t } = useTranslation();
+
     // Derive the combined dropdown value from the two separate state pieces.
     const dataSource: DataSource =
       marketMode === 'CRYPTO' ? 'crypto-binance' : (`stock-${stockAdapterId}` as DataSource);
@@ -181,9 +184,21 @@ export const CommandBar = forwardRef<HTMLInputElement, CommandBarProps>(
 
         {/* Connection status + clock */}
         <div className="flex items-center gap-3 text-[10px] font-mono text-gray-400 shrink-0">
-          <span className="flex items-center text-terminal-success">
-            <Wifi size={10} className="mr-1" /> {t('CONNECTED')}
-          </span>
+          {connectionStatus === 'connected' && (
+            <span className="flex items-center text-terminal-success">
+              <Wifi size={10} className="mr-1" /> {t('CONNECTED')}
+            </span>
+          )}
+          {connectionStatus === 'connecting' && (
+            <span className="flex items-center text-yellow-400">
+              <Loader2 size={10} className="mr-1 animate-spin" /> {t('CONNECTING')}
+            </span>
+          )}
+          {connectionStatus === 'disconnected' && (
+            <span className="flex items-center text-terminal-error">
+              <WifiOff size={10} className="mr-1" /> {t('DISCONNECTED')}
+            </span>
+          )}
           <Clock />
         </div>
       </div>

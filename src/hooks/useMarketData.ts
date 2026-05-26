@@ -12,6 +12,8 @@ const STOCK_CANDLE_POLL_MS = 5000;
 const WS_RECONNECT_DELAY_MS = 3000;
 const WS_MAX_RECONNECTS = 10;
 
+export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
+
 export function useMarketData(
   activeSymbol: string,
   marketMode: MarketMode,
@@ -24,6 +26,8 @@ export function useMarketData(
   const [depth, setDepth] = useState<{ bids: any[]; asks: any[] }>({ bids: [], asks: [] });
   const [trades, setTrades] = useState<Trade[]>([]);
   const [isScannerLoading, setIsScannerLoading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
+  const [latencyMs, setLatencyMs] = useState<number | null>(null);
 
   const prevTickersRef = useRef<Record<string, number>>({});
   const reconnectCountRef = useRef(0);
@@ -51,32 +55,41 @@ export function useMarketData(
   // Fetch tickers + update depth for stock mode
   const updateMarketData = useCallback(async () => {
     setIsScannerLoading(true);
-    const tickers: MarketTicker[] =
-      marketMode === 'CRYPTO' ? await fetchTopTickers() : await fetchStockTickers();
+    const fetchStart = performance.now();
+    try {
+      const tickers: MarketTicker[] =
+        marketMode === 'CRYPTO' ? await fetchTopTickers() : await fetchStockTickers();
+      const elapsed = Math.round(performance.now() - fetchStart);
+      setLatencyMs(elapsed);
 
-    if (tickers.length > 0) {
-      setMarketTickers(() => {
-        return tickers.map((t) => {
-          const prevPrice = prevTickersRef.current[t.symbol];
-          let lastTickDir: 'UP' | 'DOWN' | 'NONE' = 'NONE';
-          if (prevPrice != null) {
-            if (t.price > prevPrice) lastTickDir = 'UP';
-            else if (t.price < prevPrice) lastTickDir = 'DOWN';
-          }
-          prevTickersRef.current[t.symbol] = t.price;
-          return { ...t, lastTickDir };
-        });
-      });
-
-      if (marketMode === 'CN_STOCK') {
-        const currentTicker = tickers.find((t) => t.symbol === activeSymbol);
-        if (currentTicker?.bid && currentTicker?.ask) {
-          setDepth({
-            bids: [{ price: currentTicker.bid, size: currentTicker.bidSize ?? 100 }],
-            asks: [{ price: currentTicker.ask, size: currentTicker.askSize ?? 100 }],
+      if (tickers.length > 0) {
+        setConnectionStatus('connected');
+        setMarketTickers(() => {
+          return tickers.map((t) => {
+            const prevPrice = prevTickersRef.current[t.symbol];
+            let lastTickDir: 'UP' | 'DOWN' | 'NONE' = 'NONE';
+            if (prevPrice != null) {
+              if (t.price > prevPrice) lastTickDir = 'UP';
+              else if (t.price < prevPrice) lastTickDir = 'DOWN';
+            }
+            prevTickersRef.current[t.symbol] = t.price;
+            return { ...t, lastTickDir };
           });
+        });
+
+        if (marketMode === 'CN_STOCK') {
+          const currentTicker = tickers.find((t) => t.symbol === activeSymbol);
+          if (currentTicker?.bid && currentTicker?.ask) {
+            setDepth({
+              bids: [{ price: currentTicker.bid, size: currentTicker.bidSize ?? 100 }],
+              asks: [{ price: currentTicker.ask, size: currentTicker.askSize ?? 100 }],
+            });
+          }
         }
       }
+    } catch (err) {
+      console.warn('Market data fetch failed:', err);
+      setConnectionStatus('disconnected');
     }
     setIsScannerLoading(false);
   }, [marketMode, activeSymbol]);
@@ -91,9 +104,13 @@ export function useMarketData(
 
     const startWs = () => {
       if (stopped) return;
+      setConnectionStatus('connecting');
 
       wsCleanupFn = connectWebSocket(activeSymbol, timeframe, {
-        trade: (trade) => setTrades((prev) => [trade, ...prev].slice(0, 100)),
+        trade: (trade) => {
+          setConnectionStatus('connected');
+          setTrades((prev) => [trade, ...prev].slice(0, 100));
+        },
         depth: (bids, asks) => {
           setDepth({ bids: bids.slice(0, 20), asks: asks.slice(0, 20) });
         },
@@ -102,6 +119,7 @@ export function useMarketData(
         },
         onClose: () => {
           if (stopped) return;
+          setConnectionStatus('disconnected');
           if (reconnectCountRef.current < WS_MAX_RECONNECTS) {
             reconnectCountRef.current += 1;
             reconnectTimerRef.current = setTimeout(startWs, WS_RECONNECT_DELAY_MS);
@@ -172,5 +190,5 @@ export function useMarketData(
     updateMarketData();
   }, [marketMode, stockAdapterId]);
 
-  return { marketTickers, candles, liveCandle, depth, trades, isScannerLoading, updateMarketData };
+  return { marketTickers, candles, liveCandle, depth, trades, isScannerLoading, updateMarketData, connectionStatus, latencyMs };
 }

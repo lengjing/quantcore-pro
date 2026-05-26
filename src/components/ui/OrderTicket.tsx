@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import type { ResourceKey } from '../../constants/resources';
+import { useTranslation } from 'react-i18next';
 
 interface OrderTicketProps {
   symbol: string;
   price?: number;
   onTrade: (side: 'BUY' | 'SELL', qty: string, limitPrice: string | null) => void;
-  t: (key: ResourceKey) => string;
 }
 
-export const OrderTicket = ({ symbol, price, onTrade, t }: OrderTicketProps) => {
+export const OrderTicket = ({ symbol, price, onTrade }: OrderTicketProps) => {
+  const { t } = useTranslation();
   const [side, setSide] = useState<'BUY' | 'SELL'>('BUY');
   const [type, setType] = useState<'LIMIT' | 'MARKET'>('LIMIT');
   const [qty, setQty] = useState('0');

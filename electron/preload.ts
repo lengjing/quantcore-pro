@@ -1,15 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electron', {
-    onPythonData: (callback: (data: string) => void) => {
-        ipcRenderer.on('python-data', (_event, data) => callback(data));
-    },
-    onPythonError: (callback: (data: string) => void) => {
-        ipcRenderer.on('python-error', (_event, data) => callback(data));
-    },
-    sendToPython: (data: string) => {
-        ipcRenderer.send('to-python', data);
-    },
     // Window controls for custom titlebar
     windowMinimize: () => ipcRenderer.send('window-minimize'),
     windowMaximize: () => ipcRenderer.send('window-maximize'),
@@ -27,8 +18,7 @@ contextBridge.exposeInMainWorld('electron', {
     openExternal: (url: string) => ipcRenderer.send('menu-open-external', url),
     getVersion: () => ipcRenderer.invoke('app-get-version'),
     showAbout: () => ipcRenderer.send('menu-show-about'),
-    // Update events
-    onUpdateStatus: (callback: (data: { status: string; info?: any }) => void) => {
-        ipcRenderer.on('update-status', (_event, data) => callback(data));
-    },
+    restartToUpdate: () => ipcRenderer.send('menu-restart-to-update'),
+    // System metrics
+    getSystemMetrics: () => ipcRenderer.invoke('get-system-metrics'),
 });

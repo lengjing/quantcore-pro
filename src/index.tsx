@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import './i18n';
 import App from './App';
 
 // Suppress benign ResizeObserver errors common with Recharts/Monaco in complex layouts

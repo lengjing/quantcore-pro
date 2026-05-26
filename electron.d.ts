@@ -2,9 +2,6 @@
 declare global {
     interface Window {
         electron?: {
-            onPythonData: (callback: (data: string) => void) => void;
-            onPythonError: (callback: (data: string) => void) => void;
-            sendToPython: (data: string) => void;
             // Window controls for custom titlebar
             windowMinimize: () => void;
             windowMaximize: () => void;
@@ -22,8 +19,9 @@ declare global {
             openExternal: (url: string) => void;
             getVersion: () => Promise<string>;
             showAbout: () => void;
-            // Update events
-            onUpdateStatus: (callback: (data: { status: string; info?: any }) => void) => void;
+            restartToUpdate: () => void;
+            // System metrics
+            getSystemMetrics: () => Promise<{ memMB: number; cpuPercent: number }>;
         };
     }
 }
