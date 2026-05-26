@@ -1,7 +1,7 @@
 {
   "name": "quantcore-pro",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "QuantCore Pro — quantitative trading terminal",
   "author": "QuantCore",
   "main": "dist-electron/main.js",
