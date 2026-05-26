@@ -226,7 +226,7 @@ export const TitleBar = ({ t }: TitleBarProps) => {
           <div className="flex items-center h-full">
             {menus.map((menu, i) => (
               <MenuDropdown
-                key={i}
+                key={menu.label}
                 menu={menu}
                 isOpen={openMenuIdx === i}
                 onOpen={() => {

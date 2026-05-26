@@ -157,10 +157,11 @@ ipcMain.handle('window-is-maximized', () => mainWindow?.isMaximized() ?? false);
 
 // ── Menu action IPC handlers ────────────────────────────────────────────────
 ipcMain.on('menu-check-updates', () => {
+    sendUpdateStatus('checking');
     if (isDev) {
-        sendUpdateStatus('not-available');
+        // In dev mode, simulate a quick check and report no updates
+        setTimeout(() => sendUpdateStatus('not-available'), 1000);
     } else {
-        sendUpdateStatus('checking');
         autoUpdater.checkForUpdatesAndNotify();
     }
 });
