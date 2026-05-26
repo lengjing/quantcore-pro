@@ -22,6 +22,7 @@ declare global {
             openExternal: (url: string) => void;
             getVersion: () => Promise<string>;
             showAbout: () => void;
+            restartToUpdate: () => void;
             // Update events
             onUpdateStatus: (callback: (data: { status: string; info?: any }) => void) => void;
         };

@@ -158,16 +158,14 @@ ipcMain.handle('window-is-maximized', () => mainWindow?.isMaximized() ?? false);
 // ── Menu action IPC handlers ────────────────────────────────────────────────
 ipcMain.on('menu-check-updates', () => {
     if (isDev) {
-        if (!mainWindow) return;
-        dialog.showMessageBox(mainWindow, {
-            type: 'info',
-            title: 'Update Check',
-            message: 'Update checking is disabled in development mode.',
-        });
+        sendUpdateStatus('not-available');
     } else {
         sendUpdateStatus('checking');
         autoUpdater.checkForUpdatesAndNotify();
     }
+});
+ipcMain.on('menu-restart-to-update', () => {
+    autoUpdater.quitAndInstall();
 });
 ipcMain.on('menu-open-devtools', () => mainWindow?.webContents.toggleDevTools());
 ipcMain.on('menu-reload', () => mainWindow?.reload());

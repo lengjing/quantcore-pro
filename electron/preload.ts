@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('electron', {
     openExternal: (url: string) => ipcRenderer.send('menu-open-external', url),
     getVersion: () => ipcRenderer.invoke('app-get-version'),
     showAbout: () => ipcRenderer.send('menu-show-about'),
+    restartToUpdate: () => ipcRenderer.send('menu-restart-to-update'),
     // Update events
     onUpdateStatus: (callback: (data: { status: string; info?: any }) => void) => {
         ipcRenderer.on('update-status', (_event, data) => callback(data));

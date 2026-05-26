@@ -49,6 +49,9 @@ import StrategyEditor from './components/StrategyEditor';
 // Utilities
 import { clearAllState } from './utils/storage';
 
+// Assets
+import logoImg from '../public/logo.png';
+
 // Sectors
 import type { CustomSectorDef } from './data/sectors';
 
@@ -178,7 +181,7 @@ const App = () => {
 
       {/* Sidebar Navigation */}
       <div className="w-10 flex flex-col items-center py-2 bg-[#0a0a0a] border-r border-terminal-border z-20 shrink-0">
-        <div className="mb-4"><img src="/logo.png" alt="QuantCore Pro" className="w-6 h-6" /></div>
+        <div className="mb-4"><img src={logoImg} alt="QuantCore Pro" className="w-6 h-6" /></div>
         <div className="flex flex-col space-y-1 w-full px-1">
           <NavIcon icon={LayoutDashboard} active={view === ViewState.DASHBOARD} onClick={() => setView(ViewState.DASHBOARD)} tooltip={t('NAV_DASHBOARD')} />
           <NavIcon icon={LineChart} active={view === ViewState.MARKET} onClick={() => setView(ViewState.MARKET)} tooltip={t('NAV_MARKET')} />
