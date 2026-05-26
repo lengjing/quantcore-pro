@@ -14,7 +14,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "electron:dev": "concurrently \"cross-env BROWSER=none pnpm run dev\" \"wait-on http://localhost:${VITE_DEV_PORT:-5173} && pnpm exec tsc -p electron/tsconfig.json && electron .\"",
+    "electron:dev": "concurrently \"cross-env BROWSER=none pnpm run dev\" \"pnpm exec tsc -p electron/tsconfig.json && electron .\"",
     "electron:build": "pnpm exec tsc -p electron/tsconfig.json && vite build && electron-builder"
   },
   "build": {
@@ -54,6 +54,7 @@
   "dependencies": {
     "@google/genai": "^2.5.0",
     "@monaco-editor/react": "^4.7.0",
+    "dotenv": "^17.4.2",
     "electron-updater": "^6.8.3",
     "i18next": "^26.2.0",
     "lightweight-charts": "5.2.0",
@@ -75,7 +76,6 @@
     "electron": "^42.2.0",
     "electron-builder": "^26.8.1",
     "typescript": "~6.0.3",
-    "vite": "^8.0.13",
-    "wait-on": "^9.0.10"
+    "vite": "^8.0.13"
   }
 }

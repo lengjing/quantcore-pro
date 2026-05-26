@@ -3,20 +3,11 @@ import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const isDev = !app.isPackaged;
-
-// Read port from .env file (VITE_DEV_PORT), fallback to 5173
-function readDevPort(): string {
-    try {
-        const envPath = path.join(__dirname, '..', '.env');
-        const content = fs.readFileSync(envPath, 'utf-8');
-        const match = content.match(/^VITE_DEV_PORT\s*=\s*(\d+)/m);
-        if (match) return match[1];
-    } catch { /* ignore */ }
-    return '5173';
-}
-const DEV_PORT = readDevPort();
+const DEV_PORT = process.env.VITE_DEV_PORT || '5173';
 
 // Read publish URL from package.json to keep a single source of truth
 function readPublishUrl(): string {

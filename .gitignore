@@ -25,7 +25,6 @@ dist-ssr
 
 release/
 dist-electron/
-package-lock.json
 python_dist/
 
 # Local env overrides
