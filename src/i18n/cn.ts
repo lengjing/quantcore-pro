@@ -288,6 +288,33 @@ const cn: Record<keyof typeof en, string> = {
   STRATEGY_BACKTEST: "回测",
   STRATEGY_DEBUG: "调试",
 
+  // Strategy file management
+  STRATEGY_NEW_FILE: "新建文件",
+  STRATEGY_NEW_FOLDER: "新建文件夹",
+  STRATEGY_RENAME: "重命名",
+  STRATEGY_DELETE: "删除",
+  STRATEGY_REFRESH: "刷新",
+  STRATEGY_EXECUTING: "执行中…",
+  STRATEGY_EXECUTION_COMPLETE: "执行完成",
+  STRATEGY_EXECUTION_FAILED: "执行失败",
+  STRATEGY_FILE_SAVED: "文件已保存",
+  STRATEGY_FOLDER_PLACEHOLDER: "文件夹名称",
+  STRATEGY_FILE_PLACEHOLDER: "文件名.py",
+
+  // BaoStock data
+  BAOSTOCK_PROFIT: "盈利能力",
+  BAOSTOCK_OPERATION: "营运能力",
+  BAOSTOCK_GROWTH: "成长能力",
+  BAOSTOCK_BALANCE: "偿债能力",
+  BAOSTOCK_CASH_FLOW: "现金流量",
+  BAOSTOCK_DUPONT: "杜邦分析",
+  BAOSTOCK_STOCK_BASIC: "证券资料",
+  BAOSTOCK_TRADE_DATES: "交易日历",
+  BAOSTOCK_ALL_STOCKS: "全部证券",
+  BAOSTOCK_INDEX_SZ50: "上证50",
+  BAOSTOCK_INDEX_HS300: "沪深300",
+  BAOSTOCK_INDEX_ZZ500: "中证500",
+
   // AI page redesign
   AI_TITLE: "AI 助手",
   AI_CLAUDE_CODE_HINT: "Claude Code 集成即将推出",

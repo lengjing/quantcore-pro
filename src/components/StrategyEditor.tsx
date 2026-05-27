@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Play, Save, Bot, Loader2, Bug, Square, Folder, File, Plus, Trash2, ChevronRight, ChevronDown, Terminal, Server, Package, Zap, StopCircle, Activity, RefreshCw } from 'lucide-react';
+import { Play, Save, Bot, Loader2, Bug, Square, Folder, File, Plus, Trash2, ChevronRight, ChevronDown, Terminal, Server, Package, Zap, StopCircle, Activity, RefreshCw, Edit3, FolderPlus } from 'lucide-react';
 import Editor, { loader } from '@monaco-editor/react';
 import { generateStrategyCode } from '../services/ai/geminiService';
 import { StrategyFile } from '../types';
+import { executeStrategy } from '../services/strategy/strategyFileService';
 
 interface StrategyEditorProps {
   files: StrategyFile[];
@@ -13,6 +14,7 @@ interface StrategyEditorProps {
   onUpdateFile: (name: string, content: string) => void;
   onCreateFile: (name: string) => void;
   onDeleteFile: (name: string) => void;
+  onRenameFile?: (oldName: string, newName: string) => void;
   onRun: () => void;
 }
 
@@ -31,6 +33,7 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
   onUpdateFile, 
   onCreateFile, 
   onDeleteFile,
+  onRenameFile,
   onRun 
 }) => {
   const { t } = useTranslation();
@@ -39,6 +42,11 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [newFileName, setNewFileName] = useState('');
   const [showNewFile, setShowNewFile] = useState(false);
+  const [showNewFolder, setShowNewFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [renamingFile, setRenamingFile] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 
   // Python environment state
   const [pythonStatus, setPythonStatus] = useState<PythonStatus>('disconnected');
@@ -55,6 +63,57 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
 
   // Computed
   const activeFile = files.find(f => f.name === activeFileName);
+
+  // Build folder tree from flat file list
+  const fileTree = React.useMemo(() => {
+    interface TreeNode {
+      name: string;
+      path: string;
+      type: 'file' | 'folder';
+      children: TreeNode[];
+    }
+    const root: TreeNode = { name: '', path: '', type: 'folder', children: [] };
+
+    const sortedFiles = [...files].sort((a, b) => a.name.localeCompare(b.name));
+    for (const file of sortedFiles) {
+      const parts = file.name.split('/');
+      let current = root;
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        const partPath = parts.slice(0, i + 1).join('/');
+        if (i === parts.length - 1) {
+          current.children.push({ name: part, path: file.name, type: 'file', children: [] });
+        } else {
+          let folder = current.children.find(c => c.name === part && c.type === 'folder');
+          if (!folder) {
+            folder = { name: part, path: partPath, type: 'folder', children: [] };
+            current.children.push(folder);
+          }
+          current = folder;
+        }
+      }
+    }
+
+    // Sort: folders first, then files
+    const sortTree = (node: TreeNode) => {
+      node.children.sort((a, b) => {
+        if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+      node.children.forEach(sortTree);
+    };
+    sortTree(root);
+    return root.children;
+  }, [files]);
+
+  const toggleFolder = useCallback((path: string) => {
+    setExpandedFolders(prev => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  }, []);
 
   // Check Python backend status
   useEffect(() => {
@@ -101,6 +160,22 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
      }
   };
 
+  const createNewFolder = () => {
+    if (newFolderName.trim()) {
+      onCreateFile(newFolderName.trim() + '/.gitkeep');
+      setNewFolderName('');
+      setShowNewFolder(false);
+    }
+  };
+
+  const handleRename = (fileName: string) => {
+    if (renameValue.trim() && renameValue !== fileName && onRenameFile) {
+      onRenameFile(fileName, renameValue.trim());
+    }
+    setRenamingFile(null);
+    setRenameValue('');
+  };
+
   const handleRunPython = useCallback(async () => {
     if (pythonStatus !== 'connected' || !activeFile) return;
     setIsRunning(true);
@@ -112,19 +187,20 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
     ]);
 
     try {
-      const res = await fetch(`${PYTHON_BACKEND_URL}/api/agent/backtest`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: activeFile.content, filename: activeFileName }),
-      });
-      const data = await res.json();
-      if (data.output) {
-        setConsoleOutput(prev => [...prev, ...data.output.split('\n')]);
+      const result = await executeStrategy({ code: activeFile.content });
+      if (result.stdout) {
+        setConsoleOutput(prev => [...prev, ...result.stdout.split('\n')]);
       }
-      if (data.variables) {
-        setPythonVariables(data.variables);
+      if (result.stderr) {
+        setConsoleOutput(prev => [...prev, `[ERR] ${result.stderr}`]);
       }
-      setConsoleOutput(prev => [...prev, '[SYS] Execution complete.']);
+      if (result.variables) {
+        setPythonVariables(result.variables);
+      }
+      setConsoleOutput(prev => [
+        ...prev,
+        result.success ? '[SYS] Execution complete.' : '[ERR] Execution failed.',
+      ]);
     } catch (err) {
       setConsoleOutput(prev => [
         ...prev,
@@ -146,6 +222,77 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
       ? t('STRATEGY_PYTHON_CONNECTING' as any)
       : t('STRATEGY_PYTHON_DISCONNECTED' as any);
 
+  // Render file tree recursively
+  const renderTreeNode = (node: { name: string; path: string; type: 'file' | 'folder'; children: any[] }, depth: number = 0) => {
+    if (node.type === 'folder') {
+      const isExpanded = expandedFolders.has(node.path);
+      return (
+        <div key={node.path}>
+          <div
+            className="flex items-center group px-2 py-1 cursor-pointer text-gray-400 hover:bg-[#2a2d2e]"
+            style={{ paddingLeft: `${8 + depth * 12}px` }}
+            onClick={() => toggleFolder(node.path)}
+          >
+            {isExpanded ? <ChevronDown size={12} className="mr-1" /> : <ChevronRight size={12} className="mr-1" />}
+            <Folder size={12} className="mr-2 text-yellow-500" />
+            <span className="flex-1 truncate">{node.name}</span>
+          </div>
+          {isExpanded && node.children.map((child: any) => renderTreeNode(child, depth + 1))}
+        </div>
+      );
+    }
+
+    const isActive = node.path === activeFileName;
+    const isRenaming = renamingFile === node.path;
+
+    return (
+      <div
+        key={node.path}
+        className={`flex items-center group px-2 py-1 cursor-pointer border-l-2 ${isActive ? 'bg-[#37373d] text-white border-terminal-accent' : 'text-gray-400 border-transparent hover:bg-[#2a2d2e]'}`}
+        style={{ paddingLeft: `${8 + depth * 12}px` }}
+        onClick={() => !isRenaming && onSelectFile(node.path)}
+        onDoubleClick={() => {
+          if (onRenameFile) {
+            setRenamingFile(node.path);
+            setRenameValue(node.name);
+          }
+        }}
+      >
+        <File size={12} className={`mr-2 ${node.name.endsWith('.py') ? 'text-blue-400' : node.name.endsWith('.json') ? 'text-yellow-400' : 'text-gray-400'}`} />
+        {isRenaming ? (
+          <input
+            className="bg-[#3c3c3c] border border-blue-500 text-white flex-1 px-1 outline-none text-xs"
+            value={renameValue}
+            onChange={e => setRenameValue(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleRename(node.path); if (e.key === 'Escape') { setRenamingFile(null); setRenameValue(''); } }}
+            onClick={e => e.stopPropagation()}
+            autoFocus
+          />
+        ) : (
+          <span className="flex-1 truncate">{node.name}</span>
+        )}
+        {!isRenaming && (
+          <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1">
+            {onRenameFile && (
+              <Edit3
+                size={10}
+                className="hover:text-blue-400"
+                onClick={(e) => { e.stopPropagation(); setRenamingFile(node.path); setRenameValue(node.name); }}
+              />
+            )}
+            {node.name !== 'main.py' && (
+              <Trash2
+                size={10}
+                className="hover:text-red-400"
+                onClick={(e) => { e.stopPropagation(); onDeleteFile(node.path); }}
+              />
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="flex h-full bg-[#1e1e1e] text-gray-300 font-sans text-xs">
       
@@ -154,30 +301,17 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
          {/* Explorer header */}
          <div className="p-2 text-[10px] font-bold tracking-wider text-gray-500 uppercase flex justify-between items-center">
             <span>EXPLORER</span>
-            <button onClick={() => setShowNewFile(true)} className="hover:text-white"><Plus size={12}/></button>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setShowNewFolder(true)} className="hover:text-white" title="New Folder"><FolderPlus size={12}/></button>
+              <button onClick={() => setShowNewFile(true)} className="hover:text-white" title="New File"><Plus size={12}/></button>
+            </div>
          </div>
          <div className="flex-1 overflow-y-auto">
             <div className="px-2 py-1 flex items-center text-gray-400 font-bold text-[10px]">
                <ChevronDown size={12} className="mr-1"/> QUANT-PROJECT
             </div>
             <div className="pl-2">
-               {files.map(file => (
-                  <div 
-                     key={file.name}
-                     className={`flex items-center group px-2 py-1 cursor-pointer border-l-2 ${file.name === activeFileName ? 'bg-[#37373d] text-white border-terminal-accent' : 'text-gray-400 border-transparent hover:bg-[#2a2d2e]'}`}
-                     onClick={() => onSelectFile(file.name)}
-                  >
-                     <File size={12} className={`mr-2 ${file.name.endsWith('py') ? 'text-blue-400' : file.name.endsWith('json') ? 'text-yellow-400' : 'text-gray-400'}`} />
-                     <span className="flex-1 truncate">{file.name}</span>
-                     {file.name !== 'main.py' && (
-                        <Trash2 
-                           size={12} 
-                           className="opacity-0 group-hover:opacity-100 hover:text-red-400"
-                           onClick={(e) => { e.stopPropagation(); onDeleteFile(file.name); }}
-                        />
-                     )}
-                  </div>
-               ))}
+               {fileTree.map(node => renderTreeNode(node))}
                {showNewFile && (
                   <div className="px-2 py-1 flex items-center">
                      <File size={12} className="mr-2 text-gray-500" />
@@ -188,6 +322,19 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
                         onKeyDown={e => { if(e.key === 'Enter') createNewFile(); if(e.key==='Escape') setShowNewFile(false); }}
                         autoFocus
                         placeholder="filename.py"
+                     />
+                  </div>
+               )}
+               {showNewFolder && (
+                  <div className="px-2 py-1 flex items-center">
+                     <Folder size={12} className="mr-2 text-yellow-500" />
+                     <input
+                        className="bg-[#3c3c3c] border border-blue-500 text-white w-full px-1 outline-none"
+                        value={newFolderName}
+                        onChange={e => setNewFolderName(e.target.value)}
+                        onKeyDown={e => { if(e.key === 'Enter') createNewFolder(); if(e.key==='Escape') setShowNewFolder(false); }}
+                        autoFocus
+                        placeholder="folder name"
                      />
                   </div>
                )}

@@ -105,6 +105,7 @@ const App = () => {
     handleStrategyFileUpdate,
     handleCreateFile,
     handleDeleteFile,
+    handleRenameFile,
   } = useStrategyFiles(showNotification);
   const { backtestResult, runBacktest } = useBacktest(
     candles,
@@ -281,6 +282,7 @@ const App = () => {
                 onUpdateFile={handleStrategyFileUpdate}
                 onCreateFile={handleCreateFile}
                 onDeleteFile={handleDeleteFile}
+                onRenameFile={handleRenameFile}
                 onRun={() => { setView(ViewState.BACKTEST); runBacktest(); }}
               />
             </Panel>
