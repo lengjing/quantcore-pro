@@ -329,6 +329,25 @@ def klines_minute():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
+def _parse_year_quarter(year_str: str, quarter_str: str):
+    """Parse and validate year/quarter parameters. Returns (year, quarter) or (None, None)."""
+    year = None
+    quarter = None
+    if year_str:
+        try:
+            year = int(year_str)
+        except ValueError:
+            return "invalid", "year and quarter must be numeric"
+    if quarter_str:
+        try:
+            quarter = int(quarter_str)
+            if quarter not in (1, 2, 3, 4):
+                return "invalid", "quarter must be 1, 2, 3, or 4"
+        except ValueError:
+            return "invalid", "year and quarter must be numeric"
+    return year, quarter
+
+
 @baostock_bp.route("/profit", methods=["GET"])
 def profit_data():
     """
@@ -345,12 +364,16 @@ def profit_data():
     if not symbol:
         return jsonify({"error": "symbol parameter required"}), 400
 
+    year_val, quarter_val = _parse_year_quarter(year, quarter)
+    if year_val == "invalid":
+        return jsonify({"error": quarter_val}), 400
+
     if not _ensure_login():
         return jsonify({"error": "BaoStock unavailable"}), 503
 
     bs_code = _to_bs_code(symbol)
     try:
-        rs = bs.query_profit_data(code=bs_code, year=int(year) if year else None, quarter=int(quarter) if quarter else None)
+        rs = bs.query_profit_data(code=bs_code, year=year_val, quarter=quarter_val)
         fields = rs.fields if hasattr(rs, "fields") else []
         rows = _collect_rows(rs)
         data = [dict(zip(fields, row)) for row in rows] if fields else rows
@@ -376,12 +399,16 @@ def operation_data():
     if not symbol:
         return jsonify({"error": "symbol parameter required"}), 400
 
+    year_val, quarter_val = _parse_year_quarter(year, quarter)
+    if year_val == "invalid":
+        return jsonify({"error": quarter_val}), 400
+
     if not _ensure_login():
         return jsonify({"error": "BaoStock unavailable"}), 503
 
     bs_code = _to_bs_code(symbol)
     try:
-        rs = bs.query_operation_data(code=bs_code, year=int(year) if year else None, quarter=int(quarter) if quarter else None)
+        rs = bs.query_operation_data(code=bs_code, year=year_val, quarter=quarter_val)
         fields = rs.fields if hasattr(rs, "fields") else []
         rows = _collect_rows(rs)
         data = [dict(zip(fields, row)) for row in rows] if fields else rows
@@ -407,12 +434,16 @@ def growth_data():
     if not symbol:
         return jsonify({"error": "symbol parameter required"}), 400
 
+    year_val, quarter_val = _parse_year_quarter(year, quarter)
+    if year_val == "invalid":
+        return jsonify({"error": quarter_val}), 400
+
     if not _ensure_login():
         return jsonify({"error": "BaoStock unavailable"}), 503
 
     bs_code = _to_bs_code(symbol)
     try:
-        rs = bs.query_growth_data(code=bs_code, year=int(year) if year else None, quarter=int(quarter) if quarter else None)
+        rs = bs.query_growth_data(code=bs_code, year=year_val, quarter=quarter_val)
         fields = rs.fields if hasattr(rs, "fields") else []
         rows = _collect_rows(rs)
         data = [dict(zip(fields, row)) for row in rows] if fields else rows
@@ -438,12 +469,16 @@ def balance_data():
     if not symbol:
         return jsonify({"error": "symbol parameter required"}), 400
 
+    year_val, quarter_val = _parse_year_quarter(year, quarter)
+    if year_val == "invalid":
+        return jsonify({"error": quarter_val}), 400
+
     if not _ensure_login():
         return jsonify({"error": "BaoStock unavailable"}), 503
 
     bs_code = _to_bs_code(symbol)
     try:
-        rs = bs.query_balance_data(code=bs_code, year=int(year) if year else None, quarter=int(quarter) if quarter else None)
+        rs = bs.query_balance_data(code=bs_code, year=year_val, quarter=quarter_val)
         fields = rs.fields if hasattr(rs, "fields") else []
         rows = _collect_rows(rs)
         data = [dict(zip(fields, row)) for row in rows] if fields else rows
@@ -469,12 +504,16 @@ def cash_flow_data():
     if not symbol:
         return jsonify({"error": "symbol parameter required"}), 400
 
+    year_val, quarter_val = _parse_year_quarter(year, quarter)
+    if year_val == "invalid":
+        return jsonify({"error": quarter_val}), 400
+
     if not _ensure_login():
         return jsonify({"error": "BaoStock unavailable"}), 503
 
     bs_code = _to_bs_code(symbol)
     try:
-        rs = bs.query_cash_flow_data(code=bs_code, year=int(year) if year else None, quarter=int(quarter) if quarter else None)
+        rs = bs.query_cash_flow_data(code=bs_code, year=year_val, quarter=quarter_val)
         fields = rs.fields if hasattr(rs, "fields") else []
         rows = _collect_rows(rs)
         data = [dict(zip(fields, row)) for row in rows] if fields else rows
@@ -500,12 +539,16 @@ def dupont_data():
     if not symbol:
         return jsonify({"error": "symbol parameter required"}), 400
 
+    year_val, quarter_val = _parse_year_quarter(year, quarter)
+    if year_val == "invalid":
+        return jsonify({"error": quarter_val}), 400
+
     if not _ensure_login():
         return jsonify({"error": "BaoStock unavailable"}), 503
 
     bs_code = _to_bs_code(symbol)
     try:
-        rs = bs.query_dupont_data(code=bs_code, year=int(year) if year else None, quarter=int(quarter) if quarter else None)
+        rs = bs.query_dupont_data(code=bs_code, year=year_val, quarter=quarter_val)
         fields = rs.fields if hasattr(rs, "fields") else []
         rows = _collect_rows(rs)
         data = [dict(zip(fields, row)) for row in rows] if fields else rows

@@ -33,9 +33,17 @@ export interface ExecutionResult {
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
-  const body = await res.json();
-  if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
-  return body as T;
+  if (!res.ok) {
+    let errorMsg = `HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body.error) errorMsg = body.error;
+    } catch {
+      // Response body wasn't JSON — use status text
+    }
+    throw new Error(errorMsg);
+  }
+  return (await res.json()) as T;
 }
 
 const jsonHeaders = { 'Content-Type': 'application/json' };

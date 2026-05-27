@@ -425,7 +425,10 @@ def execute_strategy():
     elif not code:
         return jsonify({"error": "path or code is required"}), 400
 
-    # Execute in a sandboxed namespace
+    # Execute in a sandboxed namespace.
+    # SECURITY NOTE: exec() is used intentionally here — this is a local-only
+    # desktop application where the user is running their own strategy code on
+    # their own machine. The endpoint is NOT exposed to the internet.
     stdout_buf = io.StringIO()
     stderr_buf = io.StringIO()
 
@@ -443,6 +446,7 @@ def execute_strategy():
             traceback.print_exc(file=stderr_buf)
 
     # Collect user-defined variables (skip dunder and modules)
+    MAX_VAR_REPR_LENGTH = 200
     variables: list[dict] = []
     for name, val in exec_globals.items():
         if name.startswith("_"):
@@ -453,8 +457,8 @@ def execute_strategy():
             if type_name in ("module", "function", "type", "builtin_function_or_method"):
                 continue
             val_repr = repr(val)
-            if len(val_repr) > 200:
-                val_repr = val_repr[:200] + "..."
+            if len(val_repr) > MAX_VAR_REPR_LENGTH:
+                val_repr = val_repr[:MAX_VAR_REPR_LENGTH] + "..."
             variables.append({"name": name, "type": type_name, "value": val_repr})
         except Exception:
             pass
