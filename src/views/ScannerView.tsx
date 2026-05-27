@@ -4,6 +4,7 @@ import { Plus, X, Play, BookmarkPlus, ExternalLink } from 'lucide-react';
 import type { MarketMode, MarketTicker } from '../types';
 import { ViewState } from '../types';
 import { Panel } from '../components/ui/Panel';
+import { Select } from '../components/ui/Select';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -222,29 +223,20 @@ export const ScannerView = ({
               conditions.map((cond) => (
                 <div key={cond.id} className="flex items-center gap-1 bg-[#111] border border-[#1e1e1e] p-1.5">
                   {/* field */}
-                  <select
+                  <Select
+                    options={FIELDS.map((f) => ({ value: f, label: t(FIELD_LABEL_KEYS[f]) }))}
                     value={cond.field}
-                    onChange={(e) => updateCondition(cond.id, { field: e.target.value as ConditionField })}
-                    className="bg-transparent text-[9px] font-mono text-terminal-accent border-none outline-none flex-1 min-w-0 cursor-pointer"
-                  >
-                    {FIELDS.map((f) => (
-                      <option key={f} value={f} className="bg-[#1a1a1a]">
-                        {t(FIELD_LABEL_KEYS[f])}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => updateCondition(cond.id, { field: v as ConditionField })}
+                    size="xs"
+                    className="flex-1 min-w-0"
+                  />
                   {/* op */}
-                  <select
+                  <Select
+                    options={OPS.map((op) => ({ value: op, label: OP_LABELS[op] }))}
                     value={cond.op}
-                    onChange={(e) => updateCondition(cond.id, { op: e.target.value as ConditionOp })}
-                    className="bg-transparent text-[9px] font-mono text-gray-300 border-none outline-none w-6 text-center cursor-pointer"
-                  >
-                    {OPS.map((op) => (
-                      <option key={op} value={op} className="bg-[#1a1a1a]">
-                        {OP_LABELS[op]}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => updateCondition(cond.id, { op: v as ConditionOp })}
+                    size="xs"
+                  />
                   {/* value */}
                   <input
                     type="number"

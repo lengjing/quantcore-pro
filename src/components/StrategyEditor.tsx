@@ -1,6 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
-import { Play, Save, Bot, Loader2, Bug, Square, Folder, File, Plus, Trash2, ChevronRight, ChevronDown, Terminal } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Play, Save, Bot, Loader2, Bug, Square, Folder, File, Plus, Trash2, ChevronRight, ChevronDown, Terminal, Server, Package, Zap, StopCircle, Activity, RefreshCw } from 'lucide-react';
 import Editor, { loader } from '@monaco-editor/react';
 import { generateStrategyCode } from '../services/ai/geminiService';
 import { StrategyFile } from '../types';
@@ -18,6 +19,9 @@ interface StrategyEditorProps {
 // Pre-configure Monaco loader to use a reliable CDN
 loader.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
 
+type PythonStatus = 'connected' | 'disconnected' | 'connecting';
+type ConsoleTab = 'output' | 'variables' | 'packages';
+
 const StrategyEditor: React.FC<StrategyEditorProps> = ({ 
   files, 
   activeFileName, 
@@ -27,20 +31,59 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
   onDeleteFile,
   onRun 
 }) => {
+  const { t } = useTranslation();
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [newFileName, setNewFileName] = useState('');
   const [showNewFile, setShowNewFile] = useState(false);
 
+  // Python environment state
+  const [pythonStatus, setPythonStatus] = useState<PythonStatus>('disconnected');
+  const [isRunning, setIsRunning] = useState(false);
+  const [consoleOutput, setConsoleOutput] = useState<string[]>([
+    '[SYS] QuantCore Strategy IDE initialized.',
+    '[SYS] Waiting for Python backend connection...',
+  ]);
+  const [consoleTab, setConsoleTab] = useState<ConsoleTab>('output');
+  const [pythonVariables, setPythonVariables] = useState<{ name: string; type: string; value: string }[]>([]);
+  const [installedPackages] = useState<string[]>(['numpy', 'pandas', 'scipy', 'matplotlib', 'ta-lib']);
+  const [newPackage, setNewPackage] = useState('');
+  const consoleEndRef = useRef<HTMLDivElement>(null);
+
   // Computed
   const activeFile = files.find(f => f.name === activeFileName);
+
+  // Check Python backend status
+  useEffect(() => {
+    const checkStatus = async () => {
+      setPythonStatus('connecting');
+      try {
+        const res = await fetch('http://localhost:5000/health');
+        if (res.ok) {
+          setPythonStatus('connected');
+          setConsoleOutput(prev => [...prev, '[SYS] Python backend connected ✓']);
+        } else {
+          setPythonStatus('disconnected');
+        }
+      } catch {
+        setPythonStatus('disconnected');
+      }
+    };
+    checkStatus();
+    const interval = setInterval(checkStatus, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Auto-scroll console
+  useEffect(() => {
+    consoleEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [consoleOutput]);
 
   const handleAiGenerate = async () => {
     if (!prompt.trim()) return;
     setIsGenerating(true);
     const generated = await generateStrategyCode(prompt);
-    // Append or replace active file content
     if (activeFile) {
        onUpdateFile(activeFileName, generated);
     }
@@ -56,11 +99,57 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
      }
   };
 
+  const handleRunPython = useCallback(async () => {
+    if (pythonStatus !== 'connected' || !activeFile) return;
+    setIsRunning(true);
+    setConsoleOutput(prev => [
+      ...prev,
+      '',
+      `[RUN] python3 ${activeFileName}`,
+      `[SYS] Executing in Python environment...`,
+    ]);
+
+    try {
+      const res = await fetch('http://localhost:5000/api/agent/backtest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: activeFile.content, filename: activeFileName }),
+      });
+      const data = await res.json();
+      if (data.output) {
+        setConsoleOutput(prev => [...prev, ...data.output.split('\n')]);
+      }
+      if (data.variables) {
+        setPythonVariables(data.variables);
+      }
+      setConsoleOutput(prev => [...prev, '[SYS] Execution complete.']);
+    } catch (err) {
+      setConsoleOutput(prev => [
+        ...prev,
+        `[ERR] ${err instanceof Error ? err.message : 'Execution failed'}`,
+      ]);
+    }
+    setIsRunning(false);
+  }, [pythonStatus, activeFile, activeFileName]);
+
+  const handleStopPython = useCallback(() => {
+    setIsRunning(false);
+    setConsoleOutput(prev => [...prev, '[SYS] Execution stopped.']);
+  }, []);
+
+  const statusColor = pythonStatus === 'connected' ? 'text-terminal-success' : pythonStatus === 'connecting' ? 'text-yellow-400' : 'text-terminal-error';
+  const statusText = pythonStatus === 'connected'
+    ? t('STRATEGY_PYTHON_CONNECTED' as any)
+    : pythonStatus === 'connecting'
+      ? t('STRATEGY_PYTHON_CONNECTING' as any)
+      : t('STRATEGY_PYTHON_DISCONNECTED' as any);
+
   return (
     <div className="flex h-full bg-[#1e1e1e] text-gray-300 font-sans text-xs">
       
-      {/* LEFT: Explorer */}
-      <div className="w-48 bg-[#252526] flex flex-col border-r border-[#333]">
+      {/* LEFT: Explorer + Python Environment */}
+      <div className="w-52 bg-[#252526] flex flex-col border-r border-[#333]">
+         {/* Explorer header */}
          <div className="p-2 text-[10px] font-bold tracking-wider text-gray-500 uppercase flex justify-between items-center">
             <span>EXPLORER</span>
             <button onClick={() => setShowNewFile(true)} className="hover:text-white"><Plus size={12}/></button>
@@ -102,6 +191,46 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
                )}
             </div>
          </div>
+
+         {/* Python Environment Panel */}
+         <div className="border-t border-[#333]">
+           <div className="p-2 text-[10px] font-bold tracking-wider text-gray-500 uppercase flex items-center gap-1.5">
+             <Server size={10} />
+             {t('STRATEGY_PYTHON_ENV' as any)}
+           </div>
+           <div className="px-2 pb-2 space-y-2">
+             {/* Status indicator */}
+             <div className="flex items-center justify-between">
+               <span className="text-[9px] text-gray-500">{t('STRATEGY_PYTHON_STATUS' as any)}</span>
+               <span className={`text-[9px] font-bold flex items-center gap-1 ${statusColor}`}>
+                 <span className={`w-1.5 h-1.5 rounded-full ${pythonStatus === 'connected' ? 'bg-terminal-success' : pythonStatus === 'connecting' ? 'bg-yellow-400 animate-pulse' : 'bg-terminal-error'}`} />
+                 {statusText}
+               </span>
+             </div>
+             {/* Quick actions */}
+             {pythonStatus === 'connected' && (
+               <div className="flex gap-1">
+                 <button
+                   onClick={isRunning ? handleStopPython : handleRunPython}
+                   className={`flex-1 flex items-center justify-center gap-1 px-2 py-1 text-[9px] font-bold uppercase rounded-sm transition-colors ${
+                     isRunning
+                       ? 'bg-red-900/40 border border-red-700/50 text-red-400 hover:bg-red-900/60'
+                       : 'bg-green-900/40 border border-green-700/50 text-green-400 hover:bg-green-900/60'
+                   }`}
+                   title={isRunning ? t('STRATEGY_STOP_PYTHON' as any) : t('STRATEGY_RUN_HINT' as any)}
+                 >
+                   {isRunning ? <Square size={8} /> : <Play size={8} />}
+                   {isRunning ? t('STRATEGY_STOP_PYTHON' as any) : t('STRATEGY_RUN_PYTHON' as any)}
+                 </button>
+               </div>
+             )}
+             {pythonStatus === 'disconnected' && (
+               <div className="text-[9px] text-gray-600 bg-[#1a1a1a] p-1.5 border border-[#333]">
+                 <code className="text-yellow-400/60">cd python && python main.py</code>
+               </div>
+             )}
+           </div>
+         </div>
       </div>
 
       {/* RIGHT: Main Editor Area */}
@@ -127,8 +256,13 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
 
          {/* Toolbar */}
          <div className="flex items-center justify-between px-2 py-1 bg-[#1e1e1e] border-b border-[#333] shrink-0">
-             <div className="flex items-center text-gray-500 text-[10px]">
+             <div className="flex items-center gap-2 text-gray-500 text-[10px]">
                 {activeFileName} &bull; {activeFile?.content.length} chars
+                {isRunning && (
+                  <span className="flex items-center gap-1 text-green-400 animate-pulse">
+                    <Activity size={9} /> {t('STRATEGY_RUN_PYTHON' as any)}...
+                  </span>
+                )}
              </div>
              <div className="flex items-center space-x-2">
                <button 
@@ -144,11 +278,20 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
                  <Save size={14} />
                </button>
                <button 
+                 onClick={handleRunPython}
+                 disabled={pythonStatus !== 'connected' || isRunning}
+                 className="flex items-center space-x-1 px-3 py-1 bg-blue-700 hover:bg-blue-600 disabled:opacity-30 disabled:cursor-not-allowed text-white text-[10px] uppercase font-bold rounded-sm transition-colors"
+                 title={t('STRATEGY_RUN_HINT' as any)}
+               >
+                 {isRunning ? <Loader2 size={10} className="animate-spin" /> : <Play size={10} />}
+                 <span>{t('STRATEGY_RUN_PYTHON' as any)}</span>
+               </button>
+               <button 
                  onClick={onRun}
                  className="flex items-center space-x-1 px-3 py-1 bg-green-700 hover:bg-green-600 text-white text-[10px] uppercase font-bold rounded-sm transition-colors"
                >
-                 <Play size={10} />
-                 <span>Run Backtest</span>
+                 <Zap size={10} />
+                 <span>{t('STRATEGY_BACKTEST' as any)}</span>
                </button>
              </div>
          </div>
@@ -189,7 +332,7 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
          <div className="flex-1 overflow-hidden relative">
             <Editor
                height="100%"
-               path={activeFileName} // Important for Monaco to treat different files as different models
+               path={activeFileName}
                language={activeFile?.language || 'python'}
                value={activeFile?.content || ''}
                onChange={(value) => onUpdateFile(activeFileName, value || '')}
@@ -207,22 +350,124 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
             />
          </div>
 
-         {/* Bottom Console */}
-         <div className="h-32 bg-[#1e1e1e] border-t border-[#333] flex flex-col">
-            <div className="flex items-center px-2 py-1 bg-[#252526] border-b border-[#333] text-[10px] text-gray-400 uppercase tracking-wider gap-2">
-               <Terminal size={10} /> Output Console
+         {/* Bottom Console with tabs */}
+         <div className="h-40 bg-[#1e1e1e] border-t border-[#333] flex flex-col">
+            <div className="flex items-center bg-[#252526] border-b border-[#333] text-[10px] text-gray-400 shrink-0">
+              <button
+                onClick={() => setConsoleTab('output')}
+                className={`flex items-center gap-1.5 px-3 py-1 uppercase tracking-wider border-b-2 transition-colors ${
+                  consoleTab === 'output' ? 'text-terminal-accent border-terminal-accent bg-[#1e1e1e]' : 'border-transparent hover:text-gray-300'
+                }`}
+              >
+                <Terminal size={10} /> {t('STRATEGY_OUTPUT' as any)}
+              </button>
+              <button
+                onClick={() => setConsoleTab('variables')}
+                className={`flex items-center gap-1.5 px-3 py-1 uppercase tracking-wider border-b-2 transition-colors ${
+                  consoleTab === 'variables' ? 'text-terminal-accent border-terminal-accent bg-[#1e1e1e]' : 'border-transparent hover:text-gray-300'
+                }`}
+              >
+                <Bug size={10} /> {t('STRATEGY_VARIABLES' as any)}
+              </button>
+              <button
+                onClick={() => setConsoleTab('packages')}
+                className={`flex items-center gap-1.5 px-3 py-1 uppercase tracking-wider border-b-2 transition-colors ${
+                  consoleTab === 'packages' ? 'text-terminal-accent border-terminal-accent bg-[#1e1e1e]' : 'border-transparent hover:text-gray-300'
+                }`}
+              >
+                <Package size={10} /> {t('STRATEGY_PACKAGES' as any)}
+              </button>
+              <div className="flex-1" />
+              <button
+                onClick={() => setConsoleOutput([])}
+                className="px-2 py-1 text-gray-600 hover:text-gray-300"
+                title="Clear"
+              >
+                <Trash2 size={9} />
+              </button>
             </div>
-            <div className="flex-1 p-2 font-mono text-[10px] text-gray-400 overflow-y-auto custom-scrollbar">
-               <div className="text-green-500">➜  quant-project git:(main) python3 {activeFileName}</div>
-               <div>[SYS] Environment initialized.</div>
-               <div>[SYS] Loading market data... OK.</div>
-               {activeFileName === 'main.py' ? (
-                  <div className="text-gray-500">Ready to execute strategy logic.</div>
-               ) : (
-                  <div className="text-gray-500">File loaded.</div>
-               )}
-               <span className="animate-pulse">_</span>
-            </div>
+
+            {/* Console content */}
+            {consoleTab === 'output' && (
+              <div className="flex-1 p-2 font-mono text-[10px] text-gray-400 overflow-y-auto custom-scrollbar">
+                {consoleOutput.map((line, i) => (
+                  <div
+                    key={i}
+                    className={
+                      line.startsWith('[ERR]') ? 'text-red-400' :
+                      line.startsWith('[SYS]') ? 'text-gray-500' :
+                      line.startsWith('[RUN]') ? 'text-green-400' :
+                      'text-gray-300'
+                    }
+                  >
+                    {line}
+                  </div>
+                ))}
+                {isRunning && <span className="text-green-400 animate-pulse">▌</span>}
+                <div ref={consoleEndRef} />
+              </div>
+            )}
+
+            {consoleTab === 'variables' && (
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
+                {pythonVariables.length > 0 ? (
+                  <table className="w-full text-[10px] font-mono">
+                    <thead className="bg-[#252526] text-gray-500 sticky top-0">
+                      <tr>
+                        <th className="px-2 py-1 text-left">Name</th>
+                        <th className="px-2 py-1 text-left">Type</th>
+                        <th className="px-2 py-1 text-left">Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pythonVariables.map((v, i) => (
+                        <tr key={i} className="border-t border-[#2a2a2a] hover:bg-[#252526]">
+                          <td className="px-2 py-1 text-terminal-accent">{v.name}</td>
+                          <td className="px-2 py-1 text-blue-400">{v.type}</td>
+                          <td className="px-2 py-1 text-gray-300 truncate max-w-[200px]">{v.value}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-600 text-[10px]">
+                    {t('STRATEGY_RUN_HINT' as any)}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {consoleTab === 'packages' && (
+              <div className="flex-1 p-2 overflow-y-auto custom-scrollbar">
+                <div className="flex gap-1 mb-2">
+                  <input
+                    type="text"
+                    value={newPackage}
+                    onChange={(e) => setNewPackage(e.target.value)}
+                    placeholder={t('STRATEGY_PKG_PLACEHOLDER' as any)}
+                    className="flex-1 bg-[#3c3c3c] border border-[#444] text-white text-[10px] px-2 py-1 focus:outline-none focus:border-terminal-accent font-mono"
+                  />
+                  <button
+                    className="px-2 py-1 bg-[#333] text-[9px] text-gray-300 hover:bg-[#444] font-bold uppercase"
+                    onClick={() => {
+                      if (newPackage.trim()) {
+                        setConsoleOutput(prev => [...prev, `[SYS] pip install ${newPackage}...`]);
+                        setNewPackage('');
+                      }
+                    }}
+                  >
+                    {t('STRATEGY_INSTALL_PKG' as any)}
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {installedPackages.map(pkg => (
+                    <span key={pkg} className="px-2 py-0.5 bg-[#2a2a2a] border border-[#3a3a3a] text-[9px] text-gray-400 font-mono">
+                      {pkg}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
          </div>
       </div>
     </div>

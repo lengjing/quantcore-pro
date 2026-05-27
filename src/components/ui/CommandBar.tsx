@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Wifi, WifiOff, AlertTriangle, ChevronDown, Loader2 } from 'lucide-react';
 import type { MarketMode, TradingMode } from '../../types';
 import type { ConnectionStatus } from '../../hooks/useMarketData';
+import { Select } from './Select';
 
 /**
  * Market mode options for the market selector.
@@ -73,36 +74,17 @@ export const CommandBar = forwardRef<HTMLInputElement, CommandBarProps>(
         <div className="h-4 w-px bg-terminal-border mx-1 shrink-0" />
 
         {/* ── Market selector ──────────────────────────────────────────── */}
-        <div className="relative shrink-0">
-          <div className="relative">
-            <select
-              value={marketMode}
-              onChange={(e) => setMarketMode(e.target.value as MarketMode)}
-              className={[
-                'appearance-none bg-[#141414] border text-[10px] font-mono font-bold',
-                'pl-2 pr-6 py-0.5 cursor-pointer focus:outline-none',
-                'transition-colors hover:border-terminal-accent',
-                marketMode === 'CRYPTO'
-                  ? 'text-blue-400 border-blue-900/60'
-                  : 'text-red-400 border-red-900/60',
-              ].join(' ')}
-              title="Select market"
-            >
-              {MARKET_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {t(opt.labelKey)}
-                </option>
-              ))}
-            </select>
-            {/* Custom chevron overlay */}
-            <ChevronDown
-              size={9}
-              className={[
-                'pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2',
-                marketMode === 'CRYPTO' ? 'text-blue-500' : 'text-red-500',
-              ].join(' ')}
-            />
-          </div>
+        <div className="shrink-0">
+          <Select
+            options={MARKET_OPTIONS.map((opt) => ({
+              value: opt.value,
+              label: t(opt.labelKey),
+              activeColor: opt.value === 'CRYPTO' ? 'text-blue-400' : 'text-red-400',
+            }))}
+            value={marketMode}
+            onChange={setMarketMode}
+            size="xs"
+          />
         </div>
 
         <div className="h-4 w-px bg-terminal-border mx-1 shrink-0" />

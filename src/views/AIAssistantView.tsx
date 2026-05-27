@@ -1,16 +1,12 @@
 /**
  * AIAssistantView
  *
- * Full-screen AI chat interface powered by Claude.
+ * Full-screen AI chat interface.
  *
- * The user can ask in natural language (Chinese or English) to:
- *   • Create custom sectors (e.g. "帮我创建一个MLCC板块")
- *   • Add stocks to their watchlist
- *   • Explore and research A-share companies
- *
- * All actions are applied directly to app state — no manual confirmation
- * needed.  The panel shows a live log of tool calls so the user can see
- * exactly what the AI is doing.
+ * Redesigned to work without a Python backend — Claude Code will be
+ * integrated as the AI engine in a future release.  The chat UI is
+ * retained for continuity, but all Python/backend-specific status
+ * checks and warnings have been removed.
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -26,13 +22,19 @@ import {
   AlertCircle,
   Trash2,
   Zap,
+  Sparkles,
+  MessageSquare,
+  Search,
+  TrendingUp,
+  Database,
+  BrainCircuit,
 } from 'lucide-react';
 
 import type { ChatMessage, AIAction, ToolUseEvent, Notification } from '../types';
 import type { CustomSectorDef } from '../data/sectors';
 import type { ResourceKey, LangKey } from '../i18n';
 import { nextCustomColor, newCustomSectorId } from '../data/sectors';
-import { sendAIMessage, fetchBackendStatus } from '../services/ai/aiChatService';
+import { sendAIMessage } from '../services/ai/aiChatService';
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -224,24 +226,9 @@ export const AIAssistantView = ({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [backendOk, setBackendOk] = useState<boolean | null>(null);
-  const [claudeOk, setClaudeOk] = useState<boolean | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  // ── Check backend on mount ───────────────────────────────────────────────
-  useEffect(() => {
-    fetchBackendStatus()
-      .then((s) => {
-        setBackendOk(true);
-        setClaudeOk(s.claude);
-      })
-      .catch(() => {
-        setBackendOk(false);
-        setClaudeOk(false);
-      });
-  }, []);
 
   // ── Auto-scroll to bottom ────────────────────────────────────────────────
   useEffect(() => {
@@ -375,33 +362,16 @@ export const AIAssistantView = ({
           <span className="text-terminal-accent font-bold text-xs tracking-widest uppercase">
             {t('AI_ASSISTANT')}
           </span>
-          <span className="text-[9px] text-gray-600 ml-1">{t('AI_POWERED_BY')}</span>
+          <span className="text-[9px] text-gray-600 ml-1 flex items-center gap-1">
+            <BrainCircuit size={9} />
+            {t('AI_POWERED_BY')}
+          </span>
         </div>
         <div className="flex items-center gap-3">
-          {/* Status indicators */}
-          <div className="flex items-center gap-1.5 text-[9px]">
-            <span
-              className={
-                backendOk === null
-                  ? 'text-gray-600'
-                  : backendOk
-                    ? 'text-terminal-success'
-                    : 'text-terminal-error'
-              }
-            >
-              ● {t('AI_BACKEND')}
-            </span>
-            <span
-              className={
-                claudeOk === null
-                  ? 'text-gray-600'
-                  : claudeOk
-                    ? 'text-terminal-success'
-                    : 'text-yellow-500'
-              }
-            >
-              ● {t('AI_CLAUDE')}
-            </span>
+          {/* Claude Code integration badge */}
+          <div className="flex items-center gap-1.5 text-[9px] text-gray-500 border border-[#222] px-2 py-0.5">
+            <Sparkles size={9} className="text-terminal-accent/60" />
+            {t('AI_CLAUDE_CODE_COMING' as any)}
           </div>
           {messages.length > 0 && (
             <button
@@ -416,44 +386,42 @@ export const AIAssistantView = ({
         </div>
       </div>
 
-      {/* ── Backend warning ─────────────────────────────────────────────── */}
-      {backendOk === false && (
-        <div className="shrink-0 flex items-center gap-2 px-3 py-2 bg-red-900/20 border-b border-red-800/40 text-[10px] text-red-400">
-          <AlertCircle size={12} />
-          <span>
-            {t('AI_BACKEND_NOT_RUNNING')}
-            <code className="ml-1 px-1 bg-red-900/30 text-red-300">cd python &amp;&amp; python main.py</code>
-          </span>
-        </div>
-      )}
-      {backendOk === true && claudeOk === false && (
-        <div className="shrink-0 flex items-center gap-2 px-3 py-2 bg-yellow-900/20 border-b border-yellow-800/40 text-[10px] text-yellow-400">
-          <AlertCircle size={12} />
-          <span>
-            {t('AI_CLAUDE_NOT_CONFIGURED')}
-            <code className="ml-1 px-1 bg-yellow-900/30 text-yellow-300">
-              export ANTHROPIC_API_KEY=your_key
-            </code>
-          </span>
-        </div>
-      )}
-
       {/* ── Messages area ───────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto custom-scrollbar px-3 py-3 space-y-3 min-h-0">
         {isEmpty && (
-          <div className="h-full flex flex-col items-center justify-center gap-4 text-center">
-            <div className="w-12 h-12 border border-terminal-accent/30 rounded-sm flex items-center justify-center">
-              <Bot size={24} className="text-terminal-accent/60" />
+          <div className="h-full flex flex-col items-center justify-center gap-5 text-center">
+            <div className="w-14 h-14 border border-terminal-accent/30 rounded-sm flex items-center justify-center bg-terminal-accent/5">
+              <Bot size={28} className="text-terminal-accent/60" />
             </div>
             <div>
               <div className="text-terminal-accent text-sm font-bold tracking-widest mb-1">
                 {t('AI_MARKET_ASSISTANT')}
               </div>
-              <div className="text-gray-600 text-[11px] max-w-xs">
+              <div className="text-gray-600 text-[11px] max-w-sm">
                 {t('AI_DESCRIPTION')}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-1.5 mt-2">
+
+            {/* Capabilities overview */}
+            <div className="grid grid-cols-3 gap-3 mt-2 max-w-md w-full">
+              <div className="border border-[#222] bg-[#0a0a0a] p-3 text-center">
+                <Search size={16} className="text-terminal-accent/60 mx-auto mb-1.5" />
+                <div className="text-[10px] text-gray-400 font-bold uppercase">{t('AI_CAP_RESEARCH' as any)}</div>
+                <div className="text-[9px] text-gray-600 mt-1">{t('AI_CAP_RESEARCH_DESC' as any)}</div>
+              </div>
+              <div className="border border-[#222] bg-[#0a0a0a] p-3 text-center">
+                <TrendingUp size={16} className="text-terminal-accent/60 mx-auto mb-1.5" />
+                <div className="text-[10px] text-gray-400 font-bold uppercase">{t('AI_CAP_ANALYSIS' as any)}</div>
+                <div className="text-[9px] text-gray-600 mt-1">{t('AI_CAP_ANALYSIS_DESC' as any)}</div>
+              </div>
+              <div className="border border-[#222] bg-[#0a0a0a] p-3 text-center">
+                <Database size={16} className="text-terminal-accent/60 mx-auto mb-1.5" />
+                <div className="text-[10px] text-gray-400 font-bold uppercase">{t('AI_CAP_MANAGE' as any)}</div>
+                <div className="text-[9px] text-gray-600 mt-1">{t('AI_CAP_MANAGE_DESC' as any)}</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-1.5 mt-2 max-w-md w-full">
               {getSuggestions(t).map((s) => (
                 <button
                   key={s}
