@@ -31,3 +31,4 @@ python_dist/
 .env.local
 
 package-lock.json
+package-lock.json

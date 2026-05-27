@@ -18,7 +18,6 @@ export function useMarketData(
   activeSymbol: string,
   marketMode: MarketMode,
   timeframe: Timeframe,
-  stockAdapterId: string,
 ) {
   const [marketTickers, setMarketTickers] = useState<MarketTicker[]>([]);
   const [candles, setCandles] = useState<CandleData[]>([]);
@@ -32,17 +31,6 @@ export function useMarketData(
   const prevTickersRef = useRef<Record<string, number>>({});
   const reconnectCountRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Apply adapter switch immediately so subsequent fetches use the new adapter.
-  useEffect(() => {
-    if (marketMode === 'CN_STOCK') {
-      try {
-        stockDataService.setActiveAdapter(stockAdapterId);
-      } catch (e) {
-        console.warn('setActiveAdapter:', e);
-      }
-    }
-  }, [stockAdapterId, marketMode]);
 
   // Reset market-specific state on mode/symbol/timeframe switch
   useEffect(() => {
@@ -168,7 +156,7 @@ export function useMarketData(
       stopped = true;
       clearInterval(interval);
     };
-  }, [activeSymbol, marketMode, timeframe, stockAdapterId]);
+  }, [activeSymbol, marketMode, timeframe]);
 
   // ── Initial history load (both modes) ────────────────────────────────────
   useEffect(() => {
@@ -183,12 +171,12 @@ export function useMarketData(
       if (marketMode === 'CN_STOCK') setTrades([]);
     };
     loadHistory();
-  }, [activeSymbol, timeframe, marketMode, stockAdapterId]);
+  }, [activeSymbol, timeframe, marketMode]);
 
   // ── Initial ticker load ───────────────────────────────────────────────────
   useEffect(() => {
     updateMarketData();
-  }, [marketMode, stockAdapterId]);
+  }, [marketMode]);
 
   return { marketTickers, candles, liveCandle, depth, trades, isScannerLoading, updateMarketData, connectionStatus, latencyMs };
 }

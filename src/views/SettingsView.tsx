@@ -9,12 +9,8 @@ import { clearAllState } from '../utils/storage';
 interface SettingsViewProps {
   marketMode: MarketMode;
   setMarketMode: (mode: MarketMode) => void;
-  stockAdapterId: string;
-  setStockAdapter: (id: string) => void;
   colorScheme: ColorScheme;
   setColorScheme: (cs: ColorScheme) => void;
-  multiAdapter: boolean;
-  setMultiAdapter: (v: boolean) => void;
   capMap: Record<string, string>;
   setCapMap: (v: Record<string, string>) => void;
 }
@@ -24,9 +20,11 @@ const STOCK_ADAPTERS_BASE = [
   { value: 'tencent',   labelEN: 'Tencent',   labelCN: '腾讯财经', activeColor: 'text-blue-400' },
   { value: 'sina',      labelEN: 'Sina',       labelCN: '新浪财经', activeColor: 'text-red-400' },
   { value: 'baostock',  labelEN: 'BaoStock',   labelCN: 'BaoStock', activeColor: 'text-green-400' },
+  { value: 'netease',   labelEN: 'NetEase',    labelCN: '网易财经', activeColor: 'text-purple-400' },
+  { value: 'yahoo',     labelEN: 'Yahoo',      labelCN: 'Yahoo财经', activeColor: 'text-indigo-400' },
 ];
 
-export const SettingsView = ({ marketMode, setMarketMode, stockAdapterId, setStockAdapter, colorScheme, setColorScheme, multiAdapter, setMultiAdapter, capMap, setCapMap }: SettingsViewProps) => {
+export const SettingsView = ({ marketMode, setMarketMode, colorScheme, setColorScheme, capMap, setCapMap }: SettingsViewProps) => {
   const { t, i18n } = useTranslation();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
@@ -52,10 +50,6 @@ export const SettingsView = ({ marketMode, setMarketMode, stockAdapterId, setSto
     dailyKlines: t('CAP_DAILY'),
     minuteKlines: t('CAP_MINUTE'),
   };
-
-  const handleToggleMultiAdapter = useCallback(() => {
-    setMultiAdapter(!multiAdapter);
-  }, [multiAdapter, setMultiAdapter]);
 
   const handleCapChange = useCallback((cap: AdapterCapability, adapterId: string) => {
     setCapMap({ ...capMap, [cap]: adapterId });
@@ -114,42 +108,12 @@ export const SettingsView = ({ marketMode, setMarketMode, stockAdapterId, setSto
             />
           </div>
 
-          {/* Single adapter selector (backward compatible) */}
-          {!multiAdapter && (
-            <div className="flex justify-between items-center">
-              <div>
-                <span className="text-gray-400 text-xs">{t('ASHARE_DATA_SOURCE')}</span>
-                <p className="text-gray-600 text-[10px] mt-0.5">{t('ASHARE_ACTIVE_HINT')}</p>
-              </div>
-              <ButtonGroup
-                options={STOCK_ADAPTERS}
-                value={stockAdapterId}
-                onChange={setStockAdapter}
-                size="sm"
-              />
-            </div>
-          )}
-
-          {/* Multi-adapter toggle */}
-          <div className="flex justify-between items-center pt-2 border-t border-[#333]">
-            <div>
-              <span className="text-gray-400 text-xs">{t('MULTI_ADAPTER_MODE')}</span>
+          {/* Per-capability adapter assignment (always shown, multi-adapter is default) */}
+          <div className="pt-2 border-t border-[#333]">
+            <div className="mb-2">
+              <span className="text-gray-400 text-xs">{t('ASHARE_DATA_SOURCE')}</span>
               <p className="text-gray-600 text-[10px] mt-0.5">{t('MULTI_ADAPTER_HINT')}</p>
             </div>
-            <button
-              onClick={handleToggleMultiAdapter}
-              className={`text-[10px] font-mono font-bold px-3 py-1 border transition-colors ${
-                multiAdapter
-                  ? 'bg-terminal-accent text-black border-terminal-accent'
-                  : 'text-gray-500 border-[#333] hover:border-[#555] hover:text-gray-300'
-              }`}
-            >
-              {multiAdapter ? 'ON' : 'OFF'}
-            </button>
-          </div>
-
-          {/* Per-capability adapter assignment */}
-          {multiAdapter && (
             <div className="space-y-2 pl-2 border-l-2 border-terminal-accent/30">
               {(Object.keys(CAPABILITY_LABELS) as AdapterCapability[]).map((cap) => (
                 <div key={cap} className="flex justify-between items-center">
@@ -163,7 +127,7 @@ export const SettingsView = ({ marketMode, setMarketMode, stockAdapterId, setSto
                 </div>
               ))}
             </div>
-          )}
+          </div>
 
           <div className="pt-4 border-t border-[#333]">
             <button

@@ -66,9 +66,7 @@ const App = () => {
   const [marketMode, setMarketMode] = usePersisted<MarketMode>('marketMode', 'CRYPTO');
   const [activeSymbol, setActiveSymbol] = usePersisted<string>('activeSymbol', 'BTC-USDT');
   const [timeframe, setTimeframe] = usePersisted<Timeframe>('timeframe', '1H');
-  const [stockAdapterId, setStockAdapterId] = usePersisted<string>('stockAdapterId', 'eastmoney');
   const [colorScheme, setColorScheme] = usePersisted<ColorScheme>('colorScheme', 'greenUp');
-  const [multiAdapter, setMultiAdapter] = usePersisted<boolean>('multiAdapter', true);
   const defaultCapMap = { realtime: 'eastmoney', dailyKlines: 'eastmoney', minuteKlines: 'eastmoney' };
   const [capMap, setCapMap] = usePersisted<Record<string, string>>('capMap', defaultCapMap);
 
@@ -90,7 +88,7 @@ const App = () => {
   const { cryptoWatchlist, stockWatchlist, currentWatchlist, addToWatchlist, removeFromWatchlist } =
     useWatchlist(marketMode, showNotification);
   const { marketTickers, candles, liveCandle, depth, trades, isScannerLoading, updateMarketData, connectionStatus, latencyMs } =
-    useMarketData(activeSymbol, marketMode, timeframe, stockAdapterId);
+    useMarketData(activeSymbol, marketMode, timeframe);
   const {
     tradingMode,
     setTradingMode,
@@ -135,11 +133,11 @@ const App = () => {
 
   // Sync multi-adapter settings with stockDataService on mount and when changed
   useEffect(() => {
-    stockDataService.setMultiAdapterMode(multiAdapter);
+    stockDataService.setMultiAdapterMode(true);
     for (const [cap, id] of Object.entries(capMap)) {
       stockDataService.setCapabilityAdapter(cap as AdapterCapability, id);
     }
-  }, [multiAdapter, capMap]);
+  }, [capMap]);
 
   // Sync active symbol when market mode changes
   useEffect(() => {
@@ -312,12 +310,8 @@ const App = () => {
             <SettingsView
               marketMode={marketMode}
               setMarketMode={setMarketMode}
-              stockAdapterId={stockAdapterId}
-              setStockAdapter={setStockAdapterId}
               colorScheme={colorScheme}
               setColorScheme={setColorScheme}
-              multiAdapter={multiAdapter}
-              setMultiAdapter={setMultiAdapter}
               capMap={capMap}
               setCapMap={setCapMap}
             />
@@ -349,7 +343,7 @@ const App = () => {
               {tradingMode === 'LIVE' ? t('LIVE_TRADING') : t('PAPER_TRADING')}
             </span>
             <span className="text-terminal-accent">
-              {marketMode === 'CRYPTO' ? 'CRYPTO' : `A-SHARE / ${stockAdapterId.toUpperCase()}`}
+              {marketMode === 'CRYPTO' ? 'CRYPTO' : `A-SHARE / ${capMap.realtime?.toUpperCase() ?? 'MULTI'}`}
             </span>
             <span>BUILD: v{__APP_VERSION__}</span>
           </div>

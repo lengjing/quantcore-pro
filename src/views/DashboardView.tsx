@@ -57,7 +57,7 @@ export const DashboardView = ({
     <div className="flex flex-col h-full gap-1">
 
       {/* ── Top section: Watchlist | Chart | OrderBook + Sales ──────── */}
-      <SplitView direction="horizontal" initialSize={240} minSize={180} minSecondSize={400} className="flex-1 min-h-0">
+      <SplitView direction="horizontal" initialSize={240} minSize={180} minSecondSize={400} persistKey="dash-main" className="flex-1 min-h-0">
         {/* Watchlist */}
         <Panel
           title={t('PNL_WATCHLIST')}
@@ -112,7 +112,7 @@ export const DashboardView = ({
         </Panel>
 
         {/* Chart + Right Panels */}
-        <SplitView direction="horizontal" minSize={300} minSecondSize={200} className="h-full">
+        <SplitView direction="horizontal" minSize={300} minSecondSize={200} persistKey="dash-chart-right" className="h-full">
           {/* Main Chart */}
           <Panel
             title={`${activeSymbol} ${marketMode === 'CN_STOCK' ? '(CNY)' : '(USDT)'}`}
@@ -130,7 +130,7 @@ export const DashboardView = ({
           </Panel>
 
           {/* Right side: Order Book + Time & Sales */}
-          <SplitView direction="vertical" minSize={100} minSecondSize={80} className="h-full">
+          <SplitView direction="vertical" minSize={100} minSecondSize={80} persistKey="dash-depth-sales" className="h-full">
             <Panel title={t('PNL_DEPTH')} className="h-full">
               <OrderBook bids={bids} asks={asks} />
             </Panel>
@@ -160,7 +160,7 @@ export const DashboardView = ({
       </SplitView>
 
       {/* ── Bottom section: Portfolio + Order Ticket ────────────────── */}
-      <SplitView direction="horizontal" minSize={300} minSecondSize={200} className="h-48 shrink-0">
+      <SplitView direction="horizontal" minSize={300} minSecondSize={200} persistKey="dash-bottom" className="h-48 shrink-0">
         {/* Portfolio */}
         <Panel title={t('PNL_PORTFOLIO')} className="h-full">
           <div className="h-full flex">
