@@ -19,6 +19,8 @@ interface StrategyEditorProps {
 // Pre-configure Monaco loader to use a reliable CDN
 loader.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
 
+const PYTHON_BACKEND_URL = 'http://localhost:5000';
+
 type PythonStatus = 'connected' | 'disconnected' | 'connecting';
 type ConsoleTab = 'output' | 'variables' | 'packages';
 
@@ -59,7 +61,7 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
     const checkStatus = async () => {
       setPythonStatus('connecting');
       try {
-        const res = await fetch('http://localhost:5000/health');
+        const res = await fetch(`${PYTHON_BACKEND_URL}/health`);
         if (res.ok) {
           setPythonStatus('connected');
           setConsoleOutput(prev => [...prev, '[SYS] Python backend connected ✓']);
@@ -110,7 +112,7 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
     ]);
 
     try {
-      const res = await fetch('http://localhost:5000/api/agent/backtest', {
+      const res = await fetch(`${PYTHON_BACKEND_URL}/api/agent/backtest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: activeFile.content, filename: activeFileName }),
