@@ -5,10 +5,26 @@ Provides REST endpoints for A-share market data via BaoStock.
 These endpoints are consumed by the TypeScript BaoStockAdapter (browser cannot
 call baostock directly — it requires this Python proxy).
 
-Endpoints:
-  GET /api/baostock/snapshot      — Latest available snapshot(s) for one or more symbols
-  GET /api/baostock/klines/daily  — Daily / weekly / monthly OHLCV klines
-  GET /api/baostock/klines/minute — Minute-level OHLCV klines (5 / 15 / 30 / 60 min)
+Endpoints — Market Data:
+  GET /api/baostock/snapshot           — Latest available snapshot(s) for one or more symbols
+  GET /api/baostock/klines/daily       — Daily / weekly / monthly OHLCV klines
+  GET /api/baostock/klines/minute      — Minute-level OHLCV klines (5 / 15 / 30 / 60 min)
+
+Endpoints — Fundamental Data:
+  GET /api/baostock/profit             — 季频盈利能力 (query_profit_data)
+  GET /api/baostock/operation          — 季频营运能力 (query_operation_data)
+  GET /api/baostock/growth             — 季频成长能力 (query_growth_data)
+  GET /api/baostock/balance            — 季频偿债能力 (query_balance_data)
+  GET /api/baostock/cash_flow          — 季频现金流量 (query_cash_flow_data)
+  GET /api/baostock/dupont             — 杜邦指数 (query_dupont_data)
+
+Endpoints — Reference Data:
+  GET /api/baostock/stock_basic        — 证券基本资料 (query_stock_basic)
+  GET /api/baostock/trade_dates        — 交易日历 (query_trade_dates)
+  GET /api/baostock/all_stocks         — 证券代码列表 (query_all_stock)
+  GET /api/baostock/index/sz50         — 上证50成分股 (query_sz50_stocks)
+  GET /api/baostock/index/hs300        — 沪深300成分股 (query_hs300_stocks)
+  GET /api/baostock/index/zz500        — 中证500成分股 (query_zz500_stocks)
 """
 
 from __future__ import annotations
@@ -46,6 +62,14 @@ def _ensure_login() -> bool:
         if not _BS_LOGGED_IN:
             logger.warning("BaoStock login failed: %s %s", lg.error_code, lg.error_msg)
     return _BS_LOGGED_IN
+
+
+def _collect_rows(rs) -> list[list[str]]:
+    """Drain a BaoStock result set into a list of row lists."""
+    rows: list[list[str]] = []
+    while rs.error_code == "0" and rs.next():
+        rows.append(rs.get_row_data())
+    return rows
 
 
 # ---------------------------------------------------------------------------
@@ -298,3 +322,387 @@ def klines_minute():
     except Exception:
         logger.exception("BaoStock minute klines error for %s", symbol)
         return jsonify({"error": "Internal error", "klines": []}), 500
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Fundamental data endpoints
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@baostock_bp.route("/profit", methods=["GET"])
+def profit_data():
+    """
+    季频盈利能力 — query_profit_data
+
+    Query params:
+      symbol — e.g. "sh600519"
+      year   — e.g. "2024"
+      quarter — "1" | "2" | "3" | "4"
+    """
+    symbol = request.args.get("symbol", "").strip()
+    year = request.args.get("year", "").strip()
+    quarter = request.args.get("quarter", "").strip()
+    if not symbol:
+        return jsonify({"error": "symbol parameter required"}), 400
+
+    if not _ensure_login():
+        return jsonify({"error": "BaoStock unavailable"}), 503
+
+    bs_code = _to_bs_code(symbol)
+    try:
+        rs = bs.query_profit_data(code=bs_code, year=int(year) if year else None, quarter=int(quarter) if quarter else None)
+        fields = rs.fields if hasattr(rs, "fields") else []
+        rows = _collect_rows(rs)
+        data = [dict(zip(fields, row)) for row in rows] if fields else rows
+        return jsonify({"data": data, "fields": fields})
+    except Exception:
+        logger.exception("BaoStock profit_data error for %s", symbol)
+        return jsonify({"error": "Internal error"}), 500
+
+
+@baostock_bp.route("/operation", methods=["GET"])
+def operation_data():
+    """
+    季频营运能力 — query_operation_data
+
+    Query params:
+      symbol — e.g. "sh600519"
+      year   — e.g. "2024"
+      quarter — "1" | "2" | "3" | "4"
+    """
+    symbol = request.args.get("symbol", "").strip()
+    year = request.args.get("year", "").strip()
+    quarter = request.args.get("quarter", "").strip()
+    if not symbol:
+        return jsonify({"error": "symbol parameter required"}), 400
+
+    if not _ensure_login():
+        return jsonify({"error": "BaoStock unavailable"}), 503
+
+    bs_code = _to_bs_code(symbol)
+    try:
+        rs = bs.query_operation_data(code=bs_code, year=int(year) if year else None, quarter=int(quarter) if quarter else None)
+        fields = rs.fields if hasattr(rs, "fields") else []
+        rows = _collect_rows(rs)
+        data = [dict(zip(fields, row)) for row in rows] if fields else rows
+        return jsonify({"data": data, "fields": fields})
+    except Exception:
+        logger.exception("BaoStock operation_data error for %s", symbol)
+        return jsonify({"error": "Internal error"}), 500
+
+
+@baostock_bp.route("/growth", methods=["GET"])
+def growth_data():
+    """
+    季频成长能力 — query_growth_data
+
+    Query params:
+      symbol — e.g. "sh600519"
+      year   — e.g. "2024"
+      quarter — "1" | "2" | "3" | "4"
+    """
+    symbol = request.args.get("symbol", "").strip()
+    year = request.args.get("year", "").strip()
+    quarter = request.args.get("quarter", "").strip()
+    if not symbol:
+        return jsonify({"error": "symbol parameter required"}), 400
+
+    if not _ensure_login():
+        return jsonify({"error": "BaoStock unavailable"}), 503
+
+    bs_code = _to_bs_code(symbol)
+    try:
+        rs = bs.query_growth_data(code=bs_code, year=int(year) if year else None, quarter=int(quarter) if quarter else None)
+        fields = rs.fields if hasattr(rs, "fields") else []
+        rows = _collect_rows(rs)
+        data = [dict(zip(fields, row)) for row in rows] if fields else rows
+        return jsonify({"data": data, "fields": fields})
+    except Exception:
+        logger.exception("BaoStock growth_data error for %s", symbol)
+        return jsonify({"error": "Internal error"}), 500
+
+
+@baostock_bp.route("/balance", methods=["GET"])
+def balance_data():
+    """
+    季频偿债能力 — query_balance_data
+
+    Query params:
+      symbol — e.g. "sh600519"
+      year   — e.g. "2024"
+      quarter — "1" | "2" | "3" | "4"
+    """
+    symbol = request.args.get("symbol", "").strip()
+    year = request.args.get("year", "").strip()
+    quarter = request.args.get("quarter", "").strip()
+    if not symbol:
+        return jsonify({"error": "symbol parameter required"}), 400
+
+    if not _ensure_login():
+        return jsonify({"error": "BaoStock unavailable"}), 503
+
+    bs_code = _to_bs_code(symbol)
+    try:
+        rs = bs.query_balance_data(code=bs_code, year=int(year) if year else None, quarter=int(quarter) if quarter else None)
+        fields = rs.fields if hasattr(rs, "fields") else []
+        rows = _collect_rows(rs)
+        data = [dict(zip(fields, row)) for row in rows] if fields else rows
+        return jsonify({"data": data, "fields": fields})
+    except Exception:
+        logger.exception("BaoStock balance_data error for %s", symbol)
+        return jsonify({"error": "Internal error"}), 500
+
+
+@baostock_bp.route("/cash_flow", methods=["GET"])
+def cash_flow_data():
+    """
+    季频现金流量 — query_cash_flow_data
+
+    Query params:
+      symbol — e.g. "sh600519"
+      year   — e.g. "2024"
+      quarter — "1" | "2" | "3" | "4"
+    """
+    symbol = request.args.get("symbol", "").strip()
+    year = request.args.get("year", "").strip()
+    quarter = request.args.get("quarter", "").strip()
+    if not symbol:
+        return jsonify({"error": "symbol parameter required"}), 400
+
+    if not _ensure_login():
+        return jsonify({"error": "BaoStock unavailable"}), 503
+
+    bs_code = _to_bs_code(symbol)
+    try:
+        rs = bs.query_cash_flow_data(code=bs_code, year=int(year) if year else None, quarter=int(quarter) if quarter else None)
+        fields = rs.fields if hasattr(rs, "fields") else []
+        rows = _collect_rows(rs)
+        data = [dict(zip(fields, row)) for row in rows] if fields else rows
+        return jsonify({"data": data, "fields": fields})
+    except Exception:
+        logger.exception("BaoStock cash_flow_data error for %s", symbol)
+        return jsonify({"error": "Internal error"}), 500
+
+
+@baostock_bp.route("/dupont", methods=["GET"])
+def dupont_data():
+    """
+    杜邦指数 — query_dupont_data
+
+    Query params:
+      symbol — e.g. "sh600519"
+      year   — e.g. "2024"
+      quarter — "1" | "2" | "3" | "4"
+    """
+    symbol = request.args.get("symbol", "").strip()
+    year = request.args.get("year", "").strip()
+    quarter = request.args.get("quarter", "").strip()
+    if not symbol:
+        return jsonify({"error": "symbol parameter required"}), 400
+
+    if not _ensure_login():
+        return jsonify({"error": "BaoStock unavailable"}), 503
+
+    bs_code = _to_bs_code(symbol)
+    try:
+        rs = bs.query_dupont_data(code=bs_code, year=int(year) if year else None, quarter=int(quarter) if quarter else None)
+        fields = rs.fields if hasattr(rs, "fields") else []
+        rows = _collect_rows(rs)
+        data = [dict(zip(fields, row)) for row in rows] if fields else rows
+        return jsonify({"data": data, "fields": fields})
+    except Exception:
+        logger.exception("BaoStock dupont_data error for %s", symbol)
+        return jsonify({"error": "Internal error"}), 500
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Reference data endpoints
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@baostock_bp.route("/stock_basic", methods=["GET"])
+def stock_basic():
+    """
+    证券基本资料 — query_stock_basic
+
+    Query params:
+      symbol — e.g. "sh600519" (optional — returns all if omitted)
+    """
+    symbol = request.args.get("symbol", "").strip()
+
+    if not _ensure_login():
+        return jsonify({"error": "BaoStock unavailable"}), 503
+
+    try:
+        kwargs: dict = {}
+        if symbol:
+            kwargs["code"] = _to_bs_code(symbol)
+        rs = bs.query_stock_basic(**kwargs)
+        fields = rs.fields if hasattr(rs, "fields") else []
+        rows = _collect_rows(rs)
+        data = [dict(zip(fields, row)) for row in rows] if fields else rows
+        return jsonify({"data": data, "fields": fields, "total": len(data)})
+    except Exception:
+        logger.exception("BaoStock stock_basic error")
+        return jsonify({"error": "Internal error"}), 500
+
+
+@baostock_bp.route("/trade_dates", methods=["GET"])
+def trade_dates():
+    """
+    交易日历 — query_trade_dates
+
+    Query params:
+      start — start date YYYY-MM-DD (default: start of current year)
+      end   — end date YYYY-MM-DD (default: today)
+    """
+    end_date = _fmt_date(request.args.get("end", "")) or datetime.now().strftime("%Y-%m-%d")
+    start_date = _fmt_date(request.args.get("start", "")) or f"{datetime.now().year}-01-01"
+
+    if not _ensure_login():
+        return jsonify({"error": "BaoStock unavailable"}), 503
+
+    try:
+        rs = bs.query_trade_dates(start_date=start_date, end_date=end_date)
+        fields = rs.fields if hasattr(rs, "fields") else []
+        rows = _collect_rows(rs)
+
+        # Return both full data and a simple list of trading dates
+        trading_dates: list[str] = []
+        all_dates: list[dict] = []
+        for row in rows:
+            entry = dict(zip(fields, row)) if fields else {"date": row[0], "is_trading_day": row[1]}
+            all_dates.append(entry)
+            # is_trading_day is "1" for trading days
+            if len(row) >= 2 and row[1] == "1":
+                trading_dates.append(row[0])
+
+        return jsonify({
+            "tradingDates": trading_dates,
+            "allDates": all_dates,
+            "total": len(trading_dates),
+        })
+    except Exception:
+        logger.exception("BaoStock trade_dates error")
+        return jsonify({"error": "Internal error"}), 500
+
+
+@baostock_bp.route("/all_stocks", methods=["GET"])
+def all_stocks():
+    """
+    证券代码列表 — query_all_stock
+
+    Query params:
+      date — date in YYYY-MM-DD format (default: today)
+    """
+    date = _fmt_date(request.args.get("date", "")) or datetime.now().strftime("%Y-%m-%d")
+
+    if not _ensure_login():
+        return jsonify({"error": "BaoStock unavailable"}), 503
+
+    try:
+        rs = bs.query_all_stock(day=date)
+        fields = rs.fields if hasattr(rs, "fields") else []
+        rows = _collect_rows(rs)
+        stocks = []
+        for row in rows:
+            entry = dict(zip(fields, row)) if fields else {}
+            # Normalize code field
+            if "code" in entry:
+                entry["symbol"] = _to_short_code(entry["code"])
+            stocks.append(entry)
+
+        return jsonify({"stocks": stocks, "total": len(stocks), "date": date})
+    except Exception:
+        logger.exception("BaoStock all_stocks error")
+        return jsonify({"error": "Internal error"}), 500
+
+
+@baostock_bp.route("/index/sz50", methods=["GET"])
+def sz50_stocks():
+    """
+    上证50成分股 — query_sz50_stocks
+
+    Query params:
+      date — date in YYYY-MM-DD format (default: today)
+    """
+    date = _fmt_date(request.args.get("date", "")) or datetime.now().strftime("%Y-%m-%d")
+
+    if not _ensure_login():
+        return jsonify({"error": "BaoStock unavailable"}), 503
+
+    try:
+        rs = bs.query_sz50_stocks(date=date)
+        fields = rs.fields if hasattr(rs, "fields") else []
+        rows = _collect_rows(rs)
+        stocks = []
+        for row in rows:
+            entry = dict(zip(fields, row)) if fields else {}
+            if "code" in entry:
+                entry["symbol"] = _to_short_code(entry["code"])
+            stocks.append(entry)
+
+        return jsonify({"stocks": stocks, "total": len(stocks), "index": "sz50", "date": date})
+    except Exception:
+        logger.exception("BaoStock sz50 error")
+        return jsonify({"error": "Internal error"}), 500
+
+
+@baostock_bp.route("/index/hs300", methods=["GET"])
+def hs300_stocks():
+    """
+    沪深300成分股 — query_hs300_stocks
+
+    Query params:
+      date — date in YYYY-MM-DD format (default: today)
+    """
+    date = _fmt_date(request.args.get("date", "")) or datetime.now().strftime("%Y-%m-%d")
+
+    if not _ensure_login():
+        return jsonify({"error": "BaoStock unavailable"}), 503
+
+    try:
+        rs = bs.query_hs300_stocks(date=date)
+        fields = rs.fields if hasattr(rs, "fields") else []
+        rows = _collect_rows(rs)
+        stocks = []
+        for row in rows:
+            entry = dict(zip(fields, row)) if fields else {}
+            if "code" in entry:
+                entry["symbol"] = _to_short_code(entry["code"])
+            stocks.append(entry)
+
+        return jsonify({"stocks": stocks, "total": len(stocks), "index": "hs300", "date": date})
+    except Exception:
+        logger.exception("BaoStock hs300 error")
+        return jsonify({"error": "Internal error"}), 500
+
+
+@baostock_bp.route("/index/zz500", methods=["GET"])
+def zz500_stocks():
+    """
+    中证500成分股 — query_zz500_stocks
+
+    Query params:
+      date — date in YYYY-MM-DD format (default: today)
+    """
+    date = _fmt_date(request.args.get("date", "")) or datetime.now().strftime("%Y-%m-%d")
+
+    if not _ensure_login():
+        return jsonify({"error": "BaoStock unavailable"}), 503
+
+    try:
+        rs = bs.query_zz500_stocks(date=date)
+        fields = rs.fields if hasattr(rs, "fields") else []
+        rows = _collect_rows(rs)
+        stocks = []
+        for row in rows:
+            entry = dict(zip(fields, row)) if fields else {}
+            if "code" in entry:
+                entry["symbol"] = _to_short_code(entry["code"])
+            stocks.append(entry)
+
+        return jsonify({"stocks": stocks, "total": len(stocks), "index": "zz500", "date": date})
+    except Exception:
+        logger.exception("BaoStock zz500 error")
+        return jsonify({"error": "Internal error"}), 500

@@ -17,6 +17,7 @@ from ai_routes import ai_bp
 from baostock_routes import baostock_bp
 from agent_routes import agent_bp
 from board_routes import board_bp
+from strategy_routes import strategy_bp
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -26,13 +27,20 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'quantcore-secret-2024'
 CORS(app)
-socketio = SocketIO(app, cors_allowed_origins='*', async_mode='eventlet')
+try:
+    import eventlet  # noqa: F401
+    _async_mode = 'eventlet'
+except ImportError:
+    _async_mode = 'threading'
+
+socketio = SocketIO(app, cors_allowed_origins='*', async_mode=_async_mode)
 
 # Register blueprints
 app.register_blueprint(ai_bp)
 app.register_blueprint(baostock_bp)
 app.register_blueprint(agent_bp)
 app.register_blueprint(board_bp)
+app.register_blueprint(strategy_bp)
 
 # ==================== WebSocket Events ====================
 
