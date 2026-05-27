@@ -71,6 +71,7 @@ export const SplitView = ({
   const [isDragging, setIsDragging] = useState(false);
   const startPosRef = useRef(0);
   const startSizeRef = useRef(0);
+  const currentSizeRef = useRef(firstSize);
 
   // Initialize size from container when no persisted/initial value
   useEffect(() => {
@@ -104,14 +105,15 @@ export const SplitView = ({
 
       // Clamp to min/max
       newSize = Math.max(minSize, Math.min(newSize, totalSize - minSecondSize - DIVIDER_SIZE));
+      currentSizeRef.current = newSize;
       setFirstSize(newSize);
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
       // Persist final size on mouse up
-      if (firstSize != null) {
-        persistSize(persistKey, firstSize);
+      if (currentSizeRef.current != null) {
+        persistSize(persistKey, currentSizeRef.current);
       }
     };
 
@@ -121,16 +123,7 @@ export const SplitView = ({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, isHorizontal, minSize, minSecondSize, firstSize, persistKey]);
-
-  // Also persist after dragging ends via state update
-  const prevDraggingRef = useRef(isDragging);
-  useEffect(() => {
-    if (prevDraggingRef.current && !isDragging && firstSize != null) {
-      persistSize(persistKey, firstSize);
-    }
-    prevDraggingRef.current = isDragging;
-  }, [isDragging, firstSize, persistKey]);
+  }, [isDragging, isHorizontal, minSize, minSecondSize, persistKey]);
 
   const dividerCursor = isHorizontal ? 'cursor-col-resize' : 'cursor-row-resize';
 
