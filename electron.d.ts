@@ -22,6 +22,47 @@ declare global {
             restartToUpdate: () => void;
             // System metrics
             getSystemMetrics: () => Promise<{ memMB: number; cpuPercent: number }>;
+            // free-claude-code runtime
+            controlFreeClaude: (payload?: {
+                provider?: 'nvidia_nim' | 'open_router' | 'deepseek' | 'mistral' | 'mistral_codestral' | 'opencode' | 'opencode_go' | 'wafer' | 'kimi' | 'cerebras' | 'groq' | 'fireworks' | 'zai' | 'lmstudio' | 'llamacpp' | 'ollama';
+                action?: 'start' | 'stop' | 'status';
+                config?: { provider?: 'nvidia_nim' | 'open_router' | 'deepseek' | 'mistral' | 'mistral_codestral' | 'opencode' | 'opencode_go' | 'wafer' | 'kimi' | 'cerebras' | 'groq' | 'fireworks' | 'zai' | 'lmstudio' | 'llamacpp' | 'ollama'; apiKey?: string; model?: string; port?: number };
+            }) => Promise<{
+                ok: boolean;
+                running: boolean;
+                baseUrl: string;
+                model: string;
+                apiKeyMasked: string;
+                output: string[];
+                error: string | null;
+                message?: string;
+            }>;
+            chatWithFreeClaude: (payload: {
+                provider?: 'nvidia_nim' | 'open_router' | 'deepseek' | 'mistral' | 'mistral_codestral' | 'opencode' | 'opencode_go' | 'wafer' | 'kimi' | 'cerebras' | 'groq' | 'fireworks' | 'zai' | 'lmstudio' | 'llamacpp' | 'ollama';
+                messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+                config?: { provider?: 'nvidia_nim' | 'open_router' | 'deepseek' | 'mistral' | 'mistral_codestral' | 'opencode' | 'opencode_go' | 'wafer' | 'kimi' | 'cerebras' | 'groq' | 'fireworks' | 'zai' | 'lmstudio' | 'llamacpp' | 'ollama'; apiKey?: string; model?: string; port?: number };
+                maxTokens?: number;
+                temperature?: number;
+            }) => Promise<{
+                ok: boolean;
+                message: string;
+                raw: unknown;
+                model: string;
+            }>;
+            chatWithFreeClaudeStream: (payload: {
+                provider?: 'nvidia_nim' | 'open_router' | 'deepseek' | 'mistral' | 'mistral_codestral' | 'opencode' | 'opencode_go' | 'wafer' | 'kimi' | 'cerebras' | 'groq' | 'fireworks' | 'zai' | 'lmstudio' | 'llamacpp' | 'ollama';
+                messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+                config?: { provider?: 'nvidia_nim' | 'open_router' | 'deepseek' | 'mistral' | 'mistral_codestral' | 'opencode' | 'opencode_go' | 'wafer' | 'kimi' | 'cerebras' | 'groq' | 'fireworks' | 'zai' | 'lmstudio' | 'llamacpp' | 'ollama'; apiKey?: string; model?: string; port?: number };
+                maxTokens?: number;
+                temperature?: number;
+            }, handlers?: {
+                onDelta?: (delta: string, fullText: string) => void;
+            }) => Promise<{
+                ok: boolean;
+                message: string;
+                raw: unknown;
+                model: string;
+            }>;
         };
     }
 }

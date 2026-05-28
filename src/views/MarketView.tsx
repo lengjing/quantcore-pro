@@ -318,8 +318,8 @@ export const MarketView = ({
                   className="flex justify-between py-0.5 cursor-pointer hover:text-white group/mini"
                   onClick={() => goToSymbol(tk.symbol)}
                 >
-                  <span className="text-gray-400 group-hover/mini:text-terminal-accent truncate max-w-[90px]">
-                    {shortName(tk.symbol)}
+                  <span className="text-gray-400 group-hover/mini:text-terminal-accent truncate max-w-[90px]" title={tk.symbol}>
+                    {tk.name || shortName(tk.symbol)}
                   </span>
                   <span className={colors.clsBold(1)}>+{tk.changePercent.toFixed(2)}%</span>
                 </div>
@@ -338,8 +338,8 @@ export const MarketView = ({
                   className="flex justify-between py-0.5 cursor-pointer hover:text-white group/mini"
                   onClick={() => goToSymbol(tk.symbol)}
                 >
-                  <span className="text-gray-400 group-hover/mini:text-terminal-accent truncate max-w-[90px]">
-                    {shortName(tk.symbol)}
+                  <span className="text-gray-400 group-hover/mini:text-terminal-accent truncate max-w-[90px]" title={tk.symbol}>
+                    {tk.name || shortName(tk.symbol)}
                   </span>
                   <span className={colors.clsBold(-1)}>{tk.changePercent.toFixed(2)}%</span>
                 </div>
@@ -358,8 +358,8 @@ export const MarketView = ({
                   className="flex justify-between py-0.5 cursor-pointer hover:text-white group/mini"
                   onClick={() => goToSymbol(tk.symbol)}
                 >
-                  <span className="text-gray-400 group-hover/mini:text-terminal-accent truncate max-w-[90px]">
-                    {shortName(tk.symbol)}
+                  <span className="text-gray-400 group-hover/mini:text-terminal-accent truncate max-w-[90px]" title={tk.symbol}>
+                    {tk.name || shortName(tk.symbol)}
                   </span>
                   <span className="text-gray-300">{fmtVol(tk.volume)}</span>
                 </div>
@@ -397,8 +397,8 @@ export const MarketView = ({
                 <ButtonGroup
                   options={[
                     { value: 'BAR' as SectorChartType, label: 'BAR', icon: <BarChart2 size={8} /> },
-                    { value: 'HEATMAP' as SectorChartType, label: 'HEAT', icon: <Grid size={8} /> },
-                    { value: 'LINE' as SectorChartType, label: 'LINE', icon: <LineIcon size={8} /> },
+                    { value: 'HEATMAP' as SectorChartType, label: t('LABEL_HEAT'), icon: <Grid size={8} /> },
+                    { value: 'LINE' as SectorChartType, label: t('LABEL_LINE'), icon: <LineIcon size={8} /> },
                   ]}
                   value={sectorChartType}
                   onChange={setSectorChartType}
@@ -458,8 +458,8 @@ export const MarketView = ({
                 <ButtonGroup
                   options={[
                     { value: 'BAR' as BoardChartType, label: 'BAR', icon: <BarChart2 size={8} /> },
-                    { value: 'HEATMAP' as BoardChartType, label: 'HEAT', icon: <Grid size={8} /> },
-                    { value: 'LINE' as BoardChartType, label: 'LINE', icon: <LineIcon size={8} /> },
+                    { value: 'HEATMAP' as BoardChartType, label: t('LABEL_HEAT'), icon: <Grid size={8} /> },
+                    { value: 'LINE' as BoardChartType, label: t('LABEL_LINE'), icon: <LineIcon size={8} /> },
                   ]}
                   value={boardChartType}
                   onChange={setBoardChartType}

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { CandleData, BacktestResult, StrategyFile, Notification } from '../types';
+import { executeStrategy } from '../services/strategy/strategyFileService';
 
 type ShowNotification = (type: Notification['type'], message: string) => void;
 
@@ -11,7 +12,55 @@ export function useBacktest(
 ) {
   const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);
 
-  const runBacktest = () => {
+  const runBacktest = async () => {
+    const activeFile = strategyFiles.find((f) => f.name === activeFileName);
+
+    // --- Try Python backend execution first ---
+    if (activeFile && activeFile.language === 'python') {
+      try {
+        showNotification('INFO', 'EXECUTING STRATEGY VIA PYTHON BACKEND...');
+        const result = await executeStrategy({ code: activeFile.content });
+        if (result.success) {
+          // Try to parse backtest results from stdout (JSON format)
+          const lines = result.stdout.trim().split('\n');
+          const lastLine = lines[lines.length - 1];
+          try {
+            const parsed = JSON.parse(lastLine);
+            if (parsed.equityCurve && parsed.trades && parsed.metrics) {
+              setBacktestResult(parsed as BacktestResult);
+              showNotification('SUCCESS', 'BACKTEST COMPLETED (PYTHON)');
+              return;
+            }
+          } catch {
+            // Not JSON output — fall through to show stdout as console-only result
+          }
+
+          // Build a simple result from execution output
+          const metrics = result.variables
+            .filter((v) => !v.name.startsWith('_'))
+            .slice(0, 4)
+            .map((v) => ({
+              label: v.name.toUpperCase(),
+              value: v.value,
+            }));
+
+          setBacktestResult({
+            equityCurve: [],
+            trades: [],
+            metrics: metrics.length > 0 ? metrics : [{ label: 'STATUS', value: 'Executed successfully' }],
+          });
+          showNotification('SUCCESS', 'STRATEGY EXECUTED (PYTHON)');
+          return;
+        } else {
+          showNotification('ERROR', result.stderr.split('\n')[0] || 'EXECUTION FAILED');
+          return;
+        }
+      } catch {
+        // Backend unavailable — fall through to client-side MA backtest
+      }
+    }
+
+    // --- Fallback: client-side MA25 crossover backtest ---
     if (candles.length < 50) {
       showNotification('ERROR', 'NOT ENOUGH DATA FOR BACKTEST');
       return;

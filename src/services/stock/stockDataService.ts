@@ -32,6 +32,8 @@ import { TencentAdapter } from './adapters/TencentAdapter';
 import { SinaAdapter } from './adapters/SinaAdapter';
 import { EastMoneyAdapter } from './adapters/EastMoneyAdapter';
 import { BaoStockAdapter } from './adapters/BaoStockAdapter';
+import { NeteaseAdapter } from './adapters/NeteaseAdapter';
+import { YahooAdapter } from './adapters/YahooAdapter';
 
 // Default stock symbols exposed to the scanner / watchlist.
 export const DEFAULT_STOCK_SYMBOLS = [
@@ -78,6 +80,8 @@ class StockDataService {
     this.adapters.set('sina', new SinaAdapter());
     this.adapters.set('eastmoney', new EastMoneyAdapter());
     this.adapters.set('baostock', new BaoStockAdapter());
+    this.adapters.set('netease', new NeteaseAdapter());
+    this.adapters.set('yahoo', new YahooAdapter());
   }
 
   /** ID of the currently active adapter. Defaults to EastMoney (browser-compatible, supports adjustment). */

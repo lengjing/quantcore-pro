@@ -55,6 +55,8 @@ import type { CustomSectorDef } from './data/sectors';
 
 // i18n types
 import type { LangKey } from './i18n';
+import type { AISettings, TradingMode } from './types';
+import { DEFAULT_AI_SETTINGS, normalizeAiSettings } from './services/ai/aiConfig';
 
 import type { Timeframe } from './types';
 
@@ -64,11 +66,11 @@ const App = () => {
   // --- Persisted Core State ---
   const [view, setView] = usePersisted<ViewState>('view', ViewState.DASHBOARD);
   const [marketMode, setMarketMode] = usePersisted<MarketMode>('marketMode', 'CRYPTO');
+  const [tradingMode, setTradingMode] = usePersisted<TradingMode>('tradingMode', 'PAPER');
   const [activeSymbol, setActiveSymbol] = usePersisted<string>('activeSymbol', 'BTC-USDT');
   const [timeframe, setTimeframe] = usePersisted<Timeframe>('timeframe', '1H');
-  const [stockAdapterId, setStockAdapterId] = usePersisted<string>('stockAdapterId', 'eastmoney');
   const [colorScheme, setColorScheme] = usePersisted<ColorScheme>('colorScheme', 'greenUp');
-  const [multiAdapter, setMultiAdapter] = usePersisted<boolean>('multiAdapter', false);
+  const [aiSettings, setAiSettings] = usePersisted<AISettings>('aiSettings', DEFAULT_AI_SETTINGS);
   const defaultCapMap = { realtime: 'eastmoney', dailyKlines: 'eastmoney', minuteKlines: 'eastmoney' };
   const [capMap, setCapMap] = usePersisted<Record<string, string>>('capMap', defaultCapMap);
 
@@ -83,6 +85,17 @@ const App = () => {
   const [newSymbolInput, setNewSymbolInput] = usePersisted<string>('newSymbolInput', '');
   const [showResetConfirm, setShowResetConfirm] = React.useState(false);
 
+  useEffect(() => {
+    const normalized = normalizeAiSettings(aiSettings);
+    if (
+      normalized.provider !== aiSettings.provider ||
+      normalized.apiKey !== aiSettings.apiKey ||
+      normalized.model !== aiSettings.model
+    ) {
+      setAiSettings(normalized);
+    }
+  }, [aiSettings, setAiSettings]);
+
   const commandInputRef = useRef<HTMLInputElement>(null);
 
   // --- Hooks ---
@@ -90,16 +103,14 @@ const App = () => {
   const { cryptoWatchlist, stockWatchlist, currentWatchlist, addToWatchlist, removeFromWatchlist } =
     useWatchlist(marketMode, showNotification);
   const { marketTickers, candles, liveCandle, depth, trades, isScannerLoading, updateMarketData, connectionStatus, latencyMs } =
-    useMarketData(activeSymbol, marketMode, timeframe, stockAdapterId);
+    useMarketData(activeSymbol, marketMode, timeframe);
   const {
-    tradingMode,
-    setTradingMode,
     positions,
     executeTrade,
     pendingOrder,
     confirmLiveOrder,
     cancelLiveOrder,
-  } = useTradeEngine(activeSymbol, marketTickers, candles, showNotification);
+  } = useTradeEngine(activeSymbol, marketTickers, candles, showNotification, tradingMode);
   const {
     strategyFiles,
     activeFileName,
@@ -107,6 +118,7 @@ const App = () => {
     handleStrategyFileUpdate,
     handleCreateFile,
     handleDeleteFile,
+    handleRenameFile,
   } = useStrategyFiles(showNotification);
   const { backtestResult, runBacktest } = useBacktest(
     candles,
@@ -135,11 +147,11 @@ const App = () => {
 
   // Sync multi-adapter settings with stockDataService on mount and when changed
   useEffect(() => {
-    stockDataService.setMultiAdapterMode(multiAdapter);
+    stockDataService.setMultiAdapterMode(true);
     for (const [cap, id] of Object.entries(capMap)) {
       stockDataService.setCapabilityAdapter(cap as AdapterCapability, id);
     }
-  }, [multiAdapter, capMap]);
+  }, [capMap]);
 
   // Sync active symbol when market mode changes
   useEffect(() => {
@@ -229,12 +241,6 @@ const App = () => {
           onSubmit={handleCommandSubmit}
           onHelp={() => setIsHelpOpen(true)}
           onMenu={() => setIsMenuOpen(true)}
-          marketMode={marketMode}
-          setMarketMode={setMarketMode}
-          stockAdapterId={stockAdapterId}
-          setStockAdapter={setStockAdapterId}
-          tradingMode={tradingMode}
-          setTradingMode={setTradingMode}
           connectionStatus={connectionStatus}
         />
 
@@ -285,6 +291,8 @@ const App = () => {
                 onUpdateFile={handleStrategyFileUpdate}
                 onCreateFile={handleCreateFile}
                 onDeleteFile={handleDeleteFile}
+                onRenameFile={handleRenameFile}
+                aiSettings={aiSettings}
                 onRun={() => { setView(ViewState.BACKTEST); runBacktest(); }}
               />
             </Panel>
@@ -314,14 +322,16 @@ const App = () => {
             <SettingsView
               marketMode={marketMode}
               setMarketMode={setMarketMode}
-              stockAdapterId={stockAdapterId}
-              setStockAdapter={setStockAdapterId}
+              tradingMode={tradingMode}
+              setTradingMode={setTradingMode}
               colorScheme={colorScheme}
               setColorScheme={setColorScheme}
-              multiAdapter={multiAdapter}
-              setMultiAdapter={setMultiAdapter}
               capMap={capMap}
               setCapMap={setCapMap}
+              aiSettings={aiSettings}
+              setAiSettings={setAiSettings}
+              vitePort={Number(process.env.VITE_PORT || process.env.VITE_DEV_PORT || 5173)}
+              freeClaudePort={Number(process.env.FREE_CLAUDE_PORT || process.env.PORT || 8082)}
             />
           )}
 
@@ -333,6 +343,7 @@ const App = () => {
               addToWatchlist={addToWatchlist}
               showNotification={showNotification}
               lang={(i18n.language === 'cn' ? 'CN' : 'EN') as LangKey}
+              aiSettings={aiSettings}
               t={t}
             />
           )}
@@ -342,16 +353,16 @@ const App = () => {
         {/* Status Bar */}
         <div className="h-5 bg-[#0a0a0a] border-t border-terminal-border flex items-center justify-between px-2 text-[10px] text-gray-500 select-none shrink-0">
           <div className="flex space-x-4">
-            <span>MEM: {systemMetrics.memMB}MB</span>
-            <span>CPU: {systemMetrics.cpuPercent}%</span>
-            <span>LATENCY: {latencyMs != null ? `${latencyMs}ms` : '—'} ({marketMode === 'CRYPTO' ? 'WS' : 'HTTP'})</span>
+            <span>{t('LABEL_MEM')}: {systemMetrics.memMB}MB</span>
+            <span>{t('LABEL_CPU')}: {systemMetrics.cpuPercent}%</span>
+            <span>{t('LABEL_LATENCY')}: {latencyMs != null ? `${latencyMs}ms` : '—'} ({marketMode === 'CRYPTO' ? 'WS' : 'HTTP'})</span>
           </div>
           <div className="flex space-x-4">
             <span className={tradingMode === 'LIVE' ? 'text-red-400 font-bold animate-pulse' : 'text-gray-500'}>
               {tradingMode === 'LIVE' ? t('LIVE_TRADING') : t('PAPER_TRADING')}
             </span>
             <span className="text-terminal-accent">
-              {marketMode === 'CRYPTO' ? 'CRYPTO' : `A-SHARE / ${stockAdapterId.toUpperCase()}`}
+              {marketMode === 'CRYPTO' ? 'CRYPTO' : `A-SHARE / ${capMap.realtime?.toUpperCase() ?? 'MULTI'}`}
             </span>
             <span>BUILD: v{__APP_VERSION__}</span>
           </div>

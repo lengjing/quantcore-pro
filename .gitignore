@@ -28,6 +28,11 @@ dist-electron/
 python_dist/
 
 # Local env overrides
+.env
 .env.local
 
 package-lock.json
+
+# free-claude runtime build artifacts
+runtime/free-claude-code/*.spec
+runtime/free-claude-code/build/

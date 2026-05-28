@@ -1,17 +1,12 @@
 /**
  * aiChatService.ts
  *
- * Frontend service that communicates with the QuantCore Python backend's
- * Claude-powered AI agent endpoint (`POST /api/ai/chat`).
- *
- * The backend runs the full agentic loop (multi-turn Claude tool calls) and returns:
- *   - `message`  — Claude's final text reply
- *   - `actions`  — Mutations the frontend must apply (ADD_SECTOR, ADD_TO_WATCHLIST)
- *   - `toolUse`  — Tool-call log for the UI to display
+ * Unified AI access layer that routes to the local free-claude-code proxy.
  */
 
-import type { AIAction, ToolUseEvent } from '../../types';
+import type { AIAction, AISettings, ToolUseEvent } from '../../types';
 import type { CustomSectorDef } from '../../data/sectors';
+import { sendFreeClaudeChatMessage, generateStrategyCode as generateFreeClaudeStrategyCode } from './freeClaudeService';
 
 const BACKEND_URL = 'http://localhost:5000';
 
@@ -44,27 +39,20 @@ export interface ChatContext {
 export async function sendAIMessage(
   messages: { role: 'user' | 'assistant'; content: string }[],
   context: ChatContext,
+  settings?: AISettings,
   signal?: AbortSignal,
+  onDelta?: (delta: string, fullText: string) => void,
 ): Promise<ChatApiResponse> {
-  const response = await fetch(`${BACKEND_URL}/api/ai/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages, context }),
-    signal,
-  });
+  const message = await sendFreeClaudeChatMessage(messages, settings, onDelta);
+  return {
+    message,
+    actions: [],
+    toolUse: [],
+  };
+}
 
-  if (!response.ok) {
-    const text = await response.text().catch(() => `HTTP ${response.status}`);
-    let parsed: { message?: string } | null = null;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      /* ignore */
-    }
-    throw new Error(parsed?.message ?? text);
-  }
-
-  return response.json() as Promise<ChatApiResponse>;
+export async function generateStrategyCode(prompt: string, settings?: AISettings): Promise<string> {
+  return generateFreeClaudeStrategyCode(prompt, settings);
 }
 
 /**
@@ -73,6 +61,11 @@ export async function sendAIMessage(
 export async function fetchBackendStatus(): Promise<{
   claude: boolean;
 }> {
+  if (window.electron?.controlFreeClaude) {
+    const status = await window.electron.controlFreeClaude({ action: 'status' });
+    return { claude: Boolean(status.running) };
+  }
+
   const response = await fetch(`${BACKEND_URL}/api/ai/status`, {
     signal: AbortSignal.timeout(3000),
   });

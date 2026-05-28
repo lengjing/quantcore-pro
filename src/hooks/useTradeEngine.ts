@@ -27,8 +27,8 @@ export function useTradeEngine(
   marketTickers: MarketTicker[],
   candles: CandleData[],
   showNotification: ShowNotification,
+  tradingMode: TradingMode,
 ) {
-  const [tradingMode, setTradingMode] = usePersisted<TradingMode>('tradingMode', 'PAPER');
   const [positions, setPositions] = usePersisted<Position[]>('positions', []);
   const [pendingOrder, setPendingOrder] = useState<PendingOrder | null>(null);
 
@@ -133,7 +133,6 @@ export function useTradeEngine(
 
   return {
     tradingMode,
-    setTradingMode,
     positions,
     executeTrade,
     pendingOrder,

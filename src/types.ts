@@ -50,7 +50,18 @@ export enum OrderStatus {
   CANCELLED = 'CANCELLED'
 }
 
-export type Timeframe = '1M' | '5M' | '15M' | '1H' | '4H' | '1D';
+export type Timeframe = '1M' | '5M' | '15M' | '1H' | '4H' | '1D' | '1W' | '1MO';
+
+/** K-line period category for UI grouping */
+export type KlinePeriod = 'realtime' | 'daily' | 'weekly' | 'monthly';
+
+/** Map period categories to their default timeframes */
+export const KLINE_PERIOD_TIMEFRAMES: Record<KlinePeriod, Timeframe[]> = {
+  realtime: ['1M', '5M', '15M', '1H'],
+  daily: ['1D'],
+  weekly: ['1W'],
+  monthly: ['1MO'],
+};
 
 export interface MarketTicker {
   symbol: string;
@@ -148,6 +159,30 @@ export interface BacktestResult {
   equityCurve: { time: string; value: number }[];
   trades: { time: string; side: 'BUY' | 'SELL'; price: number; pnl: number }[];
   metrics: BacktestMetric[];
+}
+
+export type AIProvider =
+  | 'nvidia_nim'
+  | 'open_router'
+  | 'deepseek'
+  | 'mistral'
+  | 'mistral_codestral'
+  | 'opencode'
+  | 'opencode_go'
+  | 'wafer'
+  | 'kimi'
+  | 'cerebras'
+  | 'groq'
+  | 'fireworks'
+  | 'zai'
+  | 'lmstudio'
+  | 'llamacpp'
+  | 'ollama';
+
+export interface AISettings {
+  provider: AIProvider;
+  apiKey: string;
+  model: string;
 }
 
 export interface StrategyFile {

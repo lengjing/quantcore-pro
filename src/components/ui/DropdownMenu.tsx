@@ -56,7 +56,7 @@ export const DropdownMenu = ({ menu, isOpen, onOpen, onClose, onHover }: Dropdow
                   onClose();
                 }}
                 disabled={item.disabled}
-                className="w-full text-left px-3 py-[3px] text-[12px] text-[#cccccc] hover:bg-[#094771] hover:text-white flex items-center justify-between gap-8 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                className="w-full text-left px-3 py-[3px] text-[12px] text-[#cccccc] hover:bg-[#094771] hover:text-white focus:bg-[#094771] focus:text-white flex items-center justify-between gap-8 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap transition-colors"
               >
                 <span>{item.label}</span>
                 {item.shortcut && (
@@ -85,6 +85,7 @@ export const MenuBar = ({ menus }: MenuBarProps) => {
   const [openIdx, setOpenIdx] = useState<number | null>(null);
   const [anyOpened, setAnyOpened] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
+  const closedByOutsideRef = useRef(false);
 
   const closeAll = useCallback(() => {
     setOpenIdx(null);
@@ -93,14 +94,25 @@ export const MenuBar = ({ menus }: MenuBarProps) => {
 
   useEffect(() => {
     if (openIdx === null) return;
-    const handleClick = (e: MouseEvent) => {
+    const handleMouseDown = (e: MouseEvent) => {
       if (barRef.current && !barRef.current.contains(e.target as Node)) {
+        closedByOutsideRef.current = true;
         closeAll();
       }
     };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
   }, [openIdx, closeAll]);
+
+  const handleOpen = useCallback((idx: number) => {
+    // If just closed by outside click, skip reopening
+    if (closedByOutsideRef.current) {
+      closedByOutsideRef.current = false;
+      return;
+    }
+    setOpenIdx(idx);
+    setAnyOpened(true);
+  }, []);
 
   return (
     <div ref={barRef} className="flex items-center h-full">
@@ -109,10 +121,7 @@ export const MenuBar = ({ menus }: MenuBarProps) => {
           key={menu.label}
           menu={menu}
           isOpen={openIdx === i}
-          onOpen={() => {
-            setOpenIdx(i);
-            setAnyOpened(true);
-          }}
+          onOpen={() => handleOpen(i)}
           onClose={closeAll}
           onHover={() => {
             if (anyOpened && openIdx !== null) {

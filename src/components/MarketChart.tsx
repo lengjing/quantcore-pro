@@ -18,6 +18,8 @@ interface MarketChartProps {
   symbol: string;
   /** Live forming bar from WebSocket — updated via series.update() without full redraw. */
   liveCandle?: CandleData | null;
+  /** Called when user clicks on a candle bar to show detail info. */
+  onCandleClick?: (candle: CandleData) => void;
 }
 
 interface OhlcvInfo {
@@ -66,7 +68,7 @@ const pctChange = (o: number, c: number) => {
   return (((c - o) / o) * 100).toFixed(2);
 };
 
-const MarketChart: React.FC<MarketChartProps> = ({ data, symbol, liveCandle }) => {
+const MarketChart: React.FC<MarketChartProps> = ({ data, symbol, liveCandle, onCandleClick }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -77,6 +79,12 @@ const MarketChart: React.FC<MarketChartProps> = ({ data, symbol, liveCandle }) =
   const [showMA, setShowMA] = useState<Record<MaPeriod, boolean>>({ 7: true, 25: true, 99: true });
   const [showVolume, setShowVolume] = useState(true);
   const [crosshairMode, setCrosshairMode] = useState<'normal' | 'magnet'>('normal');
+
+  // Refs for click handler (stable reference for chart subscription)
+  const onCandleClickRef = useRef(onCandleClick);
+  onCandleClickRef.current = onCandleClick;
+  const dataRef = useRef(data);
+  dataRef.current = data;
 
   // Latest bar for top stats
   const latestBar = data.length > 0 ? data[data.length - 1] : null;
@@ -186,6 +194,32 @@ const MarketChart: React.FC<MarketChartProps> = ({ data, symbol, liveCandle }) =
         });
       } else {
         setHoveredBar(null);
+      }
+    });
+
+    // Click handler for candle detail
+    chart.subscribeClick((param) => {
+      if (!param.time || !candleRef.current || !volRef.current) return;
+      const candleData = param.seriesData.get(candleRef.current) as
+        | { open: number; high: number; low: number; close: number }
+        | undefined;
+      const volData = param.seriesData.get(volRef.current) as { value: number } | undefined;
+      if (candleData && onCandleClickRef.current) {
+        // Find the matching candle from data to get full info including MAs
+        const ts = param.time as number;
+        const matchingCandle = dataRef.current.find((d) => Math.floor(new Date(d.time).getTime() / 1000) === ts);
+        if (matchingCandle) {
+          onCandleClickRef.current(matchingCandle);
+        } else {
+          onCandleClickRef.current({
+            time: new Date(ts * 1000).toISOString(),
+            open: candleData.open,
+            high: candleData.high,
+            low: candleData.low,
+            close: candleData.close,
+            volume: volData?.value ?? 0,
+          });
+        }
       }
     });
 

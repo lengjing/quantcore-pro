@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Loader2, ExternalLink } from 'lucide-react';
 import type { NewsItem } from '../types';
 import { Panel } from '../components/ui/Panel';
-import { fetchMarketNews } from '../services/ai/geminiService';
+import { fetchMarketNews } from '../services/ai/freeClaudeService';
 
 interface NewsViewProps {}
 

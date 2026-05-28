@@ -1,16 +1,10 @@
 /**
  * AIAssistantView
  *
- * Full-screen AI chat interface powered by Claude.
+ * Full-screen AI chat interface.
  *
- * The user can ask in natural language (Chinese or English) to:
- *   • Create custom sectors (e.g. "帮我创建一个MLCC板块")
- *   • Add stocks to their watchlist
- *   • Explore and research A-share companies
- *
- * All actions are applied directly to app state — no manual confirmation
- * needed.  The panel shows a live log of tool calls so the user can see
- * exactly what the AI is doing.
+ * AI assistant view backed by the local free-claude-code proxy runtime
+ * through Electron IPC.
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -26,13 +20,23 @@ import {
   AlertCircle,
   Trash2,
   Zap,
+  Sparkles,
+  MessageSquare,
+  Search,
+  TrendingUp,
+  Database,
+  BrainCircuit,
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import type { Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
-import type { ChatMessage, AIAction, ToolUseEvent, Notification } from '../types';
+import type { ChatMessage, AIAction, ToolUseEvent, Notification, AISettings } from '../types';
 import type { CustomSectorDef } from '../data/sectors';
 import type { ResourceKey, LangKey } from '../i18n';
 import { nextCustomColor, newCustomSectorId } from '../data/sectors';
-import { sendAIMessage, fetchBackendStatus } from '../services/ai/aiChatService';
+import { sendAIMessage } from '../services/ai/aiChatService';
+import { getProviderLabel } from '../services/ai/aiConfig';
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -152,8 +156,8 @@ const MessageBubble = ({ msg, t }: { msg: ChatMessage; t: (key: ResourceKey) => 
         <div className="w-5 h-5 rounded-sm bg-terminal-accent/20 border border-terminal-accent/30 flex items-center justify-center shrink-0 mt-0.5">
           <span className="text-[8px] text-terminal-accent font-bold">YOU</span>
         </div>
-        <div className="max-w-[75%] bg-terminal-accent/5 border border-terminal-accent/20 px-3 py-2 text-[11px] font-mono text-gray-200 whitespace-pre-wrap">
-          {msg.content}
+        <div className="max-w-[75%] bg-terminal-accent/5 border border-terminal-accent/20 px-3 py-2 text-[11px] text-gray-200">
+          <div className="whitespace-pre-wrap font-mono">{msg.content}</div>
         </div>
       </div>
     );
@@ -165,8 +169,29 @@ const MessageBubble = ({ msg, t }: { msg: ChatMessage; t: (key: ResourceKey) => 
         <Bot size={11} className="text-terminal-accent" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="bg-[#0d0d0d] border border-[#1e1e1e] px-3 py-2 text-[11px] font-mono text-gray-200 whitespace-pre-wrap">
-          {msg.content}
+        <div className="bg-[#0d0d0d] border border-[#1e1e1e] px-3 py-2 text-[11px] text-gray-200">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              table: ({ children }) => (
+                <div className="my-2 overflow-x-auto">
+                  <table className="min-w-full border-collapse text-[10px]">{children}</table>
+                </div>
+              ),
+              th: ({ children }) => <th className="border border-[#2a2a2a] bg-[#151515] px-2 py-1 text-left font-semibold text-terminal-accent">{children}</th>,
+              td: ({ children }) => <td className="border border-[#222] px-2 py-1 align-top text-gray-300">{children}</td>,
+              a: ({ children, href }) => (
+                <a href={href} target="_blank" rel="noreferrer" className="text-terminal-accent underline decoration-terminal-accent/40 underline-offset-2">{children}</a>
+              ),
+              code: ({ children }) => <code className="rounded bg-[#151515] px-1 py-0.5 font-mono text-[10px] text-terminal-accent">{children}</code>,
+              pre: ({ children }) => <pre className="my-2 overflow-x-auto rounded border border-[#222] bg-[#101010] p-2 font-mono text-[10px] text-gray-300">{children}</pre>,
+              p: ({ children }) => <p className="my-1 leading-5">{children}</p>,
+              ul: ({ children }) => <ul className="my-1 list-disc pl-4">{children}</ul>,
+              ol: ({ children }) => <ol className="my-1 list-decimal pl-4">{children}</ol>,
+            } as Components}
+          >
+            {msg.content || ' '}
+          </ReactMarkdown>
         </div>
         {msg.toolUse && msg.toolUse.length > 0 && (
           <div className="mt-1">
@@ -209,6 +234,7 @@ interface AIAssistantViewProps {
   addToWatchlist: (symbol: string) => void;
   showNotification: (type: Notification['type'], message: string) => void;
   lang: LangKey;
+  aiSettings: AISettings;
   t: (key: ResourceKey) => string;
 }
 
@@ -219,29 +245,15 @@ export const AIAssistantView = ({
   addToWatchlist,
   showNotification,
   lang,
+  aiSettings,
   t,
 }: AIAssistantViewProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [backendOk, setBackendOk] = useState<boolean | null>(null);
-  const [claudeOk, setClaudeOk] = useState<boolean | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  // ── Check backend on mount ───────────────────────────────────────────────
-  useEffect(() => {
-    fetchBackendStatus()
-      .then((s) => {
-        setBackendOk(true);
-        setClaudeOk(s.claude);
-      })
-      .catch(() => {
-        setBackendOk(false);
-        setClaudeOk(false);
-      });
-  }, []);
 
   // ── Auto-scroll to bottom ────────────────────────────────────────────────
   useEffect(() => {
@@ -314,7 +326,13 @@ export const AIAssistantView = ({
       const result = await sendAIMessage(
         apiMessages,
         { customSectors, stockWatchlist },
+        aiSettings,
         abortRef.current.signal,
+        (delta, fullText) => {
+          setMessages((prev) => prev.map((message) => (message.id === 'loading'
+            ? { ...message, content: fullText, isLoading: false }
+            : message)));
+        },
       );
 
       applyActions(result.actions ?? []);
@@ -375,33 +393,16 @@ export const AIAssistantView = ({
           <span className="text-terminal-accent font-bold text-xs tracking-widest uppercase">
             {t('AI_ASSISTANT')}
           </span>
-          <span className="text-[9px] text-gray-600 ml-1">{t('AI_POWERED_BY')}</span>
+          <span className="text-[9px] text-gray-600 ml-1 flex items-center gap-1">
+            <BrainCircuit size={9} />
+            {getProviderLabel(aiSettings.provider)} · {aiSettings.model || 'default'}
+          </span>
         </div>
         <div className="flex items-center gap-3">
-          {/* Status indicators */}
-          <div className="flex items-center gap-1.5 text-[9px]">
-            <span
-              className={
-                backendOk === null
-                  ? 'text-gray-600'
-                  : backendOk
-                    ? 'text-terminal-success'
-                    : 'text-terminal-error'
-              }
-            >
-              ● {t('AI_BACKEND')}
-            </span>
-            <span
-              className={
-                claudeOk === null
-                  ? 'text-gray-600'
-                  : claudeOk
-                    ? 'text-terminal-success'
-                    : 'text-yellow-500'
-              }
-            >
-              ● {t('AI_CLAUDE')}
-            </span>
+          {/* Runtime badge */}
+          <div className="flex items-center gap-1.5 text-[9px] text-gray-500 border border-[#222] px-2 py-0.5">
+            <Sparkles size={9} className="text-terminal-accent/60" />
+            FREE-CLAUDE
           </div>
           {messages.length > 0 && (
             <button
@@ -416,44 +417,42 @@ export const AIAssistantView = ({
         </div>
       </div>
 
-      {/* ── Backend warning ─────────────────────────────────────────────── */}
-      {backendOk === false && (
-        <div className="shrink-0 flex items-center gap-2 px-3 py-2 bg-red-900/20 border-b border-red-800/40 text-[10px] text-red-400">
-          <AlertCircle size={12} />
-          <span>
-            {t('AI_BACKEND_NOT_RUNNING')}
-            <code className="ml-1 px-1 bg-red-900/30 text-red-300">cd python &amp;&amp; python main.py</code>
-          </span>
-        </div>
-      )}
-      {backendOk === true && claudeOk === false && (
-        <div className="shrink-0 flex items-center gap-2 px-3 py-2 bg-yellow-900/20 border-b border-yellow-800/40 text-[10px] text-yellow-400">
-          <AlertCircle size={12} />
-          <span>
-            {t('AI_CLAUDE_NOT_CONFIGURED')}
-            <code className="ml-1 px-1 bg-yellow-900/30 text-yellow-300">
-              export ANTHROPIC_API_KEY=your_key
-            </code>
-          </span>
-        </div>
-      )}
-
       {/* ── Messages area ───────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto custom-scrollbar px-3 py-3 space-y-3 min-h-0">
         {isEmpty && (
-          <div className="h-full flex flex-col items-center justify-center gap-4 text-center">
-            <div className="w-12 h-12 border border-terminal-accent/30 rounded-sm flex items-center justify-center">
-              <Bot size={24} className="text-terminal-accent/60" />
+          <div className="h-full flex flex-col items-center justify-center gap-5 text-center">
+            <div className="w-14 h-14 border border-terminal-accent/30 rounded-sm flex items-center justify-center bg-terminal-accent/5">
+              <Bot size={28} className="text-terminal-accent/60" />
             </div>
             <div>
               <div className="text-terminal-accent text-sm font-bold tracking-widest mb-1">
                 {t('AI_MARKET_ASSISTANT')}
               </div>
-              <div className="text-gray-600 text-[11px] max-w-xs">
+              <div className="text-gray-600 text-[11px] max-w-sm">
                 {t('AI_DESCRIPTION')}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-1.5 mt-2">
+
+            {/* Capabilities overview */}
+            <div className="grid grid-cols-3 gap-3 mt-2 max-w-2xl w-full">
+              <div className="border border-[#222] bg-[#0a0a0a] p-3 text-center">
+                <Search size={16} className="text-terminal-accent/60 mx-auto mb-1.5" />
+                <div className="text-[10px] text-gray-400 font-bold uppercase">{t('AI_CAP_RESEARCH' as any)}</div>
+                <div className="text-[9px] text-gray-600 mt-1">{t('AI_CAP_RESEARCH_DESC' as any)}</div>
+              </div>
+              <div className="border border-[#222] bg-[#0a0a0a] p-3 text-center">
+                <TrendingUp size={16} className="text-terminal-accent/60 mx-auto mb-1.5" />
+                <div className="text-[10px] text-gray-400 font-bold uppercase">{t('AI_CAP_ANALYSIS' as any)}</div>
+                <div className="text-[9px] text-gray-600 mt-1">{t('AI_CAP_ANALYSIS_DESC' as any)}</div>
+              </div>
+              <div className="border border-[#222] bg-[#0a0a0a] p-3 text-center">
+                <Database size={16} className="text-terminal-accent/60 mx-auto mb-1.5" />
+                <div className="text-[10px] text-gray-400 font-bold uppercase">{t('AI_CAP_MANAGE' as any)}</div>
+                <div className="text-[9px] text-gray-600 mt-1">{t('AI_CAP_MANAGE_DESC' as any)}</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-1.5 mt-2 max-w-md w-full">
               {getSuggestions(t).map((s) => (
                 <button
                   key={s}
@@ -478,6 +477,12 @@ export const AIAssistantView = ({
 
       {/* ── Input area ──────────────────────────────────────────────────── */}
       <div className="shrink-0 border-t border-terminal-border bg-[#0a0a0a] px-3 py-2">
+        <div className="flex items-center justify-between mb-2 text-[9px] text-gray-500">
+          <span>{t('AI_HINT')}</span>
+          <span className="px-2 py-0.5 border border-[#222] uppercase tracking-widest">
+            {getProviderLabel(aiSettings.provider)}
+          </span>
+        </div>
         <div className="flex gap-2 items-end">
           <textarea
             ref={inputRef}
