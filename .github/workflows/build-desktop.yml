@@ -42,43 +42,42 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Setup Python 3.10 (Windows runtime build)
-        if: matrix.platform == 'win'
+      - name: Setup Python 3.14
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.14'
 
-      - name: Install free-claude runtime dependencies (Windows)
-        if: matrix.platform == 'win'
+      - name: Install free-claude runtime dependencies
         run: |
-          py -3.10 -m pip install --upgrade pip
-          py -3.10 -m pip install pyinstaller
-          py -3.10 -m pip install -r packages/free-claude-code/requirements.txt
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller
+          python -m pip install ./packages/free-claude-code
 
       - name: Compile Electron TypeScript
-        if: matrix.platform != 'win'
         run: pnpm exec tsc -p electron/tsconfig.json
 
       - name: Build frontend
-        if: matrix.platform != 'win'
         run: pnpm run build
 
       - name: Build Electron app (Windows)
         if: matrix.platform == 'win'
         run: pnpm run electron:build -- --win --publish never
         env:
+          PYTHON_BIN: python
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Electron app (macOS)
         if: matrix.platform == 'mac'
-        run: pnpm exec electron-builder --mac --publish never
+        run: pnpm run electron:build -- --mac --publish never
         env:
+          PYTHON_BIN: python
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Electron app (Linux)
         if: matrix.platform == 'linux'
-        run: pnpm exec electron-builder --linux --publish never
+        run: pnpm run electron:build -- --linux --publish never
         env:
+          PYTHON_BIN: python
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifacts

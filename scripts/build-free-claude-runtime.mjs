@@ -55,8 +55,8 @@ const dataSep = process.platform === 'win32' ? ';' : ':';
 const adminStatic = `${path.join(sourceRoot, 'api', 'admin_static')}${dataSep}api/admin_static`;
 const envExample = `${path.join(sourceRoot, '.env.example')}${dataSep}.env.example`;
 
+const pythonBin = process.env.PYTHON_BIN || (process.platform === 'win32' ? 'python' : 'python3');
 const pyArgs = [
-  '-3.10',
   '-m',
   'PyInstaller',
   '--noconfirm',
@@ -84,8 +84,8 @@ const pyArgs = [
   entry,
 ];
 
-console.log('[free-claude-runtime] Building PyInstaller runtime...');
-const result = spawnSync('py', pyArgs, {
+console.log(`[free-claude-runtime] Building PyInstaller runtime with ${pythonBin}...`);
+const result = spawnSync(pythonBin, pyArgs, {
   stdio: 'inherit',
   cwd: sourceRoot,
   env: process.env,
