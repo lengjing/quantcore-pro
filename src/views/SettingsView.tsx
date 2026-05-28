@@ -2,7 +2,8 @@ import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { MarketMode, ColorScheme, AIProvider, AISettings, TradingMode } from '../types';
 import type { AdapterCapability } from '../services/stock/IStockDataAdapter';
-import { ButtonGroup } from '../components/ui/ButtonGroup';
+import { Select } from '../components/ui/Select';
+import type { SelectOption } from '../components/ui/Select';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { clearAllState } from '../utils/storage';
 import { FREE_CLAUDE_PROVIDER_OPTIONS, getDefaultModel, getProviderLabel, getProviderModelHints, normalizeAiSettings } from '../services/ai/aiConfig';
@@ -18,8 +19,6 @@ interface SettingsViewProps {
   setCapMap: (v: Record<string, string>) => void;
   aiSettings: AISettings;
   setAiSettings: (v: AISettings | ((prev: AISettings) => AISettings)) => void;
-  vitePort: number;
-  freeClaudePort: number;
 }
 
 const STOCK_ADAPTERS_BASE = [
@@ -31,7 +30,7 @@ const STOCK_ADAPTERS_BASE = [
   { value: 'yahoo',     labelEN: 'Yahoo',      labelCN: 'Yahoo财经', activeColor: 'text-indigo-400' },
 ];
 
-export const SettingsView = ({ marketMode, setMarketMode, tradingMode, setTradingMode, colorScheme, setColorScheme, capMap, setCapMap, aiSettings, setAiSettings, vitePort, freeClaudePort }: SettingsViewProps) => {
+export const SettingsView = ({ marketMode, setMarketMode, tradingMode, setTradingMode, colorScheme, setColorScheme, capMap, setCapMap, aiSettings, setAiSettings }: SettingsViewProps) => {
   const { t, i18n } = useTranslation();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
@@ -70,7 +69,7 @@ export const SettingsView = ({ marketMode, setMarketMode, tradingMode, setTradin
     }));
   }, [setAiSettings]);
 
-  const providerButtons = FREE_CLAUDE_PROVIDER_OPTIONS.map((provider) => ({
+  const providerOptions: SelectOption<AIProvider>[] = FREE_CLAUDE_PROVIDER_OPTIONS.map((provider) => ({
     value: provider.id,
     label: provider.label,
     activeColor: provider.local ? 'text-green-400' : 'text-terminal-accent',
@@ -78,193 +77,164 @@ export const SettingsView = ({ marketMode, setMarketMode, tradingMode, setTradin
   const currentProvider = FREE_CLAUDE_PROVIDER_OPTIONS.find((provider) => provider.id === aiSettings.provider) ?? FREE_CLAUDE_PROVIDER_OPTIONS[0];
   const modelHints = getProviderModelHints(aiSettings.provider).slice(0, 6);
 
+  const marketOptions: SelectOption<MarketMode>[] = [
+    { value: 'CRYPTO', label: 'CRYPTO', activeColor: 'text-blue-400' },
+    { value: 'CN_STOCK', label: 'A-SHARE', activeColor: 'text-red-400' },
+  ];
+
+  const tradingOptions: SelectOption<TradingMode>[] = [
+    { value: 'PAPER', label: 'PAPER', activeColor: 'text-gray-300' },
+    { value: 'LIVE', label: 'LIVE', activeColor: 'text-red-400' },
+  ];
+
+  const languageOptions: SelectOption<'EN' | 'CN'>[] = [
+    { value: 'EN', label: 'EN' },
+    { value: 'CN', label: '中文' },
+  ];
+
+  const colorSchemeOptions: SelectOption<ColorScheme>[] = [
+    { value: 'greenUp', label: t('COLOR_GREEN_RED'), activeColor: 'text-green-400' },
+    { value: 'redUp', label: t('COLOR_RED_GREEN'), activeColor: 'text-red-400' },
+  ];
+
+  const stockAdapterOptions: SelectOption<string>[] = STOCK_ADAPTERS;
+
   return (
-    <div className="flex h-full overflow-auto bg-[radial-gradient(circle_at_top,_rgba(255,153,0,0.08),_transparent_35%),linear-gradient(180deg,_#090909_0%,_#111_100%)]">
-      <div className="w-full p-4 md:p-6">
-        <div className="mb-4 flex items-end justify-between gap-3 border-b border-[#2a2a2a] pb-3">
-          <div>
-            <div className="text-[10px] uppercase tracking-[0.35em] text-terminal-accent">{t('CONFIGURATION')}</div>
-            <h2 className="text-2xl font-semibold text-gray-100">Control center</h2>
-          </div>
-          <div className="text-[10px] text-gray-500 font-mono">v{__APP_VERSION__}</div>
-        </div>
-
-        <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-          <section className="border border-[#2f2f2f] bg-[#101010]/95 p-5 shadow-2xl shadow-black/30">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.3em] text-gray-500">System</div>
-                <h3 className="text-lg font-semibold text-gray-100">Market and execution</h3>
-              </div>
-              <button className="rounded-sm border border-[#333] bg-[#1a1a1a] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white hover:border-terminal-accent" onClick={() => setShowResetConfirm(true)}>
-                {t('RESET_FACTORY')}
-              </button>
-            </div>
-
+    <div className="flex h-full items-center justify-center overflow-auto">
+      <div className="w-full max-w-5xl p-4 md:p-6">
+        <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+          <div className="border border-[#333] bg-[#111] p-6 backdrop-blur-sm">
+            <h2 className="text-terminal-accent font-bold mb-4 uppercase tracking-widest border-b border-[#333] pb-2">{t('CONFIGURATION')}</h2>
             <div className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="border border-[#222] bg-[#0b0b0b] p-3">
-                  <div className="mb-2 text-[10px] uppercase tracking-wider text-gray-500">{t('INTERFACE_LANGUAGE')}</div>
-                  <ButtonGroup
-                    options={[
-                      { value: 'EN', label: 'EN' },
-                      { value: 'CN', label: '中文' },
-                    ]}
-                    value={currentLang}
-                    onChange={handleLanguageChange}
-                    size="sm"
-                  />
-                </label>
-
-                <label className="border border-[#222] bg-[#0b0b0b] p-3">
-                  <div className="mb-2 text-[10px] uppercase tracking-wider text-gray-500">Trading mode</div>
-                  <ButtonGroup
-                    options={[
-                      { value: 'PAPER', label: 'PAPER', activeColor: 'text-gray-300' },
-                      { value: 'LIVE', label: 'LIVE', activeColor: 'text-red-400' },
-                    ]}
-                    value={tradingMode}
-                    onChange={setTradingMode}
-                    size="sm"
-                  />
-                </label>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-xs">{t('SETUP_VERSION')}</span>
+                <span className="text-gray-300 text-xs font-mono">v{__APP_VERSION__}</span>
               </div>
 
-              <label className="border border-[#222] bg-[#0b0b0b] p-3 block">
-                <div className="mb-2 text-[10px] uppercase tracking-wider text-gray-500">{t('DEFAULT_MARKET')}</div>
-                <ButtonGroup
-                  options={[
-                    { value: 'CRYPTO', label: 'CRYPTO', activeColor: 'text-blue-400' },
-                    { value: 'CN_STOCK', label: 'A-SHARE', activeColor: 'text-red-400' },
-                  ]}
+              <div className="flex justify-between items-center gap-4">
+                <span className="text-gray-400 text-xs">{t('INTERFACE_LANGUAGE')}</span>
+                <Select
+                  options={languageOptions}
+                  value={currentLang}
+                  onChange={handleLanguageChange}
+                  size="sm"
+                />
+              </div>
+
+              <div className="flex justify-between items-center gap-4">
+                <span className="text-gray-400 text-xs">{t('DEFAULT_MARKET')}</span>
+                <Select
+                  options={marketOptions}
                   value={marketMode}
                   onChange={setMarketMode}
                   size="sm"
                 />
-              </label>
+              </div>
 
-              <label className="border border-[#222] bg-[#0b0b0b] p-3 block">
-                <div className="mb-2 text-[10px] uppercase tracking-wider text-gray-500">{t('COLOR_SCHEME')}</div>
-                <p className="text-[10px] text-gray-600 mb-2">{t('COLOR_SCHEME_HINT')}</p>
-                <ButtonGroup
-                  options={[
-                    { value: 'greenUp', label: t('COLOR_GREEN_RED'), activeColor: 'text-green-400' },
-                    { value: 'redUp', label: t('COLOR_RED_GREEN'), activeColor: 'text-red-400' },
-                  ]}
+              <div className="flex justify-between items-center gap-4">
+                <span className="text-gray-400 text-xs">Trading Mode</span>
+                <Select
+                  options={tradingOptions}
+                  value={tradingMode}
+                  onChange={setTradingMode}
+                  size="sm"
+                />
+              </div>
+
+              <div className="flex justify-between items-center gap-4">
+                <div>
+                  <span className="text-gray-400 text-xs">{t('COLOR_SCHEME')}</span>
+                  <p className="text-gray-600 text-[10px] mt-0.5">{t('COLOR_SCHEME_HINT')}</p>
+                </div>
+                <Select
+                  options={colorSchemeOptions}
                   value={colorScheme}
                   onChange={setColorScheme}
                   size="sm"
                 />
-              </label>
+              </div>
 
-              <div className="border border-[#222] bg-[#0b0b0b] p-3">
-                <div className="mb-2 text-[10px] uppercase tracking-wider text-gray-500">{t('ASHARE_DATA_SOURCE')}</div>
-                <div className="space-y-2">
+              <div className="pt-2 border-t border-[#333]">
+                <div className="mb-2">
+                  <span className="text-gray-400 text-xs">{t('ASHARE_DATA_SOURCE')}</span>
+                </div>
+                <div className="space-y-2 pl-2 border-l-2 border-terminal-accent/30">
                   {(Object.keys(CAPABILITY_LABELS) as AdapterCapability[]).map((cap) => (
-                    <div key={cap} className="flex items-center justify-between gap-3">
-                      <span className="text-[10px] font-mono text-gray-500">{CAPABILITY_LABELS[cap]}</span>
-                      <ButtonGroup
-                        options={STOCK_ADAPTERS}
+                    <div key={cap} className="flex justify-between items-center gap-3">
+                      <span className="text-gray-500 text-[10px] font-mono">{CAPABILITY_LABELS[cap]}</span>
+                      <Select
+                        options={stockAdapterOptions}
                         value={capMap[cap]}
-                        onChange={(id: string) => handleCapChange(cap, id)}
-                        size="sm"
+                        onChange={(id) => handleCapChange(cap, id)}
+                        size="xs"
                       />
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-[10px] text-gray-500 font-mono">
-                <div className="border border-[#222] bg-[#0c0c0c] px-3 py-2">
-                  <div className="uppercase tracking-widest text-gray-600">VITE_PORT</div>
-                  <div className="text-gray-300 mt-1">{vitePort}</div>
-                </div>
-                <div className="border border-[#222] bg-[#0c0c0c] px-3 py-2">
-                  <div className="uppercase tracking-widest text-gray-600">FREE_CLAUDE_PORT</div>
-                  <div className="text-gray-300 mt-1">{freeClaudePort}</div>
-                </div>
+              <div className="pt-4 border-t border-[#333]">
+                <button
+                  className="w-full bg-[#333] hover:bg-[#444] py-2 text-xs text-white"
+                  onClick={() => setShowResetConfirm(true)}
+                >
+                  {t('RESET_FACTORY')}
+                </button>
               </div>
             </div>
-          </section>
+          </div>
 
-          <section className="border border-[#2f2f2f] bg-[#101010]/95 p-5 shadow-2xl shadow-black/30">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.3em] text-gray-500">AI</div>
-                <h3 className="text-lg font-semibold text-gray-100">free-claude-code runtime</h3>
-              </div>
-              <div className="rounded-sm border border-[#2a2a2a] px-3 py-1 text-[10px] font-mono text-gray-400">
-                {getProviderLabel(aiSettings.provider)}
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <div className="mb-2 text-[10px] uppercase tracking-wider text-gray-500">Provider</div>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                  {providerButtons.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => handleProviderChange(option.value)}
-                      className={`flex flex-col items-start border px-3 py-2 text-left transition-colors ${aiSettings.provider === option.value ? 'border-terminal-accent bg-[#171717] text-white' : 'border-[#262626] bg-[#0c0c0c] text-gray-400 hover:border-[#444] hover:text-gray-200'}`}
-                    >
-                      <span className={`text-[11px] font-bold ${option.activeColor ?? ''}`}>{option.label}</span>
-                      <span className="mt-1 text-[9px] text-gray-500">{FREE_CLAUDE_PROVIDER_OPTIONS.find((provider) => provider.id === option.value)?.credentialEnv ?? 'Local runtime'}</span>
-                    </button>
-                  ))}
-                </div>
+          <div className="border border-[#333] bg-[#111] p-6 backdrop-blur-sm space-y-4">
+            <h3 className="text-terminal-accent font-bold uppercase tracking-widest border-b border-[#333] pb-2">AI Runtime</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center gap-4">
+                <span className="text-gray-400 text-xs">Provider</span>
+                <Select
+                  options={providerOptions}
+                  value={aiSettings.provider}
+                  onChange={handleProviderChange}
+                  size="sm"
+                />
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-[1fr_1fr]">
-                <label className="block">
-                  <div className="mb-2 text-[10px] uppercase tracking-wider text-gray-500">API key</div>
-                  <input
-                    type="password"
-                    value={aiSettings.apiKey}
-                    onChange={(e) => setAiSettings((prev) => normalizeAiSettings({ ...prev, apiKey: e.target.value }))}
-                    placeholder={currentProvider.credentialEnv ?? 'Optional local runtime key'}
-                    className="w-full bg-[#0c0c0c] border border-[#333] px-3 py-2 text-[11px] text-gray-200 outline-none focus:border-terminal-accent"
-                  />
-                </label>
-
-                <label className="block">
-                  <div className="mb-2 text-[10px] uppercase tracking-wider text-gray-500">Model</div>
-                  <input
-                    list="free-claude-model-hints"
-                    type="text"
-                    value={aiSettings.model}
-                    onChange={(e) => setAiSettings((prev) => normalizeAiSettings({ ...prev, model: e.target.value }))}
-                    placeholder={getDefaultModel(aiSettings.provider)}
-                    className="w-full bg-[#0c0c0c] border border-[#333] px-3 py-2 text-[11px] text-gray-200 outline-none focus:border-terminal-accent font-mono"
-                  />
-                  <datalist id="free-claude-model-hints">
-                    {[getDefaultModel(aiSettings.provider), ...modelHints].map((hint) => (
-                      <option key={hint} value={hint} />
-                    ))}
-                  </datalist>
-                </label>
+              <div className="flex justify-between items-center gap-4">
+                <span className="text-gray-400 text-xs">Provider Label</span>
+                <span className="text-gray-300 text-[11px] font-mono">{getProviderLabel(aiSettings.provider)}</span>
               </div>
 
-              <div>
-                <div className="mb-2 text-[10px] uppercase tracking-wider text-gray-500">Model suggestions</div>
-                <div className="flex flex-wrap gap-2">
+              <div className="flex justify-between items-center gap-4">
+                <span className="text-gray-400 text-xs">API Key</span>
+                <input
+                  type="password"
+                  value={aiSettings.apiKey}
+                  onChange={(e) => setAiSettings((prev) => normalizeAiSettings({ ...prev, apiKey: e.target.value }))}
+                  placeholder={currentProvider.credentialEnv ?? 'Optional local runtime key'}
+                  className="w-60 bg-[#0c0c0c] border border-[#333] px-2 py-1.5 text-[11px] text-gray-200 outline-none focus:border-terminal-accent"
+                />
+              </div>
+
+              <div className="flex justify-between items-center gap-4">
+                <span className="text-gray-400 text-xs">Model</span>
+                <input
+                  list="free-claude-model-hints"
+                  type="text"
+                  value={aiSettings.model}
+                  onChange={(e) => setAiSettings((prev) => normalizeAiSettings({ ...prev, model: e.target.value }))}
+                  placeholder={getDefaultModel(aiSettings.provider)}
+                  className="w-60 bg-[#0c0c0c] border border-[#333] px-2 py-1.5 text-[11px] text-gray-200 outline-none focus:border-terminal-accent font-mono"
+                />
+                <datalist id="free-claude-model-hints">
                   {[getDefaultModel(aiSettings.provider), ...modelHints].map((hint) => (
-                    <button
-                      key={hint}
-                      onClick={() => setAiSettings((prev) => normalizeAiSettings({ ...prev, model: hint }))}
-                      className="rounded-sm border border-[#2a2a2a] bg-[#0c0c0c] px-2 py-1 text-[10px] text-gray-400 hover:border-terminal-accent hover:text-terminal-accent"
-                    >
-                      {hint}
-                    </button>
+                    <option key={hint} value={hint} />
                   ))}
-                </div>
+                </datalist>
               </div>
 
               <p className="text-[10px] text-gray-600 leading-relaxed">
-                Settings are persisted locally in the browser profile. Packaged builds ignore .env and use the bundled runtime plus the values saved here.
+                Settings are persisted locally. Packaged builds ignore .env and use runtime defaults plus your saved values.
               </p>
             </div>
-          </section>
+          </div>
         </div>
       </div>
 

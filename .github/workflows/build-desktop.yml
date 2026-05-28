@@ -42,15 +42,30 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Setup Python 3.10 (Windows runtime build)
+        if: matrix.platform == 'win'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install free-claude runtime dependencies (Windows)
+        if: matrix.platform == 'win'
+        run: |
+          py -3.10 -m pip install --upgrade pip
+          py -3.10 -m pip install pyinstaller
+          py -3.10 -m pip install -r packages/free-claude-code/requirements.txt
+
       - name: Compile Electron TypeScript
+        if: matrix.platform != 'win'
         run: pnpm exec tsc -p electron/tsconfig.json
 
       - name: Build frontend
+        if: matrix.platform != 'win'
         run: pnpm run build
 
       - name: Build Electron app (Windows)
         if: matrix.platform == 'win'
-        run: pnpm exec electron-builder --win --publish never
+        run: pnpm run electron:build -- --win --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

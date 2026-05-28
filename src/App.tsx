@@ -330,8 +330,6 @@ const App = () => {
               setCapMap={setCapMap}
               aiSettings={aiSettings}
               setAiSettings={setAiSettings}
-              vitePort={Number(process.env.VITE_PORT || process.env.VITE_DEV_PORT || 5173)}
-              freeClaudePort={Number(process.env.FREE_CLAUDE_PORT || process.env.PORT || 8082)}
             />
           )}
 
