@@ -22,6 +22,31 @@ declare global {
             restartToUpdate: () => void;
             // System metrics
             getSystemMetrics: () => Promise<{ memMB: number; cpuPercent: number }>;
+            // free-claude-code runtime
+            controlFreeClaude: (payload?: {
+                action?: 'start' | 'stop' | 'status';
+                config?: { apiKey?: string; model?: string; port?: number };
+            }) => Promise<{
+                ok: boolean;
+                running: boolean;
+                baseUrl: string;
+                model: string;
+                apiKeyMasked: string;
+                output: string[];
+                error: string | null;
+                message?: string;
+            }>;
+            chatWithFreeClaude: (payload: {
+                messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+                config?: { apiKey?: string; model?: string; port?: number };
+                maxTokens?: number;
+                temperature?: number;
+            }) => Promise<{
+                ok: boolean;
+                message: string;
+                raw: unknown;
+                model: string;
+            }>;
         };
     }
 }

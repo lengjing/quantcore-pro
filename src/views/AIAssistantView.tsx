@@ -3,10 +3,8 @@
  *
  * Full-screen AI chat interface.
  *
- * Redesigned to work without a Python backend — Claude Code will be
- * integrated as the AI engine in a future release.  The chat UI is
- * retained for continuity, but all Python/backend-specific status
- * checks and warnings have been removed.
+ * AI assistant view backed by the local free-claude-code proxy runtime
+ * through Electron IPC.
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -30,11 +28,12 @@ import {
   BrainCircuit,
 } from 'lucide-react';
 
-import type { ChatMessage, AIAction, ToolUseEvent, Notification } from '../types';
+import type { ChatMessage, AIAction, ToolUseEvent, Notification, AISettings } from '../types';
 import type { CustomSectorDef } from '../data/sectors';
 import type { ResourceKey, LangKey } from '../i18n';
 import { nextCustomColor, newCustomSectorId } from '../data/sectors';
 import { sendAIMessage } from '../services/ai/aiChatService';
+import { getProviderLabel } from '../services/ai/aiConfig';
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -211,6 +210,7 @@ interface AIAssistantViewProps {
   addToWatchlist: (symbol: string) => void;
   showNotification: (type: Notification['type'], message: string) => void;
   lang: LangKey;
+  aiSettings: AISettings;
   t: (key: ResourceKey) => string;
 }
 
@@ -221,6 +221,7 @@ export const AIAssistantView = ({
   addToWatchlist,
   showNotification,
   lang,
+  aiSettings,
   t,
 }: AIAssistantViewProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -301,6 +302,7 @@ export const AIAssistantView = ({
       const result = await sendAIMessage(
         apiMessages,
         { customSectors, stockWatchlist },
+        aiSettings,
         abortRef.current.signal,
       );
 
@@ -364,14 +366,14 @@ export const AIAssistantView = ({
           </span>
           <span className="text-[9px] text-gray-600 ml-1 flex items-center gap-1">
             <BrainCircuit size={9} />
-            {t('AI_POWERED_BY')}
+            {getProviderLabel(aiSettings.provider)} · {aiSettings.model || 'default'}
           </span>
         </div>
         <div className="flex items-center gap-3">
-          {/* Claude Code integration badge */}
+          {/* Runtime badge */}
           <div className="flex items-center gap-1.5 text-[9px] text-gray-500 border border-[#222] px-2 py-0.5">
             <Sparkles size={9} className="text-terminal-accent/60" />
-            {t('AI_CLAUDE_CODE_COMING' as any)}
+            {aiSettings.provider === 'gemini' ? 'GEMINI' : 'FREE-CLAUDE'}
           </div>
           {messages.length > 0 && (
             <button
@@ -403,7 +405,7 @@ export const AIAssistantView = ({
             </div>
 
             {/* Capabilities overview */}
-            <div className="grid grid-cols-3 gap-3 mt-2 max-w-md w-full">
+            <div className="grid grid-cols-3 gap-3 mt-2 max-w-2xl w-full">
               <div className="border border-[#222] bg-[#0a0a0a] p-3 text-center">
                 <Search size={16} className="text-terminal-accent/60 mx-auto mb-1.5" />
                 <div className="text-[10px] text-gray-400 font-bold uppercase">{t('AI_CAP_RESEARCH' as any)}</div>
@@ -446,6 +448,12 @@ export const AIAssistantView = ({
 
       {/* ── Input area ──────────────────────────────────────────────────── */}
       <div className="shrink-0 border-t border-terminal-border bg-[#0a0a0a] px-3 py-2">
+        <div className="flex items-center justify-between mb-2 text-[9px] text-gray-500">
+          <span>{t('AI_HINT')}</span>
+          <span className="px-2 py-0.5 border border-[#222] uppercase tracking-widest">
+            {getProviderLabel(aiSettings.provider)}
+          </span>
+        </div>
         <div className="flex gap-2 items-end">
           <textarea
             ref={inputRef}

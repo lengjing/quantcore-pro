@@ -3,8 +3,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Play, Save, Bot, Loader2, Bug, Square, Folder, File, Plus, Trash2, ChevronRight, ChevronDown, Terminal, Server, Package, Zap, StopCircle, Activity, RefreshCw, Edit3, FolderPlus } from 'lucide-react';
 import Editor, { loader } from '@monaco-editor/react';
-import { generateStrategyCode } from '../services/ai/geminiService';
-import { StrategyFile } from '../types';
+import { generateStrategyCode } from '../services/ai/aiChatService';
+import type { AISettings, StrategyFile } from '../types';
 import { executeStrategy } from '../services/strategy/strategyFileService';
 
 interface StrategyEditorProps {
@@ -15,6 +15,7 @@ interface StrategyEditorProps {
   onCreateFile: (name: string) => void;
   onDeleteFile: (name: string) => void;
   onRenameFile?: (oldName: string, newName: string) => void;
+  aiSettings: AISettings;
   onRun: () => void;
 }
 
@@ -34,6 +35,7 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
   onCreateFile, 
   onDeleteFile,
   onRenameFile,
+  aiSettings,
   onRun 
 }) => {
   const { t } = useTranslation();
@@ -144,7 +146,7 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
   const handleAiGenerate = async () => {
     if (!prompt.trim()) return;
     setIsGenerating(true);
-    const generated = await generateStrategyCode(prompt);
+    const generated = await generateStrategyCode(prompt, aiSettings);
     if (activeFile) {
        onUpdateFile(activeFileName, generated);
     }
@@ -451,8 +453,13 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
              <div className="flex space-x-3">
                <div className="text-terminal-accent pt-1.5"><Bot size={18} /></div>
                <div className="flex-1 space-y-2">
-                 <div className="flex justify-between items-center">
-                   <span className="text-[10px] font-bold text-terminal-accent tracking-wider">GEMINI STRATEGY GENERATOR</span>
+                 <div className="flex justify-between items-center gap-2">
+                   <div className="flex items-center gap-2">
+                     <span className="text-[10px] font-bold text-terminal-accent tracking-wider">AI STRATEGY GENERATOR</span>
+                     <span className="px-2 py-0.5 text-[9px] border border-[#333] text-gray-400 uppercase tracking-widest">
+                       {aiSettings.provider}
+                     </span>
+                   </div>
                    {isGenerating && <span className="text-[10px] text-gray-400 animate-pulse">Processing...</span>}
                  </div>
                  <div className="relative">
@@ -460,7 +467,7 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
                      type="text" 
                      value={prompt}
                      onChange={(e) => setPrompt(e.target.value)}
-                     placeholder="Describe your strategy (e.g., 'Mean reversion on Bollinger Bands with RSI filter')..."
+                     placeholder={`Describe your strategy (${aiSettings.provider === 'gemini' ? 'Gemini' : 'free-claude-code'} generator)...`}
                      className="w-full bg-[#3c3c3c] border border-[#333] text-white text-xs px-3 py-2 focus:outline-none focus:border-terminal-accent focus:ring-1 focus:ring-terminal-accent placeholder-gray-500 font-sans"
                      onKeyDown={(e) => e.key === 'Enter' && handleAiGenerate()}
                      disabled={isGenerating}

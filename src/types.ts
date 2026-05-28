@@ -161,6 +161,14 @@ export interface BacktestResult {
   metrics: BacktestMetric[];
 }
 
+export type AIProvider = 'free-claude-code' | 'gemini';
+
+export interface AISettings {
+  provider: AIProvider;
+  apiKey: string;
+  model: string;
+}
+
 export interface StrategyFile {
   name: string;
   language: string; // 'python' | 'json' | 'markdown' | 'javascript'

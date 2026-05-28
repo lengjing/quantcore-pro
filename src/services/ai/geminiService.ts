@@ -1,16 +1,18 @@
 import { GoogleGenAI } from '@google/genai';
-import { NewsItem } from '../../types';
+import type { AISettings, NewsItem } from '../../types';
+import { DEFAULT_GEMINI_MODEL } from './aiConfig';
 
-// Fail gracefully when no API key is present so UI demo still works.
-const apiKey = process.env.API_KEY || '';
-let ai: GoogleGenAI | null = null;
-
-if (apiKey) {
-  ai = new GoogleGenAI({ apiKey });
+function createGeminiClient(apiKey?: string): GoogleGenAI | null {
+  const key = (apiKey || process.env.API_KEY || process.env.GEMINI_API_KEY || '').trim();
+  if (!key) {
+    return null;
+  }
+  return new GoogleGenAI({ apiKey: key });
 }
 
 /** Generate quantitative strategy Python code from a natural-language prompt. */
-export const generateStrategyCode = async (prompt: string): Promise<string> => {
+export const generateStrategyCode = async (prompt: string, settings?: Partial<AISettings>): Promise<string> => {
+  const ai = createGeminiClient(settings?.apiKey);
   if (!ai) {
     return [
       '# Mock Response: GEMINI_API_KEY not configured.',
@@ -26,7 +28,7 @@ export const generateStrategyCode = async (prompt: string): Promise<string> => {
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: settings?.model?.trim() || DEFAULT_GEMINI_MODEL,
       contents: prompt,
       config: {
         systemInstruction: [
@@ -47,13 +49,36 @@ export const generateStrategyCode = async (prompt: string): Promise<string> => {
   }
 };
 
+export async function sendGeminiChatMessage(
+  messages: { role: 'user' | 'assistant'; content: string }[],
+  settings?: Partial<AISettings>,
+): Promise<string> {
+  const ai = createGeminiClient(settings?.apiKey);
+  if (!ai) {
+    throw new Error('Gemini API key is not configured');
+  }
+
+  const prompt = messages.map((message) => `${message.role.toUpperCase()}: ${message.content}`).join('\n\n');
+  const response = await ai.models.generateContent({
+    model: settings?.model?.trim() || DEFAULT_GEMINI_MODEL,
+    contents: prompt,
+    config: {
+      temperature: 0.2,
+      systemInstruction: 'You are a concise quantitative trading assistant. Reply in plain text only.',
+    },
+  });
+
+  return response.text ?? '';
+}
+
 /** Summarise backtest metrics in plain English for a portfolio manager. */
-export const explainStrategyMetrics = async (metrics: unknown): Promise<string> => {
-  if (!ai) return 'AI Insights unavailable — GEMINI_API_KEY not configured.';
+export const explainStrategyMetrics = async (metrics: unknown, settings?: Partial<AISettings>): Promise<string> => {
+  const ai = createGeminiClient(settings?.apiKey);
+  if (!ai) return 'AI Insights unavailable — Gemini API key not configured.';
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: settings?.model?.trim() || DEFAULT_GEMINI_MODEL,
       contents: `Analyze these backtest metrics and give a 2-sentence executive summary for a portfolio manager: ${JSON.stringify(metrics)}`,
     });
 
@@ -64,7 +89,8 @@ export const explainStrategyMetrics = async (metrics: unknown): Promise<string> 
 };
 
 /** Fetch latest market & crypto news items via Gemini with Google Search grounding. */
-export const fetchMarketNews = async (): Promise<{ items: NewsItem[]; groundingUrls: string[] }> => {
+export const fetchMarketNews = async (settings?: Partial<AISettings>): Promise<{ items: NewsItem[]; groundingUrls: string[] }> => {
+  const ai = createGeminiClient(settings?.apiKey);
   if (!ai) {
     throw new Error('GEMINI_API_KEY not configured');
   }
@@ -85,7 +111,7 @@ export const fetchMarketNews = async (): Promise<{ items: NewsItem[]; groundingU
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: settings?.model?.trim() || DEFAULT_GEMINI_MODEL,
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],

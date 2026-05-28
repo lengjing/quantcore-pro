@@ -55,6 +55,8 @@ import type { CustomSectorDef } from './data/sectors';
 
 // i18n types
 import type { LangKey } from './i18n';
+import type { AISettings } from './types';
+import { DEFAULT_AI_SETTINGS, normalizeAiSettings } from './services/ai/aiConfig';
 
 import type { Timeframe } from './types';
 
@@ -67,6 +69,7 @@ const App = () => {
   const [activeSymbol, setActiveSymbol] = usePersisted<string>('activeSymbol', 'BTC-USDT');
   const [timeframe, setTimeframe] = usePersisted<Timeframe>('timeframe', '1H');
   const [colorScheme, setColorScheme] = usePersisted<ColorScheme>('colorScheme', 'greenUp');
+  const [aiSettings, setAiSettings] = usePersisted<AISettings>('aiSettings', DEFAULT_AI_SETTINGS);
   const defaultCapMap = { realtime: 'eastmoney', dailyKlines: 'eastmoney', minuteKlines: 'eastmoney' };
   const [capMap, setCapMap] = usePersisted<Record<string, string>>('capMap', defaultCapMap);
 
@@ -80,6 +83,17 @@ const App = () => {
   const [showAddSymbolModal, setShowAddSymbolModal] = usePersisted<boolean>('showAddSymbolModal', false);
   const [newSymbolInput, setNewSymbolInput] = usePersisted<string>('newSymbolInput', '');
   const [showResetConfirm, setShowResetConfirm] = React.useState(false);
+
+  useEffect(() => {
+    const normalized = normalizeAiSettings(aiSettings);
+    if (
+      normalized.provider !== aiSettings.provider ||
+      normalized.apiKey !== aiSettings.apiKey ||
+      normalized.model !== aiSettings.model
+    ) {
+      setAiSettings(normalized);
+    }
+  }, [aiSettings, setAiSettings]);
 
   const commandInputRef = useRef<HTMLInputElement>(null);
 
@@ -283,6 +297,7 @@ const App = () => {
                 onCreateFile={handleCreateFile}
                 onDeleteFile={handleDeleteFile}
                 onRenameFile={handleRenameFile}
+                aiSettings={aiSettings}
                 onRun={() => { setView(ViewState.BACKTEST); runBacktest(); }}
               />
             </Panel>
@@ -316,6 +331,10 @@ const App = () => {
               setColorScheme={setColorScheme}
               capMap={capMap}
               setCapMap={setCapMap}
+              aiSettings={aiSettings}
+              setAiSettings={setAiSettings}
+              vitePort={Number(process.env.VITE_PORT || process.env.VITE_DEV_PORT || 5173)}
+              freeClaudePort={Number(process.env.FREE_CLAUDE_PORT || process.env.PORT || 8082)}
             />
           )}
 
@@ -327,6 +346,7 @@ const App = () => {
               addToWatchlist={addToWatchlist}
               showNotification={showNotification}
               lang={(i18n.language === 'cn' ? 'CN' : 'EN') as LangKey}
+              aiSettings={aiSettings}
               t={t}
             />
           )}

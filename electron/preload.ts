@@ -21,4 +21,15 @@ contextBridge.exposeInMainWorld('electron', {
     restartToUpdate: () => ipcRenderer.send('menu-restart-to-update'),
     // System metrics
     getSystemMetrics: () => ipcRenderer.invoke('get-system-metrics'),
+    // free-claude-code runtime
+    controlFreeClaude: (payload?: {
+        action?: 'start' | 'stop' | 'status';
+        config?: { apiKey?: string; model?: string; port?: number };
+    }) => ipcRenderer.invoke('free-claude-control', payload),
+    chatWithFreeClaude: (payload: {
+        messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+        config?: { apiKey?: string; model?: string; port?: number };
+        maxTokens?: number;
+        temperature?: number;
+    }) => ipcRenderer.invoke('free-claude-chat', payload),
 });
