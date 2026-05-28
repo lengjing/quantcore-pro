@@ -1,13 +1,12 @@
 /**
  * aiChatService.ts
  *
- * Unified AI access layer that can route to the local free-claude-code proxy
- * or Gemini based on user settings.
+ * Unified AI access layer that routes to the local free-claude-code proxy.
  */
 
 import type { AIAction, AISettings, ToolUseEvent } from '../../types';
 import type { CustomSectorDef } from '../../data/sectors';
-import { sendGeminiChatMessage, generateStrategyCode as generateGeminiStrategyCode } from './geminiService';
+import { sendFreeClaudeChatMessage, generateStrategyCode as generateFreeClaudeStrategyCode } from './freeClaudeService';
 
 const BACKEND_URL = 'http://localhost:5000';
 
@@ -42,77 +41,18 @@ export async function sendAIMessage(
   context: ChatContext,
   settings?: AISettings,
   signal?: AbortSignal,
+  onDelta?: (delta: string, fullText: string) => void,
 ): Promise<ChatApiResponse> {
-  if (settings?.provider === 'gemini') {
-    const message = await sendGeminiChatMessage(messages, settings);
-    return {
-      message,
-      actions: [],
-      toolUse: [],
-    };
-  }
-
-  if (window.electron?.chatWithFreeClaude) {
-    const chat = await window.electron.chatWithFreeClaude({
-      messages,
-      config: {
-        apiKey: settings?.apiKey,
-        model: settings?.model || 'deepseek/deepseek-chat',
-        port: Number(process.env.FREE_CLAUDE_PORT || process.env.PORT || 8082),
-      },
-      maxTokens: 1024,
-      temperature: 0.2,
-    });
-
-    return {
-      message: chat.message,
-      actions: [],
-      toolUse: [],
-    };
-  }
-
-  const response = await fetch(`${BACKEND_URL}/api/ai/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages, context }),
-    signal,
-  });
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => `HTTP ${response.status}`);
-    let parsed: { message?: string } | null = null;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      /* ignore */
-    }
-    throw new Error(parsed?.message ?? text);
-  }
-
-  return response.json() as Promise<ChatApiResponse>;
+  const message = await sendFreeClaudeChatMessage(messages, settings, onDelta);
+  return {
+    message,
+    actions: [],
+    toolUse: [],
+  };
 }
 
 export async function generateStrategyCode(prompt: string, settings?: AISettings): Promise<string> {
-  if (settings?.provider === 'gemini') {
-    return generateGeminiStrategyCode(prompt, settings);
-  }
-
-  if (window.electron?.chatWithFreeClaude) {
-    const chat = await window.electron.chatWithFreeClaude({
-      messages: [{ role: 'user', content: prompt }],
-      config: {
-        apiKey: settings?.apiKey,
-        model: settings?.model || 'deepseek/deepseek-chat',
-        port: Number(process.env.FREE_CLAUDE_PORT || process.env.PORT || 8082),
-      },
-      maxTokens: 2048,
-      temperature: 0.2,
-    });
-
-    return chat.message || '# Empty response from free-claude-code';
-  }
-
-  return generateGeminiStrategyCode(prompt, settings);
+  return generateFreeClaudeStrategyCode(prompt, settings);
 }
 
 /**

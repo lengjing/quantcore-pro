@@ -467,7 +467,7 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
                      type="text" 
                      value={prompt}
                      onChange={(e) => setPrompt(e.target.value)}
-                     placeholder={`Describe your strategy (${aiSettings.provider === 'gemini' ? 'Gemini' : 'free-claude-code'} generator)...`}
+                     placeholder={`Describe your strategy (${aiSettings.provider} generator)...`}
                      className="w-full bg-[#3c3c3c] border border-[#333] text-white text-xs px-3 py-2 focus:outline-none focus:border-terminal-accent focus:ring-1 focus:ring-terminal-accent placeholder-gray-500 font-sans"
                      onKeyDown={(e) => e.key === 'Enter' && handleAiGenerate()}
                      disabled={isGenerating}

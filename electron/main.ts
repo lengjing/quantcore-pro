@@ -6,6 +6,24 @@ import * as fs from 'fs';
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
 import dotenv from 'dotenv';
 
+type FreeClaudeProviderId =
+    | 'nvidia_nim'
+    | 'open_router'
+    | 'deepseek'
+    | 'mistral'
+    | 'mistral_codestral'
+    | 'opencode'
+    | 'opencode_go'
+    | 'wafer'
+    | 'kimi'
+    | 'cerebras'
+    | 'groq'
+    | 'fireworks'
+    | 'zai'
+    | 'lmstudio'
+    | 'llamacpp'
+    | 'ollama';
+
 function loadDotEnvFiles() {
     const candidates = [
         path.resolve(process.cwd(), '.env'),
@@ -21,11 +39,32 @@ function loadDotEnvFiles() {
     }
 }
 
-loadDotEnvFiles();
+if (!app.isPackaged) {
+    loadDotEnvFiles();
+}
 
 const isDev = !app.isPackaged;
 const DEV_PORT = process.env.VITE_PORT || process.env.VITE_DEV_PORT || '5173';
 const FREE_CLAUDE_PORT = Number(process.env.FREE_CLAUDE_PORT || process.env.PORT || 8082);
+
+const PROVIDER_CREDENTIAL_ENV: Record<FreeClaudeProviderId, string | null> = {
+    nvidia_nim: 'NVIDIA_NIM_API_KEY',
+    open_router: 'OPENROUTER_API_KEY',
+    deepseek: 'DEEPSEEK_API_KEY',
+    mistral: 'MISTRAL_API_KEY',
+    mistral_codestral: 'CODESTRAL_API_KEY',
+    opencode: 'OPENCODE_API_KEY',
+    opencode_go: 'OPENCODE_API_KEY',
+    wafer: 'WAFER_API_KEY',
+    kimi: 'KIMI_API_KEY',
+    cerebras: 'CEREBRAS_API_KEY',
+    groq: 'GROQ_API_KEY',
+    fireworks: 'FIREWORKS_API_KEY',
+    zai: 'ZAI_API_KEY',
+    lmstudio: null,
+    llamacpp: null,
+    ollama: null,
+};
 
 // Read publish URL from package.json to keep a single source of truth
 function readPublishUrl(): string {
@@ -43,6 +82,7 @@ let mainWindow: BrowserWindow | null = null;
 type FreeClaudeControlAction = 'start' | 'stop' | 'status';
 
 interface FreeClaudeConfig {
+    provider?: FreeClaudeProviderId;
     apiKey?: string;
     model?: string;
     port?: number;
@@ -111,6 +151,42 @@ function resolveDeepSeekKey(explicit?: string): string {
     return '';
 }
 
+function resolveProviderKey(provider: FreeClaudeProviderId, explicit?: string): string {
+    if (explicit && explicit.trim()) {
+        return explicit.trim();
+    }
+
+    const credentialEnv = PROVIDER_CREDENTIAL_ENV[provider];
+    if (credentialEnv) {
+        const envValue = process.env[credentialEnv];
+        if (envValue && envValue.trim()) {
+            return envValue.trim();
+        }
+    }
+
+    if (provider === 'deepseek') {
+        return resolveDeepSeekKey(explicit);
+    }
+
+    const keyFile = path.join(getProjectRoot(), 'test');
+    if (fs.existsSync(keyFile)) {
+        const content = fs.readFileSync(keyFile, 'utf-8').trim();
+        if (content) {
+            return content;
+        }
+    }
+
+    return '';
+}
+
+function normalizeModelRef(provider: FreeClaudeProviderId, model?: string): string {
+    const trimmed = (model || '').trim();
+    if (!trimmed) {
+        return `${provider}/local-model`;
+    }
+    return trimmed.includes('/') ? trimmed : `${provider}/${trimmed}`;
+}
+
 function freeClaudeBaseUrl(): string {
     return `http://127.0.0.1:${freeClaudeState.port}`;
 }
@@ -152,11 +228,12 @@ function stopFreeClaudeServer(): { ok: boolean; message: string } {
 
 async function ensureFreeClaudeServer(config?: FreeClaudeConfig): Promise<void> {
     const port = Number(config?.port ?? FREE_CLAUDE_PORT);
-    const model = (config?.model?.trim() || 'deepseek/deepseek-chat').trim();
-    const apiKey = resolveDeepSeekKey(config?.apiKey);
+    const provider = config?.provider ?? 'deepseek';
+    const model = normalizeModelRef(provider, config?.model || 'deepseek-chat');
+    const apiKey = resolveProviderKey(provider, config?.apiKey);
 
-    if (!apiKey) {
-        throw new Error('DEEPSEEK_API_KEY is missing (set env or put key in test file)');
+    if (!apiKey && PROVIDER_CREDENTIAL_ENV[provider]) {
+        throw new Error(`${PROVIDER_CREDENTIAL_ENV[provider]} is missing (set env or put key in test file)`);
     }
 
     const needsRestart = !freeClaudeState.running
@@ -193,7 +270,7 @@ async function ensureFreeClaudeServer(config?: FreeClaudeConfig): Promise<void> 
 
     const env = {
         ...process.env,
-        DEEPSEEK_API_KEY: apiKey,
+        ...(PROVIDER_CREDENTIAL_ENV[provider] ? { [PROVIDER_CREDENTIAL_ENV[provider] as string]: apiKey } : {}),
         MODEL: model,
         PORT: String(port),
         ANTHROPIC_AUTH_TOKEN: 'freecc',
@@ -343,6 +420,7 @@ ipcMain.handle(
     async (
         _event,
         payload: {
+            provider?: FreeClaudeProviderId;
             messages: Array<{ role: 'user' | 'assistant'; content: string }>;
             config?: FreeClaudeConfig;
             maxTokens?: number;
@@ -396,6 +474,135 @@ ipcMain.handle(
             raw: parsed || raw,
             model: payload?.config?.model || freeClaudeState.model,
         };
+    },
+);
+
+ipcMain.on(
+    'free-claude-chat-stream',
+    async (
+        event,
+        payload: {
+            requestId: string;
+            provider?: FreeClaudeProviderId;
+            messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+            config?: FreeClaudeConfig;
+            maxTokens?: number;
+            temperature?: number;
+        },
+    ) => {
+        const requestId = payload.requestId;
+        try {
+            await ensureFreeClaudeServer(payload?.config);
+            const response = await fetch(`${freeClaudeBaseUrl()}/v1/messages`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': 'freecc',
+                    'anthropic-version': '2023-06-01',
+                },
+                body: JSON.stringify({
+                    model: payload?.config?.model || freeClaudeState.model,
+                    max_tokens: payload?.maxTokens ?? 1024,
+                    temperature: payload?.temperature ?? 0.2,
+                    stream: true,
+                    messages: payload.messages || [],
+                }),
+            });
+
+            if (!response.ok) {
+                const raw = await response.text();
+                event.sender.send('free-claude-chat-stream-error', {
+                    requestId,
+                    error: raw || `HTTP ${response.status}`,
+                });
+                return;
+            }
+
+            if (!response.body) {
+                const raw = await response.text();
+                const text = extractMessageTextFromSse(raw);
+                event.sender.send('free-claude-chat-stream-done', {
+                    requestId,
+                    ok: true,
+                    message: text || raw || 'Empty response from free-claude-code',
+                    raw,
+                    model: payload?.config?.model || freeClaudeState.model,
+                });
+                return;
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let buffer = '';
+            let fullText = '';
+
+            const emitDelta = (delta: string) => {
+                if (!delta) return;
+                fullText += delta;
+                event.sender.send('free-claude-chat-stream-delta', {
+                    requestId,
+                    delta,
+                    message: fullText,
+                });
+            };
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                    break;
+                }
+                buffer += decoder.decode(value, { stream: true });
+                const chunks = buffer.split(/\r?\n\r?\n/);
+                buffer = chunks.pop() || '';
+
+                for (const chunk of chunks) {
+                    const lines = chunk.split(/\r?\n/);
+                    for (const line of lines) {
+                        if (!line.startsWith('data:')) {
+                            continue;
+                        }
+                        const jsonPart = line.slice(5).trim();
+                        if (!jsonPart || jsonPart === '[DONE]') {
+                            continue;
+                        }
+                        try {
+                            const eventData = JSON.parse(jsonPart) as {
+                                type?: string;
+                                delta?: { type?: string; text?: string };
+                                content_block?: { type?: string; text?: string };
+                                message?: { content?: Array<{ type?: string; text?: string }> };
+                            };
+                            if (eventData.type === 'content_block_delta' && eventData.delta?.type === 'text_delta') {
+                                emitDelta(eventData.delta.text || '');
+                            } else if (eventData.type === 'content_block_start' && eventData.content_block?.type === 'text') {
+                                emitDelta(eventData.content_block.text || '');
+                            } else if (eventData.message?.content) {
+                                const textPieces = eventData.message.content
+                                    .filter((part) => part.type === 'text')
+                                    .map((part) => part.text || '')
+                                    .join('');
+                                emitDelta(textPieces);
+                            }
+                        } catch {
+                            // ignore malformed SSE data lines
+                        }
+                    }
+                }
+            }
+
+            event.sender.send('free-claude-chat-stream-done', {
+                requestId,
+                ok: true,
+                message: fullText.trim() || 'Empty response from free-claude-code',
+                raw: null,
+                model: payload?.config?.model || freeClaudeState.model,
+            });
+        } catch (error) {
+            event.sender.send('free-claude-chat-stream-error', {
+                requestId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
     },
 );
 

@@ -161,7 +161,23 @@ export interface BacktestResult {
   metrics: BacktestMetric[];
 }
 
-export type AIProvider = 'free-claude-code' | 'gemini';
+export type AIProvider =
+  | 'nvidia_nim'
+  | 'open_router'
+  | 'deepseek'
+  | 'mistral'
+  | 'mistral_codestral'
+  | 'opencode'
+  | 'opencode_go'
+  | 'wafer'
+  | 'kimi'
+  | 'cerebras'
+  | 'groq'
+  | 'fireworks'
+  | 'zai'
+  | 'lmstudio'
+  | 'llamacpp'
+  | 'ollama';
 
 export interface AISettings {
   provider: AIProvider;

@@ -1,17 +1,8 @@
 import React, { useState, useEffect, forwardRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Wifi, WifiOff, AlertTriangle, ChevronDown, Loader2 } from 'lucide-react';
-import type { MarketMode, TradingMode } from '../../types';
+import { Wifi, WifiOff, ChevronDown, Loader2 } from 'lucide-react';
 import type { ConnectionStatus } from '../../hooks/useMarketData';
 import { Select } from './Select';
-
-/**
- * Market mode options for the market selector.
- */
-const MARKET_OPTIONS: { value: MarketMode; labelKey: string }[] = [
-  { value: 'CRYPTO', labelKey: 'MARKET_CRYPTO' },
-  { value: 'CN_STOCK', labelKey: 'MARKET_ASTOCK' },
-];
 
 interface CommandBarProps {
   value: string;
@@ -19,10 +10,6 @@ interface CommandBarProps {
   onSubmit: () => void;
   onHelp: () => void;
   onMenu: () => void;
-  marketMode: MarketMode;
-  setMarketMode: (mode: MarketMode) => void;
-  tradingMode: TradingMode;
-  setTradingMode: (mode: TradingMode) => void;
   connectionStatus: ConnectionStatus;
 }
 
@@ -43,10 +30,6 @@ export const CommandBar = forwardRef<HTMLInputElement, CommandBarProps>(
       onSubmit,
       onHelp,
       onMenu,
-      marketMode,
-      setMarketMode,
-      tradingMode,
-      setTradingMode,
       connectionStatus,
     },
     ref,
@@ -72,42 +55,6 @@ export const CommandBar = forwardRef<HTMLInputElement, CommandBarProps>(
         </div>
 
         <div className="h-4 w-px bg-terminal-border mx-1 shrink-0" />
-
-        {/* ── Market selector ──────────────────────────────────────────── */}
-        <div className="shrink-0">
-          <Select
-            options={MARKET_OPTIONS.map((opt) => ({
-              value: opt.value,
-              label: t(opt.labelKey),
-              activeColor: opt.value === 'CRYPTO' ? 'text-blue-400' : 'text-red-400',
-            }))}
-            value={marketMode}
-            onChange={setMarketMode}
-            size="xs"
-          />
-        </div>
-
-        <div className="h-4 w-px bg-terminal-border mx-1 shrink-0" />
-
-        {/* Trading mode */}
-        {tradingMode === 'LIVE' ? (
-          <button
-            onClick={() => setTradingMode('PAPER')}
-            className="flex items-center gap-1 px-2 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider text-red-400 border border-red-700 bg-red-950/40 hover:bg-red-900/60 animate-pulse rounded-sm"
-            title={t('LIVE_SWITCH_HINT')}
-          >
-            <AlertTriangle size={8} />
-            {t('LIVE')}
-          </button>
-        ) : (
-          <button
-            onClick={() => setTradingMode('LIVE')}
-            className="flex items-center gap-1 px-2 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider text-gray-400 border border-[#333] bg-[#181818] hover:border-red-700 hover:text-red-400 rounded-sm"
-            title={t('PAPER_SWITCH_HINT')}
-          >
-            {t('PAPER')}
-          </button>
-        )}
 
         {/* Spacer */}
         <div className="flex-1" />

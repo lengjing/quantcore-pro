@@ -55,7 +55,7 @@ import type { CustomSectorDef } from './data/sectors';
 
 // i18n types
 import type { LangKey } from './i18n';
-import type { AISettings } from './types';
+import type { AISettings, TradingMode } from './types';
 import { DEFAULT_AI_SETTINGS, normalizeAiSettings } from './services/ai/aiConfig';
 
 import type { Timeframe } from './types';
@@ -66,6 +66,7 @@ const App = () => {
   // --- Persisted Core State ---
   const [view, setView] = usePersisted<ViewState>('view', ViewState.DASHBOARD);
   const [marketMode, setMarketMode] = usePersisted<MarketMode>('marketMode', 'CRYPTO');
+  const [tradingMode, setTradingMode] = usePersisted<TradingMode>('tradingMode', 'PAPER');
   const [activeSymbol, setActiveSymbol] = usePersisted<string>('activeSymbol', 'BTC-USDT');
   const [timeframe, setTimeframe] = usePersisted<Timeframe>('timeframe', '1H');
   const [colorScheme, setColorScheme] = usePersisted<ColorScheme>('colorScheme', 'greenUp');
@@ -104,14 +105,12 @@ const App = () => {
   const { marketTickers, candles, liveCandle, depth, trades, isScannerLoading, updateMarketData, connectionStatus, latencyMs } =
     useMarketData(activeSymbol, marketMode, timeframe);
   const {
-    tradingMode,
-    setTradingMode,
     positions,
     executeTrade,
     pendingOrder,
     confirmLiveOrder,
     cancelLiveOrder,
-  } = useTradeEngine(activeSymbol, marketTickers, candles, showNotification);
+  } = useTradeEngine(activeSymbol, marketTickers, candles, showNotification, tradingMode);
   const {
     strategyFiles,
     activeFileName,
@@ -242,10 +241,6 @@ const App = () => {
           onSubmit={handleCommandSubmit}
           onHelp={() => setIsHelpOpen(true)}
           onMenu={() => setIsMenuOpen(true)}
-          marketMode={marketMode}
-          setMarketMode={setMarketMode}
-          tradingMode={tradingMode}
-          setTradingMode={setTradingMode}
           connectionStatus={connectionStatus}
         />
 
@@ -327,6 +322,8 @@ const App = () => {
             <SettingsView
               marketMode={marketMode}
               setMarketMode={setMarketMode}
+              tradingMode={tradingMode}
+              setTradingMode={setTradingMode}
               colorScheme={colorScheme}
               setColorScheme={setColorScheme}
               capMap={capMap}

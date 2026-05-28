@@ -27,6 +27,9 @@ import {
   Database,
   BrainCircuit,
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import type { Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 import type { ChatMessage, AIAction, ToolUseEvent, Notification, AISettings } from '../types';
 import type { CustomSectorDef } from '../data/sectors';
@@ -153,8 +156,8 @@ const MessageBubble = ({ msg, t }: { msg: ChatMessage; t: (key: ResourceKey) => 
         <div className="w-5 h-5 rounded-sm bg-terminal-accent/20 border border-terminal-accent/30 flex items-center justify-center shrink-0 mt-0.5">
           <span className="text-[8px] text-terminal-accent font-bold">YOU</span>
         </div>
-        <div className="max-w-[75%] bg-terminal-accent/5 border border-terminal-accent/20 px-3 py-2 text-[11px] font-mono text-gray-200 whitespace-pre-wrap">
-          {msg.content}
+        <div className="max-w-[75%] bg-terminal-accent/5 border border-terminal-accent/20 px-3 py-2 text-[11px] text-gray-200">
+          <div className="whitespace-pre-wrap font-mono">{msg.content}</div>
         </div>
       </div>
     );
@@ -166,8 +169,29 @@ const MessageBubble = ({ msg, t }: { msg: ChatMessage; t: (key: ResourceKey) => 
         <Bot size={11} className="text-terminal-accent" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="bg-[#0d0d0d] border border-[#1e1e1e] px-3 py-2 text-[11px] font-mono text-gray-200 whitespace-pre-wrap">
-          {msg.content}
+        <div className="bg-[#0d0d0d] border border-[#1e1e1e] px-3 py-2 text-[11px] text-gray-200">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              table: ({ children }) => (
+                <div className="my-2 overflow-x-auto">
+                  <table className="min-w-full border-collapse text-[10px]">{children}</table>
+                </div>
+              ),
+              th: ({ children }) => <th className="border border-[#2a2a2a] bg-[#151515] px-2 py-1 text-left font-semibold text-terminal-accent">{children}</th>,
+              td: ({ children }) => <td className="border border-[#222] px-2 py-1 align-top text-gray-300">{children}</td>,
+              a: ({ children, href }) => (
+                <a href={href} target="_blank" rel="noreferrer" className="text-terminal-accent underline decoration-terminal-accent/40 underline-offset-2">{children}</a>
+              ),
+              code: ({ children }) => <code className="rounded bg-[#151515] px-1 py-0.5 font-mono text-[10px] text-terminal-accent">{children}</code>,
+              pre: ({ children }) => <pre className="my-2 overflow-x-auto rounded border border-[#222] bg-[#101010] p-2 font-mono text-[10px] text-gray-300">{children}</pre>,
+              p: ({ children }) => <p className="my-1 leading-5">{children}</p>,
+              ul: ({ children }) => <ul className="my-1 list-disc pl-4">{children}</ul>,
+              ol: ({ children }) => <ol className="my-1 list-decimal pl-4">{children}</ol>,
+            } as Components}
+          >
+            {msg.content || ' '}
+          </ReactMarkdown>
         </div>
         {msg.toolUse && msg.toolUse.length > 0 && (
           <div className="mt-1">
@@ -304,6 +328,11 @@ export const AIAssistantView = ({
         { customSectors, stockWatchlist },
         aiSettings,
         abortRef.current.signal,
+        (delta, fullText) => {
+          setMessages((prev) => prev.map((message) => (message.id === 'loading'
+            ? { ...message, content: fullText, isLoading: false }
+            : message)));
+        },
       );
 
       applyActions(result.actions ?? []);
@@ -373,7 +402,7 @@ export const AIAssistantView = ({
           {/* Runtime badge */}
           <div className="flex items-center gap-1.5 text-[9px] text-gray-500 border border-[#222] px-2 py-0.5">
             <Sparkles size={9} className="text-terminal-accent/60" />
-            {aiSettings.provider === 'gemini' ? 'GEMINI' : 'FREE-CLAUDE'}
+            FREE-CLAUDE
           </div>
           {messages.length > 0 && (
             <button
