@@ -34,20 +34,20 @@ export const DropdownMenu = ({ menu, isOpen, onOpen, onClose, onHover }: Dropdow
         onClick={() => (isOpen ? onClose() : onOpen())}
         onMouseEnter={onHover}
         className={[
-          'px-2 h-full text-[12px] font-sans transition-colors leading-[30px]',
+          'px-2.5 h-full text-[12px] font-mono tracking-wide transition-colors leading-7.5 border-b border-transparent',
           isOpen
-            ? 'bg-[#2d2d2d] text-white'
-            : 'text-[#cccccc] hover:bg-[#2d2d2d] hover:text-white',
+            ? 'bg-[#17120a] text-terminal-accent border-terminal-accent'
+            : 'text-[#cfcfcf] hover:bg-[#17120a] hover:text-terminal-accent hover:border-terminal-accent/60',
         ].join(' ')}
       >
         {menu.label}
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 min-w-0 w-max bg-[#252526] border border-[#454545] shadow-[0_2px_8px_rgba(0,0,0,0.5)] z-[9999] py-1 rounded-[3px]">
+        <div className="absolute top-full left-0 min-w-0 w-max bg-[#090909] border border-[#2e2e2e] shadow-[0_14px_30px_rgba(0,0,0,0.68)] z-9999 py-1 rounded-[3px]">
           {menu.items.map((item, i) =>
             item.separator ? (
-              <div key={i} className="h-px bg-[#454545] my-1" />
+              <div key={i} className="h-px bg-[#2a2a2a] my-1" />
             ) : (
               <button
                 key={i}
@@ -56,11 +56,11 @@ export const DropdownMenu = ({ menu, isOpen, onOpen, onClose, onHover }: Dropdow
                   onClose();
                 }}
                 disabled={item.disabled}
-                className="w-full text-left px-3 py-[3px] text-[12px] text-[#cccccc] hover:bg-[#094771] hover:text-white focus:bg-[#094771] focus:text-white flex items-center justify-between gap-8 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap transition-colors"
+                className="w-full text-left px-3.5 py-1 text-[12px] font-mono text-[#d0d0d0] hover:bg-terminal-accent/15 hover:text-terminal-accent focus:bg-terminal-accent/15 focus:text-terminal-accent border-l-2 border-transparent hover:border-terminal-accent focus:border-terminal-accent flex items-center justify-between gap-8 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap transition-colors"
               >
                 <span>{item.label}</span>
                 {item.shortcut && (
-                  <span className="text-[11px] text-[#888] ml-4">{item.shortcut}</span>
+                  <span className="text-[10px] text-[#8a8a8a] ml-4">{item.shortcut}</span>
                 )}
               </button>
             ),

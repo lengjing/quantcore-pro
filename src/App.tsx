@@ -143,6 +143,20 @@ const App = () => {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (!window.electron?.onUpdaterStatus) return;
+    const unsubscribe = window.electron.onUpdaterStatus((payload) => {
+      if (payload.stage === 'available') {
+        showNotification('INFO', `Update ${payload.version ?? ''} is downloading in background.`.trim());
+      } else if (payload.stage === 'ready') {
+        showNotification('SUCCESS', `Update ${payload.version ?? ''} is ready. Restart app to apply.`.trim());
+      } else if (payload.stage === 'error') {
+        showNotification('ERROR', `Update failed: ${payload.message ?? 'unknown error'}`);
+      }
+    });
+    return unsubscribe;
+  }, [showNotification]);
+
   // --- Effects ---
 
   // Sync multi-adapter settings with stockDataService on mount and when changed

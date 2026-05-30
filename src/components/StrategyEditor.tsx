@@ -377,7 +377,7 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({
              )}
              {pythonStatus === 'disconnected' && (
                <div className="text-[9px] text-gray-600 bg-[#1a1a1a] p-1.5 border border-[#333]">
-                 <code className="text-yellow-400/60">cd python && python main.py</code>
+                 {t('STRATEGY_ENV_NOT_READY')}
                </div>
              )}
            </div>

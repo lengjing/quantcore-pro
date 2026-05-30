@@ -34,6 +34,7 @@ import { EastMoneyAdapter } from './adapters/EastMoneyAdapter';
 import { BaoStockAdapter } from './adapters/BaoStockAdapter';
 import { NeteaseAdapter } from './adapters/NeteaseAdapter';
 import { YahooAdapter } from './adapters/YahooAdapter';
+import { TongdaxinAdapter } from './adapters/TongdaxinAdapter';
 
 // Default stock symbols exposed to the scanner / watchlist.
 export const DEFAULT_STOCK_SYMBOLS = [
@@ -82,6 +83,7 @@ class StockDataService {
     this.adapters.set('baostock', new BaoStockAdapter());
     this.adapters.set('netease', new NeteaseAdapter());
     this.adapters.set('yahoo', new YahooAdapter());
+    this.adapters.set('tongdaxin', new TongdaxinAdapter());
   }
 
   /** ID of the currently active adapter. Defaults to EastMoney (browser-compatible, supports adjustment). */

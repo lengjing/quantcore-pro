@@ -4,7 +4,7 @@
  * Maintains a Socket.IO connection to the local Python backend (port 5000)
  * for real-time A-share quote streaming.
  *
- * Requires: the Python backend running — `cd python && python main.py`
+ * Requires: the Python trading backend on port 5000 (started automatically by Electron).
  */
 
 import { io, Socket } from 'socket.io-client';

@@ -8,8 +8,6 @@ import type { AIAction, AISettings, ToolUseEvent } from '../../types';
 import type { CustomSectorDef } from '../../data/sectors';
 import { sendFreeClaudeChatMessage, generateStrategyCode as generateFreeClaudeStrategyCode } from './freeClaudeService';
 
-const BACKEND_URL = 'http://localhost:5000';
-
 // ---------------------------------------------------------------------------
 // Public types
 // ---------------------------------------------------------------------------
@@ -61,14 +59,9 @@ export async function generateStrategyCode(prompt: string, settings?: AISettings
 export async function fetchBackendStatus(): Promise<{
   claude: boolean;
 }> {
-  if (window.electron?.controlFreeClaude) {
-    const status = await window.electron.controlFreeClaude({ action: 'status' });
-    return { claude: Boolean(status.running) };
+  if (!window.electron?.controlFreeClaude) {
+    return { claude: false };
   }
-
-  const response = await fetch(`${BACKEND_URL}/api/ai/status`, {
-    signal: AbortSignal.timeout(3000),
-  });
-  if (!response.ok) throw new Error('Backend unreachable');
-  return response.json();
+  const status = await window.electron.controlFreeClaude({ action: 'status' });
+  return { claude: Boolean(status.running) };
 }

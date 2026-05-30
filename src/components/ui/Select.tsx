@@ -125,15 +125,15 @@ export function Select<T extends string = string>({
       {/* Trigger */}
       <button
         type="button"
-        className={`flex items-center justify-between gap-2 font-mono border border-[#333] bg-[#111] text-gray-300 hover:border-[#555] hover:text-white transition-colors outline-none focus:border-terminal-accent ${sizeClasses[size]}`}
+        className={`group flex min-w-33 items-center justify-between gap-2 font-mono border border-[#2a2a2a] bg-[#0d0d0d] text-gray-300 hover:border-terminal-accent/60 hover:bg-[#111] hover:text-gray-100 transition-colors outline-none focus:border-terminal-accent focus:bg-[#111] ${sizeClasses[size]}`}
         onClick={() => setIsOpen((prev) => !prev)}
         onKeyDown={handleKeyDown}
       >
-        <span className={selectedOption?.activeColor ?? ''}>
+        <span className={`truncate ${selectedOption?.activeColor ?? 'text-gray-200'}`}>
           {selectedOption?.label ?? placeholder}
         </span>
         <svg
-          className={`w-3 h-3 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className={`w-3 h-3 text-gray-500 group-hover:text-terminal-accent transition-transform ${isOpen ? 'rotate-180 text-terminal-accent' : ''}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -147,7 +147,7 @@ export function Select<T extends string = string>({
       {isOpen && (
         <div
           ref={listRef}
-          className="absolute z-50 mt-0.5 left-0 min-w-full border border-[#333] bg-[#111] shadow-lg max-h-48 overflow-y-auto"
+          className="absolute z-50 mt-1 left-0 min-w-full border border-[#2c2c2c] bg-[#090909] shadow-[0_14px_28px_rgba(0,0,0,0.65)] max-h-56 overflow-y-auto"
           role="listbox"
         >
           {options.map((opt, idx) => {
@@ -158,12 +158,12 @@ export function Select<T extends string = string>({
                 key={opt.value}
                 role="option"
                 aria-selected={isSelected}
-                className={`cursor-pointer font-mono transition-colors ${itemSizeClasses[size]} ${
+                className={`cursor-pointer font-mono flex items-center justify-between gap-2 transition-colors border-l-2 ${itemSizeClasses[size]} ${
                   isFocused
-                    ? 'bg-[#094771] text-white'
+                    ? 'bg-terminal-accent/15 text-terminal-accent border-terminal-accent'
                     : isSelected
-                      ? 'bg-[#1a1a2e] text-terminal-accent'
-                      : 'text-gray-300 hover:bg-[#1a1a1a]'
+                      ? 'bg-[#1b1408] text-[#ffd089] border-terminal-accent/70'
+                      : 'text-gray-300 border-transparent hover:bg-[#141414] hover:text-gray-100'
                 }`}
                 onMouseEnter={() => setFocusedIndex(idx)}
                 onMouseDown={(e) => {
@@ -172,7 +172,8 @@ export function Select<T extends string = string>({
                   setIsOpen(false);
                 }}
               >
-                {opt.label}
+                <span>{opt.label}</span>
+                {isSelected && <span className="text-[10px] text-terminal-accent">●</span>}
               </div>
             );
           })}

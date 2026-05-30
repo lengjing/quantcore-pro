@@ -78,14 +78,15 @@ function readPublishUrl(): string {
 }
 
 let mainWindow: BrowserWindow | null = null;
+let pendingUpdateVersion: string | null = null;
 
 type FreeClaudeControlAction = 'start' | 'stop' | 'status';
 
 interface FreeClaudeConfig {
-    provider?: FreeClaudeProviderId;
-    apiKey?: string;
-    model?: string;
-    port?: number;
+    provider: FreeClaudeProviderId;
+    apiKey: string;
+    model: string;
+    port: number;
 }
 
 interface FreeClaudeState {
@@ -226,11 +227,17 @@ function stopFreeClaudeServer(): { ok: boolean; message: string } {
     return { ok: true, message: 'free-claude-code stopped' };
 }
 
-async function ensureFreeClaudeServer(config?: FreeClaudeConfig): Promise<void> {
-    const port = Number(config?.port ?? FREE_CLAUDE_PORT);
-    const provider = config?.provider ?? 'deepseek';
-    const model = normalizeModelRef(provider, config?.model || 'deepseek-chat');
-    const apiKey = resolveProviderKey(provider, config?.apiKey);
+async function ensureFreeClaudeServer(config?: Partial<FreeClaudeConfig>): Promise<void> {
+    const resolved: FreeClaudeConfig = {
+        provider: config?.provider ?? 'deepseek',
+        apiKey: config?.apiKey ?? '',
+        model: config?.model ?? 'deepseek/deepseek-chat',
+        port: Number(config?.port ?? FREE_CLAUDE_PORT),
+    };
+    const port = resolved.port;
+    const provider = resolved.provider;
+    const model = normalizeModelRef(provider, resolved.model);
+    const apiKey = resolveProviderKey(provider, resolved.apiKey);
 
     if (!apiKey && PROVIDER_CREDENTIAL_ENV[provider]) {
         throw new Error(`${PROVIDER_CREDENTIAL_ENV[provider]} is missing (set env or put key in test file)`);
@@ -310,55 +317,173 @@ async function ensureFreeClaudeServer(config?: FreeClaudeConfig): Promise<void> 
     await waitForFreeClaudeReady();
 }
 
-function extractMessageText(payload: unknown): string {
-    const data = payload as {
-        content?: Array<{ type?: string; text?: string }>;
-        error?: { message?: string };
-    };
-    const textParts = (data?.content || [])
-        .filter((part) => part?.type === 'text' && typeof part?.text === 'string')
-        .map((part) => part.text || '');
+// ── Trading Python backend (:5000) ───────────────────────────────────────────
 
-    if (textParts.length > 0) {
-        return textParts.join('\n').trim();
-    }
+const TRADING_BACKEND_PORT = Number(process.env.TRADING_BACKEND_PORT || 5000);
 
-    if (data?.error?.message) {
-        throw new Error(data.error.message);
-    }
-
-    return '';
+interface TradingBackendState {
+    process: ChildProcessWithoutNullStreams | null;
+    running: boolean;
+    port: number;
+    output: string[];
+    lastError: string | null;
 }
 
-function extractMessageTextFromSse(raw: string): string {
-    const pieces: string[] = [];
-    const lines = raw.split(/\r?\n/);
+const tradingBackendState: TradingBackendState = {
+    process: null,
+    running: false,
+    port: TRADING_BACKEND_PORT,
+    output: [],
+    lastError: null,
+};
 
-    for (const line of lines) {
-        if (!line.startsWith('data:')) {
-            continue;
+function pushTradingBackendLog(line: string) {
+    tradingBackendState.output.push(line);
+    if (tradingBackendState.output.length > 250) {
+        tradingBackendState.output = tradingBackendState.output.slice(-250);
+    }
+    console.log(`[trading-backend] ${line}`);
+}
+
+function tradingBackendBaseUrl(): string {
+    return `http://127.0.0.1:${tradingBackendState.port}`;
+}
+
+function getBundledPythonRuntimeRoot(): string {
+    return path.join(process.resourcesPath, 'python-runtime');
+}
+
+function getDevPythonRuntimeRoot(): string {
+    return path.join(getProjectRoot(), 'runtime', 'python');
+}
+
+function resolveEmbeddedPythonBin(runtimeRoot: string): string | null {
+    const winBin = path.join(runtimeRoot, 'venv', 'Scripts', 'python.exe');
+    const unixBin = path.join(runtimeRoot, 'venv', 'bin', 'python3');
+    if (process.platform === 'win32' && fs.existsSync(winBin)) {
+        return winBin;
+    }
+    if (fs.existsSync(unixBin)) {
+        return unixBin;
+    }
+    return null;
+}
+
+function resolveTradingBackendLaunch(): { command: string; args: string[]; cwd: string } {
+    const devRuntime = getDevPythonRuntimeRoot();
+    const bundledRuntime = getBundledPythonRuntimeRoot();
+    const useBundled = !isDev && fs.existsSync(bundledRuntime);
+
+    if (useBundled) {
+        const pythonBin = resolveEmbeddedPythonBin(bundledRuntime);
+        const appCwd = path.join(bundledRuntime, 'app');
+        if (!pythonBin || !fs.existsSync(appCwd)) {
+            throw new Error(`Bundled Python runtime incomplete: ${bundledRuntime}`);
         }
-        const jsonPart = line.slice(5).trim();
-        if (!jsonPart || jsonPart === '[DONE]') {
-            continue;
-        }
-        try {
-            const event = JSON.parse(jsonPart) as {
-                type?: string;
-                delta?: { type?: string; text?: string };
-                content_block?: { type?: string; text?: string };
-            };
-            if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta' && event.delta.text) {
-                pieces.push(event.delta.text);
-            } else if (event.type === 'content_block_start' && event.content_block?.type === 'text' && event.content_block.text) {
-                pieces.push(event.content_block.text);
-            }
-        } catch {
-            // ignore malformed SSE data lines
-        }
+        return {
+            command: pythonBin,
+            args: ['main.py'],
+            cwd: appCwd,
+        };
     }
 
-    return pieces.join('').trim();
+    const devPython = resolveEmbeddedPythonBin(devRuntime);
+    const devAppCwd = path.join(getProjectRoot(), 'python');
+    if (devPython && fs.existsSync(devAppCwd)) {
+        return {
+            command: devPython,
+            args: ['main.py'],
+            cwd: devAppCwd,
+        };
+    }
+
+    const fallbackPython = process.platform === 'win32' ? 'python' : 'python3';
+    if (!fs.existsSync(devAppCwd)) {
+        throw new Error(`Trading backend source not found: ${devAppCwd}`);
+    }
+    return {
+        command: fallbackPython,
+        args: ['main.py'],
+        cwd: devAppCwd,
+    };
+}
+
+async function waitForTradingBackendReady(timeoutMs = 30000): Promise<void> {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+        try {
+            const res = await fetch(`${tradingBackendBaseUrl()}/health`);
+            if (res.ok) {
+                return;
+            }
+        } catch {
+            // ignore until timeout
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    throw new Error('Trading backend did not become ready in time');
+}
+
+function stopTradingBackendServer(): { ok: boolean; message: string } {
+    if (!tradingBackendState.process) {
+        tradingBackendState.running = false;
+        return { ok: true, message: 'Trading backend is not running' };
+    }
+
+    try {
+        tradingBackendState.process.kill();
+    } catch {
+        // ignore kill errors
+    }
+
+    tradingBackendState.process = null;
+    tradingBackendState.running = false;
+    return { ok: true, message: 'Trading backend stopped' };
+}
+
+async function ensureTradingBackendServer(): Promise<void> {
+    if (tradingBackendState.running && tradingBackendState.process) {
+        return;
+    }
+
+    stopTradingBackendServer();
+
+    const launch = resolveTradingBackendLaunch();
+    const env = {
+        ...process.env,
+        TRADING_BACKEND_PORT: String(tradingBackendState.port),
+        TRADING_BACKEND_HOST: '127.0.0.1',
+    };
+
+    pushTradingBackendLog(`starting with ${launch.command} ${launch.args.join(' ')} cwd=${launch.cwd}`);
+
+    const child = spawn(launch.command, launch.args, {
+        cwd: launch.cwd,
+        env,
+        shell: false,
+        windowsHide: true,
+    });
+
+    tradingBackendState.process = child;
+    tradingBackendState.running = true;
+    tradingBackendState.lastError = null;
+
+    child.stdout.on('data', (chunk) => {
+        pushTradingBackendLog(`[stdout] ${String(chunk).trim()}`);
+    });
+    child.stderr.on('data', (chunk) => {
+        pushTradingBackendLog(`[stderr] ${String(chunk).trim()}`);
+    });
+    child.on('exit', (code, signal) => {
+        tradingBackendState.running = false;
+        tradingBackendState.process = null;
+        const reason = `exited (code=${code ?? 'null'}, signal=${signal ?? 'null'})`;
+        tradingBackendState.lastError = reason;
+        pushTradingBackendLog(`[exit] ${reason}`);
+    });
+
+    await waitForTradingBackendReady();
+    pushTradingBackendLog(`ready at ${tradingBackendBaseUrl()}`);
 }
 
 ipcMain.handle('free-claude-control', async (_event, payload?: { action?: FreeClaudeControlAction; config?: FreeClaudeConfig }) => {
@@ -415,197 +540,6 @@ ipcMain.handle('free-claude-control', async (_event, payload?: { action?: FreeCl
     };
 });
 
-ipcMain.handle(
-    'free-claude-chat',
-    async (
-        _event,
-        payload: {
-            provider?: FreeClaudeProviderId;
-            messages: Array<{ role: 'user' | 'assistant'; content: string }>;
-            config?: FreeClaudeConfig;
-            maxTokens?: number;
-            temperature?: number;
-        },
-    ) => {
-        await ensureFreeClaudeServer(payload?.config);
-
-        const response = await fetch(`${freeClaudeBaseUrl()}/v1/messages`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': 'freecc',
-                'anthropic-version': '2023-06-01',
-            },
-            body: JSON.stringify({
-                model: payload?.config?.model || freeClaudeState.model || 'deepseek/deepseek-chat',
-                max_tokens: payload?.maxTokens ?? 1024,
-                temperature: payload?.temperature ?? 0.2,
-                stream: false,
-                messages: payload.messages || [],
-            }),
-        });
-
-        const raw = await response.text();
-        let parsed: unknown = null;
-        try {
-            parsed = JSON.parse(raw);
-        } catch {
-            // ignore JSON parse error and use text fallback
-        }
-
-        if (!response.ok) {
-            const errText = (parsed as { error?: { message?: string } })?.error?.message || raw || `HTTP ${response.status}`;
-            throw new Error(errText);
-        }
-
-        let text = '';
-        if (parsed) {
-            text = extractMessageText(parsed);
-        }
-        if (!text) {
-            text = extractMessageTextFromSse(raw);
-        }
-        if (!text && !parsed) {
-            text = raw;
-        }
-        return {
-            ok: true,
-            message: text || 'Empty response from free-claude-code',
-            raw: parsed || raw,
-            model: payload?.config?.model || freeClaudeState.model,
-        };
-    },
-);
-
-ipcMain.on(
-    'free-claude-chat-stream',
-    async (
-        event,
-        payload: {
-            requestId: string;
-            provider?: FreeClaudeProviderId;
-            messages: Array<{ role: 'user' | 'assistant'; content: string }>;
-            config?: FreeClaudeConfig;
-            maxTokens?: number;
-            temperature?: number;
-        },
-    ) => {
-        const requestId = payload.requestId;
-        try {
-            await ensureFreeClaudeServer(payload?.config);
-            const response = await fetch(`${freeClaudeBaseUrl()}/v1/messages`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': 'freecc',
-                    'anthropic-version': '2023-06-01',
-                },
-                body: JSON.stringify({
-                    model: payload?.config?.model || freeClaudeState.model,
-                    max_tokens: payload?.maxTokens ?? 1024,
-                    temperature: payload?.temperature ?? 0.2,
-                    stream: true,
-                    messages: payload.messages || [],
-                }),
-            });
-
-            if (!response.ok) {
-                const raw = await response.text();
-                event.sender.send('free-claude-chat-stream-error', {
-                    requestId,
-                    error: raw || `HTTP ${response.status}`,
-                });
-                return;
-            }
-
-            if (!response.body) {
-                const raw = await response.text();
-                const text = extractMessageTextFromSse(raw);
-                event.sender.send('free-claude-chat-stream-done', {
-                    requestId,
-                    ok: true,
-                    message: text || raw || 'Empty response from free-claude-code',
-                    raw,
-                    model: payload?.config?.model || freeClaudeState.model,
-                });
-                return;
-            }
-
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder('utf-8');
-            let buffer = '';
-            let fullText = '';
-
-            const emitDelta = (delta: string) => {
-                if (!delta) return;
-                fullText += delta;
-                event.sender.send('free-claude-chat-stream-delta', {
-                    requestId,
-                    delta,
-                    message: fullText,
-                });
-            };
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) {
-                    break;
-                }
-                buffer += decoder.decode(value, { stream: true });
-                const chunks = buffer.split(/\r?\n\r?\n/);
-                buffer = chunks.pop() || '';
-
-                for (const chunk of chunks) {
-                    const lines = chunk.split(/\r?\n/);
-                    for (const line of lines) {
-                        if (!line.startsWith('data:')) {
-                            continue;
-                        }
-                        const jsonPart = line.slice(5).trim();
-                        if (!jsonPart || jsonPart === '[DONE]') {
-                            continue;
-                        }
-                        try {
-                            const eventData = JSON.parse(jsonPart) as {
-                                type?: string;
-                                delta?: { type?: string; text?: string };
-                                content_block?: { type?: string; text?: string };
-                                message?: { content?: Array<{ type?: string; text?: string }> };
-                            };
-                            if (eventData.type === 'content_block_delta' && eventData.delta?.type === 'text_delta') {
-                                emitDelta(eventData.delta.text || '');
-                            } else if (eventData.type === 'content_block_start' && eventData.content_block?.type === 'text') {
-                                emitDelta(eventData.content_block.text || '');
-                            } else if (eventData.message?.content) {
-                                const textPieces = eventData.message.content
-                                    .filter((part) => part.type === 'text')
-                                    .map((part) => part.text || '')
-                                    .join('');
-                                emitDelta(textPieces);
-                            }
-                        } catch {
-                            // ignore malformed SSE data lines
-                        }
-                    }
-                }
-            }
-
-            event.sender.send('free-claude-chat-stream-done', {
-                requestId,
-                ok: true,
-                message: fullText.trim() || 'Empty response from free-claude-code',
-                raw: null,
-                model: payload?.config?.model || freeClaudeState.model,
-            });
-        } catch (error) {
-            event.sender.send('free-claude-chat-stream-error', {
-                requestId,
-                error: error instanceof Error ? error.message : String(error),
-            });
-        }
-    },
-);
-
 // ── Auto-updater configuration ──────────────────────────────────────────────
 autoUpdater.autoDownload = true;
 autoUpdater.autoInstallOnAppQuit = true;
@@ -621,34 +555,22 @@ if (!isDev) {
 }
 
 autoUpdater.on('update-available', (info) => {
-    if (!mainWindow) return;
-    dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Update Available',
-        message: `A new version (${info.version}) is available and will be downloaded in the background.`,
-        buttons: ['OK'],
+    mainWindow?.webContents.send('updater-status', {
+        stage: 'available',
+        version: info.version,
     });
 });
 autoUpdater.on('update-downloaded', (info) => {
-    if (!mainWindow) return;
-    dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Update Ready',
-        message: `Version ${info.version} has been downloaded. Restart to apply the update.`,
-        buttons: ['Restart Now', 'Later'],
-    }).then((result) => {
-        if (result.response === 0) {
-            autoUpdater.quitAndInstall();
-        }
+    pendingUpdateVersion = info.version;
+    mainWindow?.webContents.send('updater-status', {
+        stage: 'ready',
+        version: info.version,
     });
 });
 autoUpdater.on('error', (err) => {
-    if (!mainWindow) return;
-    dialog.showMessageBox(mainWindow, {
-        type: 'error',
-        title: 'Update Error',
-        message: `Failed to check for updates: ${err.message}`,
-        buttons: ['OK'],
+    mainWindow?.webContents.send('updater-status', {
+        stage: 'error',
+        message: err.message,
     });
 });
 
@@ -695,7 +617,13 @@ ipcMain.on('window-maximize', () => {
         mainWindow?.maximize();
     }
 });
-ipcMain.on('window-close', () => mainWindow?.close());
+ipcMain.on('window-close', () => {
+    if (pendingUpdateVersion) {
+        autoUpdater.quitAndInstall(true, true);
+        return;
+    }
+    mainWindow?.close();
+});
 ipcMain.handle('window-is-maximized', () => mainWindow?.isMaximized() ?? false);
 
 // ── Menu action IPC handlers ────────────────────────────────────────────────
@@ -709,11 +637,15 @@ ipcMain.on('menu-check-updates', () => {
             buttons: ['OK'],
         });
     } else {
-        autoUpdater.checkForUpdatesAndNotify();
+        autoUpdater.checkForUpdates();
     }
 });
 ipcMain.on('menu-restart-to-update', () => {
-    autoUpdater.quitAndInstall();
+    if (pendingUpdateVersion) {
+        autoUpdater.quitAndInstall(true, true);
+    } else {
+        autoUpdater.checkForUpdates();
+    }
 });
 ipcMain.on('menu-open-devtools', () => mainWindow?.webContents.toggleDevTools());
 ipcMain.on('menu-reload', () => mainWindow?.reload());
@@ -784,14 +716,19 @@ ipcMain.handle('get-system-metrics', () => {
 
 app.on('ready', () => {
     createWindow();
+    ensureTradingBackendServer().catch((error) => {
+        tradingBackendState.lastError = error instanceof Error ? error.message : String(error);
+        pushTradingBackendLog(`startup failed: ${tradingBackendState.lastError}`);
+    });
     // Auto-check for updates in production
     if (!isDev) {
-        setTimeout(() => autoUpdater.checkForUpdatesAndNotify(), 5000);
+        setTimeout(() => autoUpdater.checkForUpdates(), 5000);
     }
 });
 
 app.on('window-all-closed', () => {
     stopFreeClaudeServer();
+    stopTradingBackendServer();
     if (process.platform !== 'darwin') {
         app.quit();
     }

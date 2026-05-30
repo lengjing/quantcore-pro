@@ -36,3 +36,6 @@ package-lock.json
 # free-claude runtime build artifacts
 runtime/free-claude-code/*.spec
 runtime/free-claude-code/build/
+runtime/python/
+
+__pycache__/

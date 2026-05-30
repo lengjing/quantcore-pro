@@ -28,6 +28,7 @@ const STOCK_ADAPTERS_BASE = [
   { value: 'baostock',  labelEN: 'BaoStock',   labelCN: 'BaoStock', activeColor: 'text-green-400' },
   { value: 'netease',   labelEN: 'NetEase',    labelCN: '网易财经', activeColor: 'text-purple-400' },
   { value: 'yahoo',     labelEN: 'Yahoo',      labelCN: 'Yahoo财经', activeColor: 'text-indigo-400' },
+  { value: 'tongdaxin', labelEN: 'Tongdaxin',  labelCN: '通达信',   activeColor: 'text-cyan-400' },
 ];
 
 export const SettingsView = ({ marketMode, setMarketMode, tradingMode, setTradingMode, colorScheme, setColorScheme, capMap, setCapMap, aiSettings, setAiSettings }: SettingsViewProps) => {
@@ -100,128 +101,119 @@ export const SettingsView = ({ marketMode, setMarketMode, tradingMode, setTradin
   const stockAdapterOptions: SelectOption<string>[] = STOCK_ADAPTERS;
 
   return (
-    <div className="flex h-full items-center justify-center overflow-auto">
-      <div className="w-full max-w-5xl p-4 md:p-6">
-        <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-          <div className="border border-[#333] bg-[#111] p-6 backdrop-blur-sm">
-            <h2 className="text-terminal-accent font-bold mb-4 uppercase tracking-widest border-b border-[#333] pb-2">{t('CONFIGURATION')}</h2>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400 text-xs">{t('SETUP_VERSION')}</span>
-                <span className="text-gray-300 text-xs font-mono">v{__APP_VERSION__}</span>
-              </div>
-
-              <div className="flex justify-between items-center gap-4">
-                <span className="text-gray-400 text-xs">{t('INTERFACE_LANGUAGE')}</span>
-                <Select
-                  options={languageOptions}
-                  value={currentLang}
-                  onChange={handleLanguageChange}
-                  size="sm"
-                />
-              </div>
-
-              <div className="flex justify-between items-center gap-4">
-                <span className="text-gray-400 text-xs">{t('DEFAULT_MARKET')}</span>
-                <Select
-                  options={marketOptions}
-                  value={marketMode}
-                  onChange={setMarketMode}
-                  size="sm"
-                />
-              </div>
-
-              <div className="flex justify-between items-center gap-4">
-                <span className="text-gray-400 text-xs">Trading Mode</span>
-                <Select
-                  options={tradingOptions}
-                  value={tradingMode}
-                  onChange={setTradingMode}
-                  size="sm"
-                />
-              </div>
-
-              <div className="flex justify-between items-center gap-4">
-                <div>
-                  <span className="text-gray-400 text-xs">{t('COLOR_SCHEME')}</span>
-                  <p className="text-gray-600 text-[10px] mt-0.5">{t('COLOR_SCHEME_HINT')}</p>
-                </div>
-                <Select
-                  options={colorSchemeOptions}
-                  value={colorScheme}
-                  onChange={setColorScheme}
-                  size="sm"
-                />
-              </div>
-
-              <div className="pt-2 border-t border-[#333]">
-                <div className="mb-2">
-                  <span className="text-gray-400 text-xs">{t('ASHARE_DATA_SOURCE')}</span>
-                </div>
-                <div className="space-y-2 pl-2 border-l-2 border-terminal-accent/30">
-                  {(Object.keys(CAPABILITY_LABELS) as AdapterCapability[]).map((cap) => (
-                    <div key={cap} className="flex justify-between items-center gap-3">
-                      <span className="text-gray-500 text-[10px] font-mono">{CAPABILITY_LABELS[cap]}</span>
-                      <Select
-                        options={stockAdapterOptions}
-                        value={capMap[cap]}
-                        onChange={(id) => handleCapChange(cap, id)}
-                        size="xs"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-[#333]">
-                <button
-                  className="w-full bg-[#333] hover:bg-[#444] py-2 text-xs text-white"
-                  onClick={() => setShowResetConfirm(true)}
-                >
-                  {t('RESET_FACTORY')}
-                </button>
-              </div>
+    <div className="h-full overflow-auto bg-[radial-gradient(circle_at_18%_18%,rgba(255,153,0,0.1),transparent_30%),radial-gradient(circle_at_78%_8%,rgba(255,153,0,0.06),transparent_26%),linear-gradient(180deg,#050505,#000)]">
+      <div className="mx-auto w-full max-w-6xl p-4 md:p-6">
+        <div className="mb-4 border border-[#2a2a2a] bg-[#090909]/95 px-4 py-3 shadow-[0_0_0_1px_rgba(255,153,0,0.08)_inset]">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-terminal-accent font-bold text-sm uppercase tracking-[0.2em]">{t('CONFIGURATION')}</h2>
+              <p className="mt-1 text-[10px] text-gray-500">System control surface for market, data adapters, and AI runtime.</p>
+            </div>
+            <div className="rounded border border-[#2c2c2c] bg-black px-3 py-1.5 text-right">
+              <div className="text-[9px] text-gray-600 uppercase tracking-widest">{t('SETUP_VERSION')}</div>
+              <div className="text-xs text-terminal-accent font-mono">v{__APP_VERSION__}</div>
             </div>
           </div>
+        </div>
 
-          <div className="border border-[#333] bg-[#111] p-6 backdrop-blur-sm space-y-4">
-            <h3 className="text-terminal-accent font-bold uppercase tracking-widest border-b border-[#333] pb-2">AI Runtime</h3>
+        <div className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
+          <section className="border border-[#2a2a2a] bg-[#0a0a0a] p-4 md:p-5 shadow-[0_0_0_1px_rgba(255,153,0,0.05)_inset]">
+            <div className="mb-3 flex items-center justify-between border-b border-[#222] pb-2">
+              <h3 className="text-[11px] uppercase tracking-[0.22em] text-terminal-accent">Terminal Preferences</h3>
+              <span className="text-[10px] text-gray-600">Local profile</span>
+            </div>
+
             <div className="space-y-3">
-              <div className="flex justify-between items-center gap-4">
-                <span className="text-gray-400 text-xs">Provider</span>
-                <Select
-                  options={providerOptions}
-                  value={aiSettings.provider}
-                  onChange={handleProviderChange}
-                  size="sm"
-                />
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded border border-[#1d1d1d] bg-black/60 px-3 py-2.5">
+                <span className="text-gray-400 text-xs">{t('INTERFACE_LANGUAGE')}</span>
+                <Select options={languageOptions} value={currentLang} onChange={handleLanguageChange} size="sm" />
               </div>
 
-              <div className="flex justify-between items-center gap-4">
-                <span className="text-gray-400 text-xs">Provider Label</span>
-                <span className="text-gray-300 text-[11px] font-mono">{getProviderLabel(aiSettings.provider)}</span>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded border border-[#1d1d1d] bg-black/60 px-3 py-2.5">
+                <span className="text-gray-400 text-xs">{t('DEFAULT_MARKET')}</span>
+                <Select options={marketOptions} value={marketMode} onChange={setMarketMode} size="sm" />
               </div>
 
-              <div className="flex justify-between items-center gap-4">
-                <span className="text-gray-400 text-xs">API Key</span>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded border border-[#1d1d1d] bg-black/60 px-3 py-2.5">
+                <span className="text-gray-400 text-xs">Trading Mode</span>
+                <Select options={tradingOptions} value={tradingMode} onChange={setTradingMode} size="sm" />
+              </div>
+
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded border border-[#1d1d1d] bg-black/60 px-3 py-2.5">
+                <div>
+                  <span className="text-gray-400 text-xs">{t('COLOR_SCHEME')}</span>
+                  <p className="mt-0.5 text-[10px] text-gray-600">{t('COLOR_SCHEME_HINT')}</p>
+                </div>
+                <Select options={colorSchemeOptions} value={colorScheme} onChange={setColorScheme} size="sm" />
+              </div>
+            </div>
+
+            <div className="mt-5 border-t border-[#222] pt-4">
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-[11px] uppercase tracking-[0.2em] text-terminal-accent">{t('ASHARE_DATA_SOURCE')}</span>
+                <span className="text-[10px] text-gray-600">Capability routing</span>
+              </div>
+
+              <div className="space-y-2 rounded border border-[#1d1d1d] bg-black/60 p-3">
+                {(Object.keys(CAPABILITY_LABELS) as AdapterCapability[]).map((cap) => (
+                  <div key={cap} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded border border-[#1a1a1a] bg-[#0b0b0b] px-2.5 py-2">
+                    <span className="text-[10px] font-mono uppercase tracking-wide text-gray-500">{CAPABILITY_LABELS[cap]}</span>
+                    <Select
+                      options={stockAdapterOptions}
+                      value={capMap[cap]}
+                      onChange={(id) => handleCapChange(cap, id)}
+                      size="xs"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5 border-t border-[#222] pt-4">
+              <button
+                className="w-full border border-[#3d1f12] bg-[#1a0d05] py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#ffb278] hover:border-[#8a421e] hover:bg-[#2a1508]"
+                onClick={() => setShowResetConfirm(true)}
+              >
+                {t('RESET_FACTORY')}
+              </button>
+            </div>
+          </section>
+
+          <section className="border border-[#2a2a2a] bg-[#0a0a0a] p-4 md:p-5 shadow-[0_0_0_1px_rgba(255,153,0,0.05)_inset]">
+            <div className="mb-3 flex items-center justify-between border-b border-[#222] pb-2">
+              <h3 className="text-[11px] uppercase tracking-[0.22em] text-terminal-accent">AI Runtime</h3>
+              <span className="text-[10px] text-gray-600">free-claude-code</span>
+            </div>
+
+            <div className="space-y-3">
+              <div className="rounded border border-[#1d1d1d] bg-black/60 px-3 py-2.5">
+                <div className="mb-1.5 text-[10px] uppercase tracking-wide text-gray-500">Provider</div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[11px] text-gray-300 font-mono truncate">{getProviderLabel(aiSettings.provider)}</span>
+                  <Select options={providerOptions} value={aiSettings.provider} onChange={handleProviderChange} size="sm" />
+                </div>
+              </div>
+
+              <div className="rounded border border-[#1d1d1d] bg-black/60 px-3 py-2.5">
+                <div className="mb-1.5 text-[10px] uppercase tracking-wide text-gray-500">API Key</div>
                 <input
                   type="password"
                   value={aiSettings.apiKey}
                   onChange={(e) => setAiSettings((prev) => normalizeAiSettings({ ...prev, apiKey: e.target.value }))}
                   placeholder={currentProvider.credentialEnv ?? 'Optional local runtime key'}
-                  className="w-60 bg-[#0c0c0c] border border-[#333] px-2 py-1.5 text-[11px] text-gray-200 outline-none focus:border-terminal-accent"
+                  className="w-full bg-[#0b0b0b] border border-[#2b2b2b] px-2.5 py-2 text-[11px] text-gray-200 outline-none focus:border-terminal-accent font-mono"
                 />
               </div>
 
-              <div className="flex justify-between items-center gap-4">
-                <span className="text-gray-400 text-xs">Model</span>
+              <div className="rounded border border-[#1d1d1d] bg-black/60 px-3 py-2.5">
+                <div className="mb-1.5 text-[10px] uppercase tracking-wide text-gray-500">Model</div>
                 <input
                   list="free-claude-model-hints"
                   type="text"
                   value={aiSettings.model}
                   onChange={(e) => setAiSettings((prev) => normalizeAiSettings({ ...prev, model: e.target.value }))}
                   placeholder={getDefaultModel(aiSettings.provider)}
-                  className="w-60 bg-[#0c0c0c] border border-[#333] px-2 py-1.5 text-[11px] text-gray-200 outline-none focus:border-terminal-accent font-mono"
+                  className="w-full bg-[#0b0b0b] border border-[#2b2b2b] px-2.5 py-2 text-[11px] text-gray-200 outline-none focus:border-terminal-accent font-mono"
                 />
                 <datalist id="free-claude-model-hints">
                   {[getDefaultModel(aiSettings.provider), ...modelHints].map((hint) => (
@@ -231,10 +223,10 @@ export const SettingsView = ({ marketMode, setMarketMode, tradingMode, setTradin
               </div>
 
               <p className="text-[10px] text-gray-600 leading-relaxed">
-                Settings are persisted locally. Packaged builds ignore .env and use runtime defaults plus your saved values.
+                Settings are stored locally. Production builds use runtime defaults and your saved provider/model/key.
               </p>
             </div>
-          </div>
+          </section>
         </div>
       </div>
 

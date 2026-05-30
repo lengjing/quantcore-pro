@@ -3,8 +3,8 @@
  *
  * Full-screen AI chat interface.
  *
- * AI assistant view backed by the local free-claude-code proxy runtime
- * through Electron IPC.
+ * AI assistant view backed by the local free-claude-code runtime.
+ * Runtime lifecycle is managed by Electron; chat uses HTTP to the local free-claude proxy.
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -17,11 +17,9 @@ import {
   CheckCircle,
   BookmarkPlus,
   LayoutGrid,
-  AlertCircle,
   Trash2,
   Zap,
   Sparkles,
-  MessageSquare,
   Search,
   TrendingUp,
   Database,
@@ -387,27 +385,32 @@ export const AIAssistantView = ({
     <div className="flex h-full flex-col bg-black font-mono">
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="shrink-0 flex items-center justify-between px-3 py-1.5 bg-[#0a0a0a] border-b border-terminal-border">
+      <div className="shrink-0 flex items-center justify-between px-3 py-2 bg-[linear-gradient(90deg,#080808,#0d0a06_38%,#080808)] border-b border-terminal-border">
         <div className="flex items-center gap-2">
-          <Bot size={14} className="text-terminal-accent" />
-          <span className="text-terminal-accent font-bold text-xs tracking-widest uppercase">
+          <div className="flex h-6 w-6 items-center justify-center rounded-sm border border-terminal-accent/30 bg-terminal-accent/10">
+            <Bot size={13} className="text-terminal-accent" />
+          </div>
+          <span className="text-terminal-accent font-bold text-xs tracking-[0.18em] uppercase">
             {t('AI_ASSISTANT')}
           </span>
-          <span className="text-[9px] text-gray-600 ml-1 flex items-center gap-1">
+          <span className="text-[9px] text-gray-500 ml-1 hidden md:flex items-center gap-1">
             <BrainCircuit size={9} />
-            {getProviderLabel(aiSettings.provider)} · {aiSettings.model || 'default'}
+            {getProviderLabel(aiSettings.provider)}
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          {/* Runtime badge */}
-          <div className="flex items-center gap-1.5 text-[9px] text-gray-500 border border-[#222] px-2 py-0.5">
+        <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-1.5 text-[9px] text-gray-500 border border-[#2a2a2a] bg-black/70 px-2 py-0.5">
             <Sparkles size={9} className="text-terminal-accent/60" />
             FREE-CLAUDE
+          </div>
+          <div className="hidden sm:flex items-center gap-1.5 text-[9px] text-gray-500 border border-[#2a2a2a] bg-black/70 px-2 py-0.5">
+            <BrainCircuit size={9} className="text-terminal-accent/70" />
+            {aiSettings.model || 'default'}
           </div>
           {messages.length > 0 && (
             <button
               onClick={handleClear}
-              className="flex items-center gap-1 text-[9px] text-gray-600 hover:text-gray-300 px-1.5 py-0.5 border border-[#222] hover:border-[#444]"
+              className="flex items-center gap-1 text-[9px] text-gray-500 hover:text-gray-200 px-2 py-0.5 border border-[#262626] hover:border-[#4a4a4a]"
               title={t('AI_CLEAR_TITLE')}
             >
               <Trash2 size={9} />
@@ -433,8 +436,7 @@ export const AIAssistantView = ({
               </div>
             </div>
 
-            {/* Capabilities overview */}
-            <div className="grid grid-cols-3 gap-3 mt-2 max-w-2xl w-full">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2 max-w-2xl w-full">
               <div className="border border-[#222] bg-[#0a0a0a] p-3 text-center">
                 <Search size={16} className="text-terminal-accent/60 mx-auto mb-1.5" />
                 <div className="text-[10px] text-gray-400 font-bold uppercase">{t('AI_CAP_RESEARCH' as any)}</div>
@@ -452,7 +454,7 @@ export const AIAssistantView = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-1.5 mt-2 max-w-md w-full">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-2 max-w-md w-full">
               {getSuggestions(t).map((s) => (
                 <button
                   key={s}
@@ -476,14 +478,14 @@ export const AIAssistantView = ({
       </div>
 
       {/* ── Input area ──────────────────────────────────────────────────── */}
-      <div className="shrink-0 border-t border-terminal-border bg-[#0a0a0a] px-3 py-2">
-        <div className="flex items-center justify-between mb-2 text-[9px] text-gray-500">
-          <span>{t('AI_HINT')}</span>
-          <span className="px-2 py-0.5 border border-[#222] uppercase tracking-widest">
-            {getProviderLabel(aiSettings.provider)}
+      <div className="shrink-0 border-t border-terminal-border bg-[#070707] px-3 py-2.5">
+        <div className="mb-2 flex items-center justify-between text-[9px] text-gray-500">
+          <span className="tracking-wide">{t('AI_HINT')}</span>
+          <span className="px-2 py-0.5 border border-[#2a2a2a] bg-black/70 uppercase tracking-widest text-gray-400">
+            {input.trim().length} chars
           </span>
         </div>
-        <div className="flex gap-2 items-end">
+        <div className="flex items-stretch gap-2">
           <textarea
             ref={inputRef}
             value={input}
@@ -491,21 +493,22 @@ export const AIAssistantView = ({
             onKeyDown={handleKeyDown}
             disabled={isLoading}
             placeholder={t('AI_INPUT_PLACEHOLDER')}
-            className="flex-1 bg-[#111] border border-[#333] focus:border-terminal-accent/60 outline-none resize-none text-[11px] font-mono text-gray-200 placeholder-gray-700 px-2 py-1.5 min-h-[36px] max-h-[120px] custom-scrollbar"
+            className="flex-1 bg-[#0c0c0c] border border-[#2f2f2f] hover:border-[#4a4a4a] focus:border-terminal-accent/70 outline-none resize-none text-[11px] leading-5 font-mono text-gray-100 placeholder:text-gray-600 px-3 py-2 min-h-10 max-h-33 custom-scrollbar"
             rows={1}
             style={{ fieldSizing: 'content' } as React.CSSProperties}
           />
           <button
             onClick={handleSend}
             disabled={isLoading || !input.trim()}
-            className="px-3 py-1.5 bg-terminal-accent text-black font-bold text-[10px] hover:bg-yellow-500 disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 shrink-0"
+            className="min-w-23 rounded-sm border border-[#7f4a10] bg-[linear-gradient(180deg,#ffb057,#ff9900)] text-black font-bold text-[10px] tracking-wide uppercase hover:brightness-105 disabled:opacity-35 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 px-3"
+            title={isLoading ? t('AI_PROCESSING') : t('AI_SEND')}
           >
             {isLoading ? <Loader size={11} className="animate-spin" /> : <Send size={11} />}
-            {isLoading ? t('AI_PROCESSING') : t('AI_SEND')}
+            <span className="hidden sm:inline">{isLoading ? t('AI_PROCESSING') : t('AI_SEND')}</span>
           </button>
         </div>
-        <div className="mt-1 text-[9px] text-gray-700">
-          {t('AI_HINT')}
+        <div className="mt-1.5 text-[9px] text-gray-600">
+          Shift+Enter for newline, Enter to send.
         </div>
       </div>
 
